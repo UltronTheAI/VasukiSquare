@@ -1,16 +1,33 @@
-/* VasukiSquare Design System Base CSS mapped from DESIGN.md */
+/* VasukiSquare Design System Canonical CSS mapped from DESIGN.md */
 
 :root {
+  /* Generated Color Tokens */
   --color-primary: #00ed64;
   --color-primary-deep: #00b545;
+  --color-primary-pressed: #008c34;
+  --color-on-primary: #001e2b;
   --color-brand-green: #00ed64;
   --color-brand-green-dark: #00684a;
+  --color-brand-green-mid: #00a35c;
+  --color-brand-green-soft: #c3f0d2;
   --color-brand-teal-deep: #001e2b;
   --color-brand-teal: #003d4f;
+  --color-brand-teal-mid: #00684a;
+  --color-accent-purple: #7b3ff2;
+  --color-accent-orange: #fa6e39;
+  --color-accent-pink: #f06bb8;
+  --color-accent-blue: #3d4f9f;
+  --color-semantic-warning-bg: #fff8e0;
+  --color-semantic-warning-text: #946f3f;
   --color-canvas: #ffffff;
   --color-canvas-dark: #001e2b;
   --color-surface: #f9fbfa;
+  --color-surface-soft: #f4f7f6;
+  --color-surface-feature: #e3fcef;
   --color-hairline: #e1e5e8;
+  --color-hairline-soft: #eceff1;
+  --color-hairline-strong: #c1ccd6;
+  --color-hairline-dark: #1c2d38;
   --color-ink: #001e2b;
   --color-charcoal: #1c2d38;
   --color-slate: #3d4f5b;
@@ -19,13 +36,42 @@
   --color-muted: #a8b3bc;
   --color-on-dark: #ffffff;
   --color-on-dark-muted: #a8b3bc;
-  
-  --font-display: "Euclid Circular A", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-body: "Euclid Circular A", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+
+  /* Spacing Scale */
+  --spacing-xxs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 20px;
+  --spacing-xl: 24px;
+  --spacing-xxl: 32px;
+  --spacing-xxxl: 40px;
+  --spacing-section-sm: 48px;
+  --spacing-section: 64px;
+  --spacing-section-lg: 96px;
+  --spacing-hero: 120px;
+
+  /* Radii Scale */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-xxl: 24px;
+  --radius-full: 9999px;
+
+  /* Typography Stacks */
+  --font-display: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-body: 'Inter', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-code: 'JetBrains Mono', 'Fira Code', 'Source Code Pro', monospace;
+
+  /* Exact A4 Metrics */
+  --page-width: 210mm;
+  --page-height: 297mm;
 }
 
 @page {
-  size: 210mm 297mm; /* Exact A4 dimensions */
+  size: 210mm 297mm;
   margin: 0;
 }
 
@@ -36,18 +82,21 @@
 }
 
 html, body {
-  width: 210mm;
-  height: 297mm;
+  width: var(--page-width);
+  height: var(--page-height);
   font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }
 
+/* Base Page Container */
 .page {
-  width: 210mm;
-  height: 297mm;
-  max-width: 210mm;
-  max-height: 297mm;
+  width: var(--page-width);
+  height: var(--page-height);
+  max-width: var(--page-width);
+  max-height: var(--page-height);
   overflow: hidden;
   position: relative;
   page-break-after: always;
@@ -56,31 +105,40 @@ html, body {
   flex-direction: column;
 }
 
-/* Light theme */
+/* Dual-Mode Themes */
 .page.theme-light {
   background-color: var(--color-canvas);
   color: var(--color-ink);
+  --theme-bg: var(--color-canvas);
+  --theme-text: var(--color-ink);
+  --theme-card-bg: var(--color-surface);
+  --theme-border: var(--color-hairline);
+  --theme-muted: var(--color-muted);
+  --theme-accent: var(--color-brand-green-dark);
 }
 
-/* Dark theme */
 .page.theme-dark {
   background-color: var(--color-canvas-dark);
   color: var(--color-on-dark);
+  --theme-bg: var(--color-canvas-dark);
+  --theme-text: var(--color-on-dark);
+  --theme-card-bg: var(--color-brand-teal);
+  --theme-border: var(--color-hairline-dark);
+  --theme-muted: var(--color-on-dark-muted);
+  --theme-accent: var(--color-brand-green);
 }
 
+/* Header & Footer */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--color-muted);
-  margin-bottom: 16mm;
-}
-
-.page.theme-dark .page-header {
-  color: var(--color-on-dark-muted);
+  color: var(--theme-muted);
+  margin-bottom: var(--spacing-xl);
 }
 
 .page-content {
@@ -94,41 +152,161 @@ html, body {
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: var(--color-muted);
+  color: var(--theme-muted);
   margin-top: auto;
-  padding-top: 8mm;
-  border-top: 1px solid var(--color-hairline);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--theme-border);
 }
 
-.page.theme-dark .page-footer {
-  color: var(--color-on-dark-muted);
-  border-top-color: #1c2d38;
-}
+/* ==========================================================================
+   Controlled Layouts (14 Editorial Layouts + Structural)
+   ========================================================================== */
 
-/* Chapter Opener Layout */
+/* 1. Chapter Opener (Strictly Minimal) */
 .layout-chapter_opener {
   justify-content: center;
   align-items: center;
   text-align: center;
 }
-
 .layout-chapter_opener .chapter-num {
   font-size: 14px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  color: var(--color-brand-green);
-  margin-bottom: 12px;
+  color: var(--theme-accent);
+  margin-bottom: var(--spacing-md);
 }
-
 .layout-chapter_opener .chapter-title {
-  font-size: 36px;
+  font-family: var(--font-display);
+  font-size: 40px;
   font-weight: 500;
-  line-height: 1.25;
-  margin-bottom: 24px;
+  line-height: 1.20;
+  margin-bottom: var(--spacing-xl);
 }
-
 .layout-chapter_opener .chapter-icon {
-  margin-top: 8px;
+  margin-top: var(--spacing-sm);
 }
 
+/* 2. Editorial Layout */
+.layout-editorial .content-headline {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 500;
+  margin-bottom: var(--spacing-lg);
+  color: var(--theme-text);
+}
+.layout-editorial .content-body {
+  font-size: 14px;
+  line-height: 1.6;
+  column-count: 2;
+  column-gap: var(--spacing-xl);
+}
+
+/* 3. Split Explainer */
+.layout-split_explainer {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xl);
+}
+
+/* 4. Large Number / Metric */
+.layout-large_number .stat-highlight {
+  font-family: var(--font-display);
+  font-size: 64px;
+  font-weight: 600;
+  color: var(--color-brand-green);
+  line-height: 1.1;
+  margin-bottom: var(--spacing-md);
+}
+
+/* 5. Quote Layout */
+.layout-quote blockquote {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 4px solid var(--theme-accent);
+  padding-left: var(--spacing-xl);
+  margin: var(--spacing-xxl) 0;
+}
+
+/* 6. Timeline Layout */
+.layout-timeline .timeline-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  border-left: 2px solid var(--theme-border);
+  padding-left: var(--spacing-xl);
+}
+
+/* 7. Comparison Layout */
+.layout-comparison .comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+/* 8. Diagram Focus */
+.layout-diagram_focus .diagram-frame {
+  background-color: var(--theme-card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  border: 1px solid var(--theme-border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* 9. Code Focus */
+.layout-code_focus pre {
+  background-color: var(--color-canvas-dark);
+  color: var(--color-on-dark);
+  font-family: var(--font-code);
+  font-size: 13px;
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-hairline-dark);
+  overflow-x: auto;
+}
+
+/* 10. Concept Grid */
+.layout-concept_grid .grid-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+/* 11. Research Highlight */
+.layout-research_highlight .highlight-card {
+  background-color: var(--color-surface-feature);
+  border: 2px solid var(--color-brand-green);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+}
+
+/* 12. Definition */
+.layout-definition dt {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--theme-accent);
+}
+
+/* 13. Full Bleed Statement */
+.layout-full_bleed_statement {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.layout-full_bleed_statement h1 {
+  font-size: 42px;
+  font-weight: 500;
+}
+
+/* 14. Summary */
+.layout-summary .summary-box {
+  background-color: var(--theme-card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  border: 1px solid var(--theme-border);
+}

@@ -4,12 +4,12 @@ from pathlib import Path
 from typing import Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from vasukisquare.book.models import Page
-from vasukisquare.design.icons import render_lucide_icon
+from vasukisquare.design.icons import IconColorResolver, render_lucide_icon
 from vasukisquare.design.tokens import ColorToken
 
 
 class HtmlPageRenderer:
-    """Renders Page models into standalone A4 HTML documents."""
+    """Renders Page models into standalone A4 HTML documents adhering to DESIGN.md."""
 
     def __init__(self, templates_dir: Optional[Path] = None):
         if templates_dir is None:
@@ -41,7 +41,8 @@ class HtmlPageRenderer:
         template = self.env.get_template("base.html")
         icon_svg = ""
         if page.icon_name:
-            icon_color = ColorToken.BRAND_GREEN if page.theme.value == "dark" else ColorToken.BRAND_GREEN_DARK
+            # Resolve icon color strictly from DESIGN.md tokens
+            icon_color = IconColorResolver.resolve_color(page.theme, role="primary")
             icon_svg = render_lucide_icon(name=page.icon_name, color=icon_color, size=48)
 
         rendered = template.render(
@@ -52,4 +53,3 @@ class HtmlPageRenderer:
             icon_svg=icon_svg,
         )
         return rendered
-

@@ -1,12 +1,41 @@
-"""Lucide icon handling and SVG rendering conforming to design tokens."""
+"""Lucide icon handling and tokenized color resolution mapped from DESIGN.md."""
 
 import html
 from typing import Optional
-from vasukisquare.design.tokens import ColorToken
+from vasukisquare.design.tokens import ColorToken, validate_color_token
+from vasukisquare.design.theme import Theme
+
+
+class IconColorResolver:
+    """Resolves semantic icon colors strictly from DESIGN.md tokens based on theme and role."""
+
+    @staticmethod
+    def resolve_color(theme: Theme = Theme.LIGHT, role: str = "primary") -> ColorToken:
+        """Select an optimal ColorToken for an icon given chapter theme and semantic role."""
+        if theme == Theme.DARK:
+            if role == "primary":
+                return ColorToken.BRAND_GREEN
+            elif role == "accent-purple":
+                return ColorToken.ACCENT_PURPLE
+            elif role == "accent-orange":
+                return ColorToken.ACCENT_ORANGE
+            elif role == "muted":
+                return ColorToken.ON_DARK_MUTED
+            return ColorToken.ON_DARK
+        else:
+            if role == "primary":
+                return ColorToken.BRAND_GREEN_DARK
+            elif role == "accent-purple":
+                return ColorToken.ACCENT_PURPLE
+            elif role == "accent-orange":
+                return ColorToken.ACCENT_ORANGE
+            elif role == "muted":
+                return ColorToken.MUTED
+            return ColorToken.INK
 
 
 class LucideIcon:
-    """Lucide-compatible SVG icon representation."""
+    """Lucide-compatible SVG icon representation enforcing DESIGN.md tokens."""
 
     DEFAULT_ICONS = {
         "book-open": '<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>',
@@ -19,6 +48,8 @@ class LucideIcon:
         "compass": '<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
         "globe": '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
         "code": '<polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/>',
+        "terminal": '<polyline points="4 17 10 11 4 5"/><line x1="12" x2="20" y1="19" y2="19"/>',
+        "check-circle": '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
     }
 
     def __init__(
@@ -69,4 +100,3 @@ def render_lucide_icon(
     """Convenience helper to render a Lucide icon as SVG string."""
     icon = LucideIcon(name=name, color=color, size=size, stroke_width=stroke_width)
     return icon.to_svg()
-

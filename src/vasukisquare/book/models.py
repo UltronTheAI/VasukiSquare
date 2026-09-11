@@ -2,11 +2,10 @@
 
 import re
 from datetime import datetime, timezone
-from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 from pydantic import BaseModel, Field, model_validator
-from vasukisquare.book.layout import LayoutType
+from vasukisquare.book.layout import LayoutType, VisualAnchorType
 from vasukisquare.design.theme import Theme, get_chapter_theme
 
 
@@ -19,19 +18,6 @@ def slugify(text: str) -> str:
     """Convert text to a URL/DB safe slug."""
     slug = re.sub(r"[^\w\s-]", "", text).strip().lower()
     return re.sub(r"[-\s]+", "-", slug)
-
-
-class VisualAnchorType(str, Enum):
-    """Visual layout anchor or focal element for a section or page."""
-
-    CODE = "code"
-    TABLE = "table"
-    DIAGRAM = "diagram"
-    TIMELINE = "timeline"
-    QUOTE = "quote"
-    COMPARISON = "comparison"
-    STATISTIC = "statistic"
-    TEXT = "text"
 
 
 class BookIntent(BaseModel):
@@ -180,11 +166,11 @@ class Page(BaseModel):
     id: str = Field(default_factory=generate_id)
     book_id: str
     page_number: int = Field(ge=1)
-    page_type: str = Field(default=LayoutType.TEXT_HEAVY.value)
+    page_type: str = Field(default=LayoutType.EDITORIAL.value)
     chapter_number: Optional[int] = None
     chapter_name: Optional[str] = None
     theme: Theme = Theme.LIGHT
-    layout: str = Field(default=LayoutType.TEXT_HEAVY.value)
+    layout: str = Field(default=LayoutType.EDITORIAL.value)
     previous_page_id: Optional[str] = None
     next_page_id: Optional[str] = None
     icon: Optional[str] = None
@@ -204,7 +190,7 @@ class Page(BaseModel):
         try:
             return LayoutType(self.layout)
         except ValueError:
-            return LayoutType.TEXT_HEAVY
+            return LayoutType.EDITORIAL
 
     @property
     def icon_name(self) -> Optional[str]:

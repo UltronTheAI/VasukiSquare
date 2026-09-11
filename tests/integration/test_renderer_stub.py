@@ -38,8 +38,8 @@ def test_html_renderer_content_page():
         page_number=2,
         chapter_number=2,
         chapter_name="Core Architecture",
-        page_type=LayoutType.TEXT_HEAVY.value,
-        layout=LayoutType.TEXT_HEAVY.value,
+        page_type=LayoutType.EDITORIAL.value,
+        layout=LayoutType.EDITORIAL.value,
         theme=Theme.LIGHT,
         html="<p>VasukiSquare generates deterministic documents.</p>",
     )
@@ -47,7 +47,7 @@ def test_html_renderer_content_page():
     html = renderer.render_page(page, book_title="VasukiSquare Guide", book_topic="Engineering")
 
     assert "theme-light" in html
-    assert "layout-text_heavy" in html
+    assert "layout-editorial" in html
     assert "VasukiSquare generates deterministic documents." in html
     assert "Chapter 2: Core Architecture" in html
     assert "2" in html  # page number in footer
