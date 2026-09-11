@@ -54,20 +54,26 @@ class WebpageFetcherTool(BaseTool[FetchParams, Optional[SourceDocument]]):
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         }
-        async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, headers=headers) as client:
-            resp = await client.get(params.url)
-            resp.raise_for_status()
-            raw_html = resp.text
+        try:
+            async with httpx.AsyncClient(timeout=10.0, follow_redirects=True, headers=headers) as client:
+                resp = await client.get(params.url)
+                resp.raise_for_status()
+                raw_html = resp.text
 
-        title, text = clean_html_content(raw_html)
-        if not text:
+            title, text = clean_html_content(raw_html)
+            if not text:
+                logger.info(f"[FETCH] url={params.url} status={resp.status_code} extracted_chars=0 (empty)")
+                return None
+
+            logger.info(f"[FETCH] url={params.url} status={resp.status_code} extracted_chars={len(text)}")
+            return SourceDocument(
+                url=params.url,
+                title=title,
+                source_type=params.source_type,
+                extracted_text=text[:10000],  # Limit to 10k chars per document
+                summary=text[:300] + "..." if len(text) > 300 else text,
+            )
+        except Exception as e:
+            logger.warning(f"[FETCH:FAILED] url={params.url} error={e}")
             return None
-
-        return SourceDocument(
-            url=params.url,
-            title=title,
-            source_type=params.source_type,
-            extracted_text=text[:10000],  # Limit to 10k chars per document
-            summary=text[:300] + "..." if len(text) > 300 else text,
-        )
 

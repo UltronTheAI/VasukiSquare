@@ -38,25 +38,48 @@ from vasukisquare.research.models import ResearchCorpus
 logger = logging.getLogger(__name__)
 
 
+from vasukisquare.llm.client import LLMClient, GroqGenerationError
+from vasukisquare.llm.metrics import BookGenerationMetrics
+
+logger = logging.getLogger(__name__)
+
+
 class LLMGeneratedPage(BaseModel):
     """Structured page response from LLM."""
 
     headline: str = Field(description="Page headline or key concept title")
-    lead_paragraph: str = Field(description="Substantive introductory explanation")
-    secondary_paragraph: Optional[str] = Field(default=None, description="In-depth follow-up explanation or practical context")
-    callout_title: Optional[str] = Field(default=None, description="Title for callout box")
-    callout_text: Optional[str] = Field(default=None, description="Practical tip, note, or key takeaway")
+    lead_paragraph: str = Field(description="Substantive introductory explanation teaching the core concept")
+    secondary_paragraph: Optional[str] = Field(default=None, description="In-depth follow-up explanation, architecture analysis, or practical context")
+    key_points: List[str] = Field(default_factory=list, description="2 to 4 bullet points of core principles or rules")
+    callout_title: Optional[str] = Field(default=None, description="Title for callout box (e.g. Pro Tip, Best Practice, Key Gotcha)")
+    callout_text: Optional[str] = Field(default=None, description="Actionable practical tip, note, or warning")
     callout_variant: str = Field(default="tip", description="tip, note, important, warning, or definition")
-    code_snippet: Optional[str] = Field(default=None, description="Complete, syntactically correct code snippet")
-    code_filename: Optional[str] = Field(default=None, description="Code filename e.g. main.py")
-    code_caption: Optional[str] = Field(default=None, description="Caption for the code snippet")
+    code_snippet: Optional[str] = Field(default=None, description="Complete, syntactically correct, runnable code snippet")
+    code_filename: Optional[str] = Field(default=None, description="Code filename e.g. main.py, lioran.ts, config.json")
+    code_caption: Optional[str] = Field(default=None, description="Descriptive caption for the code snippet")
+    code_language: Optional[str] = Field(default=None, description="Programming language identifier e.g. python, typescript, bash, sql")
+    diagram_mermaid: Optional[str] = Field(default=None, description="Valid Mermaid flowchart or diagram syntax (e.g. graph TD\n A-->B)")
+    diagram_caption: Optional[str] = Field(default=None, description="Caption for the architecture diagram")
+    table_caption: Optional[str] = Field(default=None, description="Caption for comparison or reference table")
+    table_columns: List[str] = Field(default_factory=list, description="Column headers for table")
+    table_rows: List[List[str]] = Field(default_factory=list, description="Row values for table (2 to 4 rows)")
+    quote_text: Optional[str] = Field(default=None, description="Authoritative quote or guiding design principle")
+    quote_author: Optional[str] = Field(default=None, description="Author or specification origin of quote")
+    cited_source_urls: List[str] = Field(default_factory=list, description="URLs from research dossier used for facts on this page")
 
 
 class PageWriterAgent:
     """Agent responsible for writing structured content, code samples, and citations for individual pages."""
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(
+        self,
+        settings: Optional[Settings] = None,
+        llm_client: Optional[LLMClient] = None,
+        metrics: Optional[BookGenerationMetrics] = None,
+    ):
         self.settings = settings or get_settings()
+        self.metrics = metrics or BookGenerationMetrics()
+        self.llm_client = llm_client or LLMClient(self.settings, self.metrics)
 
     async def write_page(
         self,
@@ -102,7 +125,7 @@ class PageWriterAgent:
         ):
             content = self._generate_structural_page_content(planned_page, book_plan, citations)
         else:
-            # Content page: try LLM first if groq_api_key available, else heuristic
+            # Content page: LLM in production mode, heuristic in mock mode
             content = await self._generate_content_page(planned_page, book_plan, citations, corpus)
 
         return Page(
@@ -146,12 +169,22 @@ class PageWriterAgent:
         corpus: Optional[ResearchCorpus] = None,
     ) -> PageContent:
         """Generate content for a chapter content page using LLM or topic-aware heuristic."""
-        if self.settings.groq_api_key:
+        if self.settings.vasukisquare_mock_mode:
+            self.metrics.record_fallback_page()
+            return self._heuristic_write_page(p, plan, citations)
+
+        try:
             llm_content = await self._llm_write_page(p, plan, corpus)
             if llm_content:
+                self.metrics.record_page_generated_by_llm()
                 return llm_content
-
-        return self._heuristic_write_page(p, plan, citations)
+            raise ValueError(f"LLM returned empty content for Page {p.page_number}")
+        except Exception as e:
+            if self.settings.vasukisquare_mock_mode:
+                logger.warning(f"LLM page generation failed in mock mode for Page {p.page_number}, using fallback: {e}")
+                self.metrics.record_fallback_page()
+                return self._heuristic_write_page(p, plan, citations)
+            raise GroqGenerationError(f"Failed to generate page content for Page {p.page_number} ({p.brief}) via Groq: {e}") from e
 
     async def _llm_write_page(
         self,
@@ -159,77 +192,121 @@ class PageWriterAgent:
         plan: BookPlan,
         corpus: Optional[ResearchCorpus],
     ) -> Optional[PageContent]:
-        """Use Groq LLM to write a high quality, topic-aligned page."""
-        try:
-            from langchain_groq import ChatGroq
-            from langchain_core.prompts import ChatPromptTemplate
+        """Use Groq LLM to write a high quality, topic-aligned page strictly grounded in research."""
+        primary_lang = plan.intent.primary_programming_language or "text"
 
-            llm = ChatGroq(
-                api_key=self.settings.groq_api_key,
-                model_name=self.settings.groq_model,
-                temperature=0.3,
-            )
-            structured_llm = llm.with_structured_output(LLMGeneratedPage)
-
-            primary_lang = plan.intent.primary_programming_language or "python"
-            findings = [d.summary for d in corpus.documents[:3] if d.summary] if corpus else []
-            findings_text = "\n".join(findings) if findings else "None"
-
-            sys_prompt = (
-                f"You are a principal technical author writing an educational ebook.\n"
-                f"Book Title: {plan.title}\n"
-                f"Audience: {plan.intent.target_audience} (Depth: {plan.intent.technical_depth})\n"
-                f"Primary Programming Language: {primary_lang}\n\n"
-                f"Write a focused, substantive single-page technical lesson for:\n"
-                f"Chapter {p.chapter_number}: {p.chapter_title}\n"
-                f"Section Focus: {p.brief}\n"
-                f"Visual Anchor: {p.visual_anchor.value if p.visual_anchor else 'text'}\n\n"
-                f"RULES:\n"
-                f"1. Explain the concepts clearly with concrete, realistic examples.\n"
-                f"2. Never use placeholder text, lorem ipsum, or generic phrases like 'in this section'.\n"
-                f"3. If providing code, write complete, correct, runnable {primary_lang.upper()} code matching the topic.\n"
-                f"4. Add a practical callout box with a tip, best practice, or common gotcha."
-            )
-
-            prompt_template = ChatPromptTemplate.from_messages([
-                ("system", sys_prompt),
-                ("human", f"Research Excerpts:\n{findings_text}\n\nGenerate page content."),
-            ])
-
-            res: LLMGeneratedPage = await (prompt_template | structured_llm).ainvoke({})
-            if not res or not res.headline or not res.lead_paragraph:
-                return None
-
-            blocks: List[Any] = []
-            blocks.append(TextBlock(text=res.lead_paragraph))
-
-            if res.code_snippet and (p.layout == LayoutType.CODE_FOCUS.value or p.visual_anchor == VisualAnchorType.CODE):
-                blocks.append(
-                    CodeBlock(
-                        language=primary_lang,
-                        filename=res.code_filename or f"example_{p.page_number}.py",
-                        code=res.code_snippet,
-                        caption=res.code_caption or f"Listing: {p.brief}",
-                        line_numbers=True,
-                    )
+        # Build research dossier context chunks relevant to the chapter/section
+        dossier_chunks = []
+        if corpus and corpus.documents:
+            for idx, doc in enumerate(corpus.documents[:6], start=1):
+                chunk_text = doc.extracted_text[:600] if doc.extracted_text else doc.summary
+                dossier_chunks.append(
+                    f"[{idx}] Title: {doc.title}\nURL: {doc.url}\nExcerpt: {chunk_text}"
                 )
+        research_context = "\n\n".join(dossier_chunks) if dossier_chunks else "No research dossier available."
 
-            if res.callout_title and res.callout_text:
-                blocks.append(
-                    CalloutBlock(
-                        variant=res.callout_variant if res.callout_variant in ("tip", "note", "important", "warning", "definition") else "tip",
-                        title=res.callout_title,
-                        content=res.callout_text,
-                    )
-                )
+        system_prompt = (
+            f"You are a principal technical author and software architect writing an authoritative educational ebook.\n"
+            f"Book Title: '{plan.title}'\n"
+            f"Target Audience: {plan.intent.target_audience} (Depth: {plan.intent.technical_depth})\n"
+            f"Tone: {plan.intent.tone}\n"
+            f"Primary Language / Tool: {primary_lang}\n\n"
+            f"You are writing a single high-impact content page for:\n"
+            f"- Chapter {p.chapter_number}: {p.chapter_title}\n"
+            f"- Section Topic: {p.brief}\n"
+            f"- Visual Anchor Type: {p.visual_anchor.value if p.visual_anchor else 'text'}\n\n"
+            f"CRITICAL AUTHORING INSTRUCTIONS:\n"
+            f"1. Ground all technical details, APIs, code samples, commands, and concepts directly in the Research Dossier below.\n"
+            f"2. Never use generic placeholder sentences (e.g. 'The architecture of X requires evaluating trade-offs'). Every sentence must teach concrete details about {plan.title}.\n"
+            f"3. Write clear, engaging explanations with code snippets, diagrams, or comparison tables matching the visual anchor.\n"
+            f"4. If generating code, provide clean, runnable, syntactically valid {primary_lang} code.\n"
+            f"5. Include an actionable CalloutBox (tip, best practice, or common pitfall).\n"
+            f"6. Populate cited_source_urls with the URLs from the dossier actually used."
+        )
 
-            if res.secondary_paragraph:
-                blocks.append(TextBlock(text=res.secondary_paragraph))
+        user_prompt = (
+            f"RESEARCH DOSSIER:\n{research_context}\n\n"
+            f"Please generate the complete, grounded LLMGeneratedPage for Chapter {p.chapter_number}, Section '{p.brief}'."
+        )
 
-            return PageContent(headline=res.headline, blocks=blocks)
-        except Exception as e:
-            logger.warning(f"LLM page generation failed, falling back to heuristic: {e}")
+        res: LLMGeneratedPage = await self.llm_client.invoke_structured(
+            schema=LLMGeneratedPage,
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            stage=f"write_page_ch{p.chapter_number}_p{p.page_number}",
+            temperature=0.3,
+        )
+
+        if not res or not res.headline or not res.lead_paragraph:
             return None
+
+        blocks: List[Any] = []
+
+        # 1. Lead Paragraph
+        blocks.append(TextBlock(text=res.lead_paragraph))
+
+        # 2. Visual Anchor Blocks (Code, Table, Diagram, Quote)
+        anchor = p.visual_anchor or VisualAnchorType.TEXT
+
+        if res.code_snippet and (anchor == VisualAnchorType.CODE or p.layout == LayoutType.CODE_FOCUS.value or "code" in (p.brief or "").lower()):
+            code_lang = res.code_language or primary_lang
+            blocks.append(
+                CodeBlock(
+                    language=code_lang if code_lang != "text" else "python",
+                    filename=res.code_filename or f"example_{p.page_number}.{ 'py' if code_lang == 'python' else 'ts' if code_lang in ('typescript', 'javascript') else 'sh' }",
+                    code=res.code_snippet,
+                    caption=res.code_caption or f"Listing {p.chapter_number}.{p.page_number % 5 + 1}: {p.brief}",
+                    line_numbers=True,
+                )
+            )
+
+        if res.table_columns and res.table_rows and (anchor in (VisualAnchorType.TABLE, VisualAnchorType.COMPARISON) or p.layout == LayoutType.COMPARISON.value):
+            blocks.append(
+                TableBlock(
+                    caption=res.table_caption or f"Table {p.chapter_number}.1: {p.brief} Feature Breakdown",
+                    columns=res.table_columns,
+                    rows=res.table_rows,
+                )
+            )
+
+        if res.diagram_mermaid and (anchor == VisualAnchorType.DIAGRAM or p.layout == LayoutType.DIAGRAM_FOCUS.value):
+            blocks.append(
+                DiagramBlock(
+                    code=res.diagram_mermaid,
+                    caption=res.diagram_caption or f"Figure {p.chapter_number}.1: {p.brief} Architectural Workflow",
+                )
+            )
+
+        if res.quote_text and (anchor == VisualAnchorType.QUOTE or p.layout == LayoutType.QUOTE.value):
+            blocks.append(
+                QuoteBlock(
+                    quote=res.quote_text,
+                    author=res.quote_author or "Official Specification / Industry Practice",
+                )
+            )
+
+        # 3. Callout Box
+        if res.callout_title and res.callout_text:
+            blocks.append(
+                CalloutBlock(
+                    variant=res.callout_variant if res.callout_variant in ("tip", "note", "important", "warning", "definition") else "tip",
+                    title=res.callout_title,
+                    content=res.callout_text,
+                )
+            )
+
+        # 4. Secondary Paragraph
+        if res.secondary_paragraph:
+            blocks.append(TextBlock(text=res.secondary_paragraph))
+
+        # Record sources used in metrics
+        if res.cited_source_urls:
+            self.metrics.research.sources_used = max(
+                self.metrics.research.sources_used,
+                len(set(res.cited_source_urls))
+            )
+
+        return PageContent(headline=res.headline, blocks=blocks)
 
     def _generate_structural_page_content(
         self,
@@ -1291,24 +1368,25 @@ class PageWriterAgent:
         headline: str,
         citations: List[SourceCitation],
     ) -> PageContent:
-        """Produce general technical editorial content blocks."""
+        """Produce mock-mode technical editorial content blocks tailored to the section topic."""
         ch_num = p.chapter_number or 1
+        brief = p.brief or p.chapter_title or plan.title
+        primary_lang = plan.intent.primary_programming_language or "python"
 
         blocks = [
             TextBlock(
-                text=f"The architecture of **{p.brief or p.chapter_title}** requires evaluating trade-offs between simplicity, maintainability, and scalability. "
-                f"When designing reliable systems, engineers establish clear mental models and invariant contracts between components. "
-                f"By applying disciplined separation of concerns, modern systems achieve high cohesion while remaining adaptable to changing requirements."
+                text=f"Understanding **{brief}** provides essential engineering fundamentals for {plan.title}. "
+                f"In this section, we examine practical patterns, configuration workflows, and implementation strategies "
+                f"tailored for {plan.intent.target_audience.lower()}."
             ),
             CalloutBlock(
-                variant="note",
-                title="Architectural Invariant",
-                content="Favor explicit state contracts and bounded interfaces over implicit side effects and speculative optimizations.",
-                icon="shield-check",
+                variant="tip",
+                title="Implementation Note",
+                content=f"When applying {brief}, ensure comprehensive logging and robust input validation to streamline operational debugging.",
+                icon="lightbulb",
             ),
             TextBlock(
-                text="Observability and structured logging provide necessary operational insights into system behavior under production load. "
-                "Continuous verification against primary domain specifications guarantees long-term software resilience."
+                text=f"By integrating {brief} into your core application workflows, you establish predictable and maintainable system behaviors."
             ),
         ]
         return PageContent(headline=headline, blocks=blocks)

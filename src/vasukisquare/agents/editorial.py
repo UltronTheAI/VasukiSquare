@@ -19,6 +19,12 @@ from vasukisquare.research.models import ResearchCorpus
 logger = logging.getLogger(__name__)
 
 
+from vasukisquare.llm.client import LLMClient, GroqGenerationError
+from vasukisquare.llm.metrics import BookGenerationMetrics
+
+logger = logging.getLogger(__name__)
+
+
 # Default icons mapped to common chapter motifs
 MOTIF_ICONS = [
     "sparkles",
@@ -42,7 +48,7 @@ class GeneratedChapterPlan(BaseModel):
     title: str = Field(description="Chapter title")
     summary: str = Field(description="Summary of topics covered in this chapter")
     icon: str = Field(default="code", description="Lucide icon name")
-    key_sections: List[str] = Field(default_factory=list, description="2 to 4 section titles for this chapter")
+    key_sections: List[str] = Field(default_factory=list, description="3 to 5 distinct section titles for this chapter")
 
 
 class GeneratedBookOutline(BaseModel):
@@ -54,8 +60,15 @@ class GeneratedBookOutline(BaseModel):
 class EditorialPlannerAgent:
     """Agent responsible for intent inference and structural editorial book planning."""
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(
+        self,
+        settings: Optional[Settings] = None,
+        llm_client: Optional[LLMClient] = None,
+        metrics: Optional[BookGenerationMetrics] = None,
+    ):
         self.settings = settings or get_settings()
+        self.metrics = metrics or BookGenerationMetrics()
+        self.llm_client = llm_client or LLMClient(self.settings, self.metrics)
 
     async def infer_intent(
         self,
@@ -63,47 +76,37 @@ class EditorialPlannerAgent:
         corpus: Optional[ResearchCorpus] = None,
     ) -> BookIntent:
         """Infer editorial intent, target audience, depth, and requirements from prompt."""
-        if not self.settings.groq_api_key:
+        if self.settings.vasukisquare_mock_mode:
             return self._heuristic_intent(prompt)
+
+        system_prompt = (
+            "You are an executive book editor and educational curriculum architect. "
+            "Analyze the user's book topic and research findings. "
+            "Infer the book_type (e.g. beginner_guide, tutorial_manual, technical_deep_dive, architecture_guide), "
+            "target_audience, technical_depth (introductory, intermediate, advanced, expert), tone, "
+            "approximate_length, chapter_count (5 to 10), code_requirements, diagram_requirements, "
+            "primary_programming_language (e.g. python, typescript, rust, go, or null if language-agnostic), and domain_topic."
+        )
+
+        findings_summary = "\n".join([f"- {d.title} ({d.domain}): {d.summary[:200]}" for d in corpus.documents[:5]]) if corpus and corpus.documents else "None"
+        user_prompt = f"Topic prompt: {prompt}\n\nResearch dossier findings:\n{findings_summary}\n\nInfer the structured BookIntent."
 
         try:
-            from langchain_groq import ChatGroq
-            from langchain_core.prompts import ChatPromptTemplate
-
-            llm = ChatGroq(
-                api_key=self.settings.groq_api_key,
-                model_name=self.settings.groq_model,
+            result = await self.llm_client.invoke_structured(
+                schema=BookIntent,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                stage="intent_inference",
                 temperature=0.2,
             )
-            structured_llm = llm.with_structured_output(BookIntent)
-
-            system_prompt = (
-                "You are an executive book editor. Analyze the user's topic prompt and research summary. "
-                "Infer the book_type (e.g. beginner_guide, tutorial_manual, technical_deep_dive, architecture_guide), "
-                "target_audience, technical_depth (introductory, intermediate, advanced, expert), tone, "
-                "approximate_length, chapter_count (4 to 12), code_requirements, diagram_requirements, "
-                "primary_programming_language (e.g. python, rust, go, typescript if relevant), and domain_topic."
-            )
-
-            prompt_template = ChatPromptTemplate.from_messages([
-                ("system", system_prompt),
-                ("human", "Topic prompt: {prompt}\nResearch findings: {findings}"),
-            ])
-
-            findings_summary = ", ".join(corpus.key_findings[:5]) if corpus else "None"
-            result = await (prompt_template | structured_llm).ainvoke({
-                "prompt": prompt,
-                "findings": findings_summary,
-            })
-            if isinstance(result, BookIntent):
-                # Ensure primary_programming_language is set if obvious in prompt
-                if not result.primary_programming_language:
-                    result.primary_programming_language = self._detect_language(prompt)
-                return result
-            return self._heuristic_intent(prompt)
+            if not result.primary_programming_language:
+                result.primary_programming_language = self._detect_language(prompt)
+            return result
         except Exception as e:
-            logger.warning(f"LLM Intent inference failed, falling back to heuristic: {e}")
-            return self._heuristic_intent(prompt)
+            if self.settings.vasukisquare_mock_mode:
+                logger.warning(f"LLM Intent inference failed in mock mode, falling back to heuristic: {e}")
+                return self._heuristic_intent(prompt)
+            raise GroqGenerationError(f"Book intent inference failed via Groq: {e}") from e
 
     def _detect_language(self, prompt: str) -> Optional[str]:
         """Detect primary programming language from prompt."""
@@ -133,9 +136,9 @@ class EditorialPlannerAgent:
         primary_lang = self._detect_language(prompt)
 
         # Technical depth & Audience
-        if any(w in p_lower for w in ["beginner", "zero to", "getting started", "from scratch", "basics", "introduction", "intro"]):
+        if any(w in p_lower for w in ["beginner", "zero to", "getting started", "from scratch", "basics", "introduction", "intro", "noob", "noobs"]):
             depth = "introductory"
-            audience = "Absolute Beginners, Self-Taught Learners, and New Programmers"
+            audience = "Absolute Beginners, Self-Taught Learners, and New Practitioners"
             book_type = "beginner_guide"
             tone = "educational and encouraging"
         elif any(w in p_lower for w in ["expert", "internals", "under the hood", "advanced architecture"]):
@@ -165,11 +168,10 @@ class EditorialPlannerAgent:
             length = "standard"
             chapter_count = 6
 
-        # Code & diagram flags
         code_keywords = [
             "code", "programming", "python", "rust", "go", "java", "c++", "typescript",
             "javascript", "framework", "algorithm", "developer", "api", "database",
-            "concurrency", "memory", "async", "backend", "programs", "building"
+            "concurrency", "memory", "async", "backend", "programs", "building", "liorandb", "db"
         ]
         diagram_keywords = [
             "architecture", "system", "distributed", "network", "cloud", "pipeline",
@@ -203,37 +205,41 @@ class EditorialPlannerAgent:
         chapter_count: int,
     ) -> Optional[List[PlannedChapter]]:
         """Use Groq LLM to generate topic-specific, progression-aligned chapters."""
-        if not self.settings.groq_api_key:
+        if self.settings.vasukisquare_mock_mode:
             return None
 
-        try:
-            from langchain_groq import ChatGroq
-            from langchain_core.prompts import ChatPromptTemplate
+        # Format research evidence to ground the outline
+        findings = []
+        if corpus and corpus.documents:
+            for d in corpus.documents[:8]:
+                findings.append(f"Source: {d.title} ({d.url})\nSummary: {d.summary}")
+        findings_text = "\n\n".join(findings) if findings else "No external research available."
 
-            llm = ChatGroq(
-                api_key=self.settings.groq_api_key,
-                model_name=self.settings.groq_model,
+        system_prompt = (
+            f"You are a master technical author and book architect. "
+            f"Create a logically structured, progressive Table of Contents for an ebook titled: '{title}'.\n"
+            f"Target Audience: {intent.target_audience} (Depth: {intent.technical_depth}).\n"
+            f"Primary Language / Ecosystem: {intent.primary_programming_language or 'Domain Standard'}.\n\n"
+            f"CRITICAL INSTRUCTIONS:\n"
+            f"1. Generate EXACTLY {chapter_count} sequential chapters that take the reader from zero knowledge to building real applications.\n"
+            f"2. Ground the chapter titles directly in the research dossier provided (e.g. if researching LioranDB, include chapters on its core concepts, installation, drivers/SDKs, collection models, CRUD queries, indexes, and real-world project deployment).\n"
+            f"3. For EACH chapter, specify 3 to 4 distinct key_sections covering concrete subtopics.\n"
+            f"4. Assign a relevant Lucide icon (e.g. terminal, code, database, layers, cpu, shield-check, zap, compass) to each chapter."
+        )
+
+        user_prompt = f"Research Dossier:\n{findings_text}\n\nGenerate the complete GeneratedBookOutline."
+
+        try:
+            result: GeneratedBookOutline = await self.llm_client.invoke_structured(
+                schema=GeneratedBookOutline,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                stage="chapter_planning",
                 temperature=0.3,
             )
-            structured_llm = llm.with_structured_output(GeneratedBookOutline)
 
-            sys_prompt = (
-                f"You are a master book architect. Create a structured table of contents for an ebook titled: '{title}'. "
-                f"Audience: {intent.target_audience}. Depth: {intent.technical_depth}. "
-                f"Programming Language: {intent.primary_programming_language or 'None'}. "
-                f"Generate EXACTLY {chapter_count} logically sequenced, non-repetitive chapters that take the reader from foundational concepts to practical mastery. "
-                f"For each chapter, provide a clear title, a 1-sentence summary, a relevant Lucide icon (e.g. sparkles, code, terminal, layers, cpu, book-open, zap, git-branch), "
-                f"and 2 to 3 section titles."
-            )
-
-            prompt_template = ChatPromptTemplate.from_messages([
-                ("system", sys_prompt),
-                ("human", "Generate the outline."),
-            ])
-
-            result = await (prompt_template | structured_llm).ainvoke({})
             if not result or not result.chapters or len(result.chapters) < 2:
-                return None
+                raise ValueError("LLM returned insufficient chapters in GeneratedBookOutline.")
 
             source_urls = [d.url for d in corpus.documents] if corpus else []
             chapters: List[PlannedChapter] = []
@@ -246,7 +252,14 @@ class EditorialPlannerAgent:
 
                 # Build sections with visual anchors
                 sections: List[SectionPlan] = []
-                for sec_idx, sec_title in enumerate(gen_ch.key_sections or [f"{gen_ch.title} Core Concepts"]):
+                raw_sections = gen_ch.key_sections if len(gen_ch.key_sections) >= 3 else [
+                    f"Understanding {gen_ch.title}",
+                    f"Core Concepts and Mechanics of {gen_ch.title}",
+                    f"Practical Workflows and Code Examples",
+                    f"Best Practices and Troubleshooting",
+                ]
+
+                for sec_idx, sec_title in enumerate(raw_sections):
                     anchors = [VisualAnchorType.TEXT]
                     if intent.code_requirements:
                         if sec_idx % 2 == 0:
@@ -254,12 +267,6 @@ class EditorialPlannerAgent:
                         else:
                             anchors.append(VisualAnchorType.TABLE)
                     sections.append(SectionPlan(title=sec_title, visual_anchors=anchors))
-
-                if not sections:
-                    sections = [
-                        SectionPlan(title=f"Understanding {gen_ch.title}", visual_anchors=[VisualAnchorType.TEXT, VisualAnchorType.CODE]),
-                        SectionPlan(title=f"Practical Workflows and Examples", visual_anchors=[VisualAnchorType.CODE, VisualAnchorType.TABLE]),
-                    ]
 
                 chapters.append(
                     PlannedChapter(
@@ -274,9 +281,12 @@ class EditorialPlannerAgent:
                     )
                 )
             return chapters
+
         except Exception as e:
-            logger.warning(f"LLM chapter outline generation failed, falling back to topic heuristic: {e}")
-            return None
+            if self.settings.vasukisquare_mock_mode:
+                logger.warning(f"LLM chapter outline generation failed in mock mode, falling back to heuristic: {e}")
+                return None
+            raise GroqGenerationError(f"Chapter planning failed via Groq: {e}") from e
 
     def _build_deterministic_chapters(
         self,

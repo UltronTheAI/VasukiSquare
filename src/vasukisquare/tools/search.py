@@ -156,17 +156,68 @@ class SerperSearchProvider(SearchProvider):
         return documents
 
 
+class BraveSearchProvider(SearchProvider):
+    """Brave Search provider."""
+
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.endpoint = "https://api.search.brave.com/res/v1/web/search"
+
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        retry=retry_if_exception_type(httpx.HTTPError),
+        reraise=True,
+    )
+    async def search(self, query: str, max_results: int = 5) -> List[SourceDocument]:
+        headers = {
+            "Accept": "application/json",
+            "Accept-Encoding": "gzip",
+            "X-Subscription-Token": self.api_key,
+        }
+        async with httpx.AsyncClient(timeout=10.0) as client:
+            resp = await client.get(
+                self.endpoint,
+                headers=headers,
+                params={"q": query, "count": max_results},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        documents = []
+        for item in data.get("web", {}).get("results", []):
+            documents.append(
+                SourceDocument(
+                    url=item.get("url", ""),
+                    title=item.get("title", "Untitled"),
+                    source_type=SourceType.WEB,
+                    extracted_text=item.get("description", ""),
+                    summary=item.get("description", ""),
+                    reliability_score=0.7,
+                )
+            )
+        return documents
+
+
 class WebSearchTool(BaseTool[SearchParams, List[SourceDocument]]):
     """High-level search tool dispatching queries to the configured SearchProvider."""
 
-    def __init__(self, provider: SearchProvider, timeout_seconds: float = 15.0):
+    def __init__(
+        self,
+        provider: SearchProvider,
+        timeout_seconds: float = 15.0,
+        provider_name: Optional[str] = None,
+    ):
         super().__init__(
             name="web_search",
             description="Searches the web for recent and relevant domain information.",
             timeout_seconds=timeout_seconds,
         )
         self.provider = provider
+        self.provider_name = provider_name or provider.__class__.__name__.replace("SearchProvider", "").lower()
 
     async def _run(self, params: SearchParams) -> List[SourceDocument]:
-        return await self.provider.search(params.query, params.max_results)
+        results = await self.provider.search(params.query, params.max_results)
+        logger.info(f"[SEARCH] provider={self.provider_name} query=\"{params.query}\" results={len(results)}")
+        return results
 
