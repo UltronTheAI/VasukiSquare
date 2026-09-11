@@ -135,3 +135,29 @@ def test_deterministic_repeatability():
 
     asyncio.run(_test())
 
+
+def test_python_beginner_planning_and_chapters():
+    agent = EditorialPlannerAgent()
+
+    async def _test():
+        prompt = "Getting Started with Python: A Beginner's Guide from Zero to Building Your First Real Programs"
+        intent = await agent.infer_intent(prompt)
+
+        assert intent.primary_programming_language == "python"
+        assert intent.technical_depth == "introductory"
+        assert "beginner" in intent.target_audience.lower() or "new programmer" in intent.target_audience.lower()
+        assert intent.book_type == "beginner_guide"
+
+        plan = await agent.generate_book_plan(prompt, intent, target_pages=40)
+        assert plan.total_pages == 40
+        assert len(plan.chapters) >= 6
+
+        # Check that chapters are about Python and not distributed databases
+        all_titles = " ".join(ch.title for ch in plan.chapters).lower()
+        assert "python" in all_titles or "variable" in all_titles or "function" in all_titles
+        assert "raft" not in all_titles
+        assert "lsm" not in all_titles
+
+    asyncio.run(_test())
+
+

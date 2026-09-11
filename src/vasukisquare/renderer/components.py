@@ -25,6 +25,8 @@ from vasukisquare.book.components import (
     TerminalBlock,
     TerminalLine,
     TextBlock,
+    TocBlock,
+    TocEntry,
 )
 from vasukisquare.design.icons import render_lucide_icon, IconColorResolver
 from vasukisquare.design.theme import Theme
@@ -71,6 +73,8 @@ class ComponentRenderer:
             return cls.render_acknowledgement(block, theme)
         elif isinstance(block, CopyrightBlock) or getattr(block, "type", None) == "copyright":
             return cls.render_copyright(block, theme)
+        elif isinstance(block, TocBlock) or getattr(block, "type", None) == "toc":
+            return cls.render_toc(block, theme)
         return ""
 
     @classmethod
@@ -707,3 +711,55 @@ class ComponentRenderer:
           </div>
         </div>
         """
+
+    @classmethod
+    def render_toc(cls, block: TocBlock, theme: Theme = Theme.LIGHT) -> str:
+        """Render high-contrast, editorial Table of Contents with resolved page numbers and dotted leaders."""
+        title_escaped = html.escape(block.title or "Table of Contents")
+        subtitle_html = (
+            f'<p class="toc-subtitle">{html.escape(block.subtitle)}</p>'
+            if block.subtitle
+            else ""
+        )
+
+        entries_html = []
+        for entry in block.entries:
+            ch_num_html = ""
+            if entry.chapter_number is not None:
+                ch_num_html = f'<span class="toc-chapter-badge">Chapter {entry.chapter_number}</span>'
+            
+            icon_html = ""
+            if entry.icon:
+                icon_col = IconColorResolver.resolve_color(theme, role="primary")
+                icon_html = f'<span class="toc-icon">{render_lucide_icon(entry.icon, color=icon_col, size=16)}</span>'
+
+            title_rendered = RichTextRenderer.render_text_or_markdown(entry.title)
+
+            entries_html.append(
+                f"""
+                <div class="toc-row">
+                  <div class="toc-row-left">
+                    {ch_num_html}
+                    {icon_html}
+                    <span class="toc-row-title">{title_rendered}</span>
+                  </div>
+                  <div class="toc-dots-leader"></div>
+                  <div class="toc-row-page">{entry.page_number}</div>
+                </div>
+                """
+            )
+
+        return f"""
+        <div class="component-toc theme-{theme.value}">
+          <div class="toc-header">
+            <div class="typo-eyebrow">Contents</div>
+            <h1 class="toc-title">{title_escaped}</h1>
+            {subtitle_html}
+            <div class="toc-divider"></div>
+          </div>
+          <div class="toc-entries-list">
+            {''.join(entries_html)}
+          </div>
+        </div>
+        """
+

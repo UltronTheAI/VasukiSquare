@@ -254,6 +254,24 @@ class CopyrightBlock(BaseModel):
     ordering_info: Optional[str] = Field(default=None)
 
 
+class TocEntry(BaseModel):
+    """Entry in the dynamic Table of Contents."""
+
+    chapter_number: Optional[int] = Field(default=None, description="Chapter number if chapter opener")
+    title: str = Field(description="Chapter title or section title")
+    page_number: int = Field(description="Starting physical page number")
+    icon: Optional[str] = Field(default=None, description="Lucide icon identifier")
+
+
+class TocBlock(BaseModel):
+    """Structured dynamic Table of Contents component."""
+
+    type: Literal["toc"] = "toc"
+    title: str = Field(default="Table of Contents", description="TOC title")
+    subtitle: Optional[str] = Field(default="Overview of Chapters & Structural Blueprint", description="TOC subtitle")
+    entries: List[TocEntry] = Field(default_factory=list, description="Resolved chapter and section entries")
+
+
 # Union type for all content blocks
 ContentBlock = Union[
     CodeBlock,
@@ -271,4 +289,5 @@ ContentBlock = Union[
     HeadingBlock,
     AcknowledgementBlock,
     CopyrightBlock,
+    TocBlock,
 ]

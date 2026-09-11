@@ -28,6 +28,36 @@ class MockSearchProvider(SearchProvider):
         if self.predefined_results:
             return self.predefined_results[:max_results]
         
+        q_lower = query.lower()
+        if "python" in q_lower:
+            docs = [
+                SourceDocument(
+                    url="https://docs.python.org/3/tutorial/index.html",
+                    title="The Python Tutorial — Python 3 Documentation",
+                    source_type=SourceType.DOCUMENTATION,
+                    extracted_text="Python is an easy to learn, powerful programming language. It has efficient high-level data structures and a simple but effective approach to object-oriented programming.",
+                    summary="Official Python 3 tutorial introducing basic syntax, data structures, functions, and modules.",
+                    reliability_score=0.98,
+                ),
+                SourceDocument(
+                    url="https://peps.python.org/pep-0008/",
+                    title="PEP 8 – Style Guide for Python Code",
+                    source_type=SourceType.DOCUMENTATION,
+                    extracted_text="This document gives coding conventions for the Python code comprising the standard library in the main Python distribution.",
+                    summary="The canonical PEP 8 style guide for readable and idiomatic Python programming.",
+                    reliability_score=0.95,
+                ),
+                SourceDocument(
+                    url="https://realpython.com/python-basics/",
+                    title="Python Basics: A Practical Introduction to Python 3",
+                    source_type=SourceType.WEB,
+                    extracted_text="Learn Python fundamentals step-by-step: variables, loops, functions, lists, dictionaries, and file input/output.",
+                    summary="Hands-on beginner tutorial covering core Python language mechanics and real-world scripting.",
+                    reliability_score=0.88,
+                ),
+            ]
+            return docs[:max_results]
+
         # Derive clean slug and clean title from query
         clean_words = [w for w in query.replace(":", " ").replace(",", " ").split() if w.lower() not in ("overview", "definition", "fundamentals", "guide", "in-depth")]
         slug = "-".join(clean_words[:6]).lower() if clean_words else "technical-specification"
@@ -40,8 +70,9 @@ class MockSearchProvider(SearchProvider):
                 source_type=SourceType.DOCUMENTATION,
                 extracted_text=f"Formal architectural specification and empirical evaluation of {query}.",
                 summary=f"Technical specification and performance analysis of {query}.",
+                reliability_score=0.90,
             )
-        ]
+        ][:max_results]
 
 
 class TavilySearchProvider(SearchProvider):

@@ -77,6 +77,14 @@ class BookIntent(BaseModel):
     research_intensity: str = Field(default="deep", description="standard, deep, academic")
     code_requirements: bool = Field(default=True)
     diagram_requirements: bool = Field(default=True)
+    primary_programming_language: Optional[str] = Field(
+        default=None,
+        description="Primary programming language (e.g. python, rust, go, typescript) if applicable",
+    )
+    domain_topic: Optional[str] = Field(
+        default=None,
+        description="Main subject domain (e.g. python_basics, distributed_systems, machine_learning)",
+    )
 
 
 class SectionPlan(BaseModel):

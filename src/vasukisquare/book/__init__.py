@@ -55,4 +55,7 @@ __all__ = [
     "StatisticBlock",
     "TextBlock",
     "HeadingBlock",
+    "TocBlock",
+    "TocEntry",
 ]
+

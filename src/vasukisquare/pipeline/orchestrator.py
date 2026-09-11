@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Optional
 from vasukisquare.config import Settings, get_settings
 from vasukisquare.book.layout import LayoutType
+from vasukisquare.book.components import TocBlock, TocEntry, SourceBlock
 from vasukisquare.book.models import Book, ChapterMetadata, Page
 from vasukisquare.agents.editorial import EditorialPlannerAgent
 from vasukisquare.agents.cover import CoverPlannerAgent
@@ -80,11 +81,12 @@ class EbookGenerationPipeline:
         state.artifacts["research_json"] = str(research_json_path)
 
         # Stage 3: Editorial Planning
-        logger.info("Stage 3/7: Generating Editorial & Chapter Plans...")
+        logger.info(f"Stage 3/7: Generating Editorial & Chapter Plans (Target Pages: {target_pages})...")
         state.book_plan = await self.editorial_agent.generate_book_plan(
             prompt=topic,
             intent=state.intent,
             corpus=state.research_corpus,
+            target_pages=target_pages,
         )
         plan_json_path = out_dir / "book_plan.json"
         plan_json_path.write_text(state.book_plan.model_dump_json(indent=2), encoding="utf-8")
@@ -109,7 +111,6 @@ class EbookGenerationPipeline:
         if not a4_cover_page or not a4_cover_page.html:
             raise RuntimeError("Book cover is missing or failed to render.")
 
-
         # Stage 5: Page Writing & HTML Generation (with targeted validation)
         logger.info(f"Stage 5/7: Writing {len(state.book_plan.all_planned_pages)} Pages...")
         raw_pages: List[Page] = []
@@ -126,6 +127,51 @@ class EbookGenerationPipeline:
         logger.info("Validating A4 page capacity and applying controlled repair...")
         state.pages = self.repair_engine.repair_pages(raw_pages)
 
+        # Pass 2: Dynamically resolve Table of Contents starting page numbers and References sources
+        logger.info("Pass 2: Resolving dynamic Table of Contents and cited bibliography...")
+        chapter_start_pages: dict[int, int] = {}
+        for p in state.pages:
+            if (p.page_type == LayoutType.CHAPTER_OPENER.value or p.layout == LayoutType.CHAPTER_OPENER.value) and p.chapter_number is not None:
+                if p.chapter_number not in chapter_start_pages:
+                    chapter_start_pages[p.chapter_number] = p.page_number
+
+        for p in state.pages:
+            if p.page_type == LayoutType.TOC.value or p.layout == LayoutType.TOC.value:
+                toc_entries = []
+                for ch in state.book_plan.chapters:
+                    resolved_pnum = chapter_start_pages.get(ch.chapter_number, 5 + (ch.chapter_number - 1) * 4)
+                    toc_entries.append(
+                        TocEntry(
+                            chapter_number=ch.chapter_number,
+                            title=ch.title,
+                            page_number=resolved_pnum,
+                            icon=ch.icon,
+                        )
+                    )
+                p.content.blocks = [
+                    TocBlock(
+                        title="Table of Contents",
+                        subtitle=f"A Guide to {state.book_plan.title}",
+                        entries=toc_entries,
+                    )
+                ]
+
+            elif p.page_type == LayoutType.REFERENCES.value or p.layout == LayoutType.REFERENCES.value:
+                if state.research_corpus and state.research_corpus.documents:
+                    ref_blocks = []
+                    for idx, doc in enumerate(state.research_corpus.documents[:6], start=1):
+                        ref_blocks.append(
+                            SourceBlock(
+                                title=doc.title or "Authoritative Domain Specification",
+                                publisher=doc.domain or "Primary Source",
+                                url=doc.url,
+                                mode="card",
+                                source_number=idx,
+                            )
+                        )
+                    if ref_blocks:
+                        p.content.blocks = ref_blocks
+
         # Ensure canonical HTML is rendered for all pages prior to MongoDB persistence & export
         for p in state.pages:
             if p.layout != LayoutType.COVER.value or not p.html:
@@ -136,8 +182,12 @@ class EbookGenerationPipeline:
                     running_title=state.book_plan.running_title,
                 )
 
-        # Validate content quality across all pages
-        content_errors = ContentValidator.validate_book(state.pages)
+        # Validate content quality and semantic correctness across all pages
+        content_errors = ContentValidator.validate_book(
+            state.pages,
+            expected_topic=topic,
+            expected_language=state.intent.primary_programming_language,
+        )
         if content_errors:
             logger.warning(f"Content quality validator identified issues: {content_errors}")
             state.errors.extend(content_errors)

@@ -219,3 +219,5 @@ __marimo__/
 
 .env.local
 output
+output/demo
+demo_output

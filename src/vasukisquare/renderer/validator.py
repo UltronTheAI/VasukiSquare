@@ -86,7 +86,89 @@ class ContentValidator:
         return errors
 
     @classmethod
-    def validate_book(cls, pages: List[Page], allow_fixtures: bool = False) -> List[str]:
+    def validate_no_duplicate_pages(cls, pages: List[Page]) -> List[str]:
+        """Detect identical or near-duplicate content pages across the book."""
+        errors: List[str] = []
+        seen_texts: Dict[str, int] = {}
+
+        for p in pages:
+            if p.layout in ("cover", "imprint", "title", "copyright", "toc", "thank_you", "chapter_opener"):
+                continue
+
+            # Extract main text
+            text_parts = []
+            if p.content.headline:
+                text_parts.append(p.content.headline.strip())
+            for block in getattr(p.content, "blocks", []):
+                if hasattr(block, "text") and block.text:
+                    text_parts.append(block.text.strip())
+                if hasattr(block, "code") and block.code:
+                    text_parts.append(block.code.strip())
+
+            combined = " ".join(text_parts).lower()
+            if len(combined) > 40:
+                # Normalize spaces
+                import re
+                norm = re.sub(r"\s+", " ", combined)
+                if norm in seen_texts:
+                    orig_page = seen_texts[norm]
+                    err = f"Page {p.page_number} is an exact duplicate of Page {orig_page}."
+                    errors.append(err)
+                    logger.error(err)
+                else:
+                    seen_texts[norm] = p.page_number
+
+        return errors
+
+    @classmethod
+    def validate_topic_relevance(
+        cls,
+        pages: List[Page],
+        expected_topic: str,
+        expected_language: Optional[str] = None,
+    ) -> List[str]:
+        """Verify that pages do not leak unrelated fallback code or off-topic database copy."""
+        errors: List[str] = []
+        t_lower = expected_topic.lower()
+
+        is_python_book = "python" in t_lower or (expected_language == "python")
+        is_database_book = any(w in t_lower for w in ["database", "raft", "lsm", "distributed", "b-tree", "consensus"])
+
+        for p in pages:
+            # Check for leaked distributed DB demo strings in non-database books
+            if is_python_book and not is_database_book:
+                page_text = ""
+                if p.content.headline:
+                    page_text += " " + p.content.headline
+                for block in getattr(p.content, "blocks", []):
+                    if hasattr(block, "text") and block.text:
+                        page_text += " " + block.text
+                    if hasattr(block, "code") and block.code:
+                        page_text += " " + block.code
+                    if hasattr(block, "language"):
+                        lang = (block.language or "").lower()
+                        if lang in ("rust", "c++", "cpp") and expected_language == "python":
+                            err = f"Page {p.page_number} contains {lang.upper()} code block in a Python book."
+                            errors.append(err)
+                            logger.error(err)
+
+                pt_lower = page_text.lower()
+                for leaked_term in ["raftnode", "broadcast_request_votes", "b+ tree index", "memtable / wal"]:
+                    if leaked_term in pt_lower:
+                        err = f"Page {p.page_number} contains off-topic demo leak: '{leaked_term}' in a Python guide."
+                        errors.append(err)
+                        logger.error(err)
+
+        return errors
+
+    @classmethod
+    def validate_book(
+        cls,
+        pages: List[Page],
+        expected_topic: str = "",
+        expected_language: Optional[str] = None,
+        allow_fixtures: bool = False,
+    ) -> List[str]:
         """Validate an entire book page sequence."""
         if allow_fixtures:
             return []
@@ -94,6 +176,16 @@ class ContentValidator:
         for p in pages:
             errs = cls.validate_page_content(p)
             all_errors.extend(errs)
+
+        # Check for duplicates
+        dup_errors = cls.validate_no_duplicate_pages(pages)
+        all_errors.extend(dup_errors)
+
+        # Check for topic relevance
+        if expected_topic:
+            rel_errors = cls.validate_topic_relevance(pages, expected_topic, expected_language)
+            all_errors.extend(rel_errors)
+
         return all_errors
 
     @classmethod
