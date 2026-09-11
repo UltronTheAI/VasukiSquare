@@ -1,4 +1,4 @@
-"""Domain schemas and models for Books, Pages, Covers, Intent, and Editorial Plans."""
+"""Domain schemas and models for Books, Pages, Covers, Intent, Editorial Plans, and Cover Plans."""
 
 import re
 from datetime import datetime, timezone
@@ -7,6 +7,7 @@ from uuid import uuid4
 from pydantic import BaseModel, Field, model_validator
 from vasukisquare.book.layout import LayoutType, VisualAnchorType
 from vasukisquare.design.theme import Theme, get_chapter_theme
+from vasukisquare.design.tokens import ColorToken, validate_color_token
 
 
 def generate_id() -> str:
@@ -18,6 +19,35 @@ def slugify(text: str) -> str:
     """Convert text to a URL/DB safe slug."""
     slug = re.sub(r"[^\w\s-]", "", text).strip().lower()
     return re.sub(r"[-\s]+", "-", slug)
+
+
+class CoverPlan(BaseModel):
+    """Specification for AI-directed custom cover generation adhering to DESIGN.md tokens."""
+
+    title: str
+    subtitle: Optional[str] = None
+    category: str = Field(default="Software Engineering", description="Domain classification")
+    tone: str = Field(default="authoritative", description="Editorial tone")
+    audience: str = Field(default="Engineers and Architects", description="Target readership")
+    palette_theme: str = Field(
+        default="brand_dark",
+        description="Theme palette: brand_dark, deep_teal, accent_purple, accent_orange, modern_light",
+    )
+    layout_style: str = Field(
+        default="minimal_geometric",
+        description="Visual composition: minimal_geometric, orbital_rings, tech_matrix, abstract_mesh, layered_bands",
+    )
+    hero_icon: str = Field(default="sparkles", description="Lucide icon identifier")
+    accent_color: str = Field(default=ColorToken.BRAND_GREEN.value)
+    background_color: str = Field(default=ColorToken.BRAND_TEAL_DEEP.value)
+    author: str = Field(default="VasukiSquare AI")
+    geometry_seed: int = Field(default=42)
+
+    @model_validator(mode="after")
+    def validate_token_colors(self) -> "CoverPlan":
+        validate_color_token(self.accent_color)
+        validate_color_token(self.background_color)
+        return self
 
 
 class BookIntent(BaseModel):
@@ -180,7 +210,6 @@ class Page(BaseModel):
     html: str = ""
     validation: Dict[str, Any] = Field(default_factory=dict)
 
-    # Backwards compatibility properties / aliases
     @property
     def chapter_title(self) -> Optional[str]:
         return self.chapter_name
