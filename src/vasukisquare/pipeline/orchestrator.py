@@ -274,6 +274,7 @@ class EbookGenerationPipeline:
                     plan=state.cover_plan,
                     save_raster_image=save_raster_cover,
                 )
+                book_entity.cover_id = cover_entity.id
                 state.cover = cover_entity
             except Exception as e:
                 logger.warning(f"Database persistence skipped or failed (non-blocking): {e}")

@@ -60,11 +60,14 @@ class LLMClient:
     ) -> T:
         """Execute a structured LLM request returning an instance of Pydantic schema T."""
         model_name = self.settings.groq_model
-        last_exception: Optional[Exception] = None
+        # Ensure schema name is clear in system prompt to prevent tool name hallucination
+        effective_system_prompt = system_prompt
+        if schema.__name__ not in effective_system_prompt:
+            effective_system_prompt += f"\n\nReturn your structured response using the {schema.__name__} schema."
 
         # Use direct message objects to avoid template parsing errors with arbitrary braces
         messages = [
-            SystemMessage(content=system_prompt),
+            SystemMessage(content=effective_system_prompt),
             HumanMessage(content=user_prompt),
         ]
 
