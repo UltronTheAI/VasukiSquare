@@ -12,10 +12,11 @@ def test_html_renderer_chapter_opener():
         book_id="book-100",
         page_number=1,
         chapter_number=1,
-        chapter_title="Getting Started with VasukiSquare",
-        layout_type=LayoutType.CHAPTER_OPENER,
+        chapter_name="Getting Started with VasukiSquare",
+        page_type=LayoutType.CHAPTER_OPENER.value,
+        layout=LayoutType.CHAPTER_OPENER.value,
         theme=Theme.DARK,
-        icon_name="sparkles",
+        icon="sparkles",
     )
 
     html = renderer.render_page(page, book_title="VasukiSquare Guide", book_topic="Engineering")
@@ -36,10 +37,11 @@ def test_html_renderer_content_page():
         book_id="book-100",
         page_number=2,
         chapter_number=2,
-        chapter_title="Core Architecture",
-        layout_type=LayoutType.TEXT_HEAVY,
+        chapter_name="Core Architecture",
+        page_type=LayoutType.TEXT_HEAVY.value,
+        layout=LayoutType.TEXT_HEAVY.value,
         theme=Theme.LIGHT,
-        html_content="<p>VasukiSquare generates deterministic documents.</p>",
+        html="<p>VasukiSquare generates deterministic documents.</p>",
     )
 
     html = renderer.render_page(page, book_title="VasukiSquare Guide", book_topic="Engineering")
@@ -49,4 +51,3 @@ def test_html_renderer_content_page():
     assert "VasukiSquare generates deterministic documents." in html
     assert "Chapter 2: Core Architecture" in html
     assert "2" in html  # page number in footer
-

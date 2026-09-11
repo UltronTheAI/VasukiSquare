@@ -25,8 +25,9 @@ def sample_book() -> Book:
         id="book-123",
         title="Introduction to Modern AI",
         subtitle="Architecture and Practical Applications",
-        topic="Artificial Intelligence",
-        target_pages=60,
+        prompt="Explain modern AI architectures",
+        description="Artificial Intelligence and Transformers",
+        page_count=60,
     )
 
 
@@ -37,29 +38,32 @@ def sample_pages(sample_book: Book) -> list[Page]:
         id="page-1",
         book_id=sample_book.id,
         page_number=1,
-        layout_type=LayoutType.COVER,
+        page_type=LayoutType.COVER.value,
+        layout=LayoutType.COVER.value,
         theme=Theme.LIGHT,
     )
     p2 = Page(
         id="page-2",
         book_id=sample_book.id,
         page_number=2,
+        page_type=LayoutType.CHAPTER_OPENER.value,
         chapter_number=1,
-        chapter_title="The Genesis of Neural Networks",
-        layout_type=LayoutType.CHAPTER_OPENER,
+        chapter_name="The Genesis of Neural Networks",
+        layout=LayoutType.CHAPTER_OPENER.value,
         theme=Theme.DARK,
-        icon_name="sparkles",
+        icon="sparkles",
         previous_page_id="page-1",
     )
     p3 = Page(
         id="page-3",
         book_id=sample_book.id,
         page_number=3,
+        page_type=LayoutType.TEXT_HEAVY.value,
         chapter_number=1,
-        chapter_title="The Genesis of Neural Networks",
-        layout_type=LayoutType.TEXT_HEAVY,
+        chapter_name="The Genesis of Neural Networks",
+        layout=LayoutType.TEXT_HEAVY.value,
         theme=Theme.DARK,
-        html_content="<p>Neural networks were inspired by the human brain...</p>",
+        html="<p>Neural networks were inspired by the human brain...</p>",
         previous_page_id="page-2",
     )
     p1.next_page_id = "page-2"
@@ -74,6 +78,5 @@ def sample_cover(sample_book: Book) -> Cover:
         id="cover-123",
         book_id=sample_book.id,
         title=sample_book.title,
-        subtitle=sample_book.subtitle,
+        design={"subtitle": sample_book.subtitle},
     )
-

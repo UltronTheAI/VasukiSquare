@@ -1,5 +1,6 @@
 """Domain schemas and models for Books, Pages, Covers, and Plans."""
 
+import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
@@ -13,69 +14,159 @@ def generate_id() -> str:
     return str(uuid4())
 
 
+def slugify(text: str) -> str:
+    """Convert text to a URL/DB safe slug."""
+    slug = re.sub(r"[^\w\s-]", "", text).strip().lower()
+    return re.sub(r"[-\s]+", "-", slug)
+
+
+class SourceCitation(BaseModel):
+    """Citation metadata referencing external research."""
+
+    url: str
+    title: Optional[str] = None
+    claim: Optional[str] = None
+    quote: Optional[str] = None
+    page_number: Optional[int] = None
+
+
+class PageContent(BaseModel):
+    """Structured content payload for a page."""
+
+    headline: Optional[str] = None
+    body: Optional[str] = None
+    key_points: List[str] = Field(default_factory=list)
+    code_snippets: List[Dict[str, str]] = Field(default_factory=list)
+    callouts: List[Dict[str, str]] = Field(default_factory=list)
+    metadata: Dict[str, Any] = Field(default_factory=dict)
+
+
+class PageStyle(BaseModel):
+    """Visual style overrides and specifications for a page."""
+
+    theme: Theme = Theme.LIGHT
+    font_family: str = "Euclid Circular A"
+    accent_color: str = "#00ed64"
+    layout_variant: Optional[str] = None
+    custom_css: Optional[str] = None
+
+
+class ChapterMetadata(BaseModel):
+    """Metadata for a chapter within a book."""
+
+    chapter_number: int = Field(ge=1)
+    title: str
+    summary: Optional[str] = None
+    icon: Optional[str] = None
+    page_count: int = Field(default=0, ge=0)
+    theme: Theme = Theme.LIGHT
+
+    @model_validator(mode="after")
+    def set_theme_from_chapter(self) -> "ChapterMetadata":
+        self.theme = get_chapter_theme(self.chapter_number)
+        return self
+
+
 class Page(BaseModel):
     """Represents an individual A4 rendered page stored independently in MongoDB."""
 
     id: str = Field(default_factory=generate_id)
     book_id: str
     page_number: int = Field(ge=1)
+    page_type: str = Field(default=LayoutType.TEXT_HEAVY.value)
     chapter_number: Optional[int] = Field(default=None, ge=1)
-    chapter_title: Optional[str] = None
-    layout_type: LayoutType
+    chapter_name: Optional[str] = None
     theme: Theme = Theme.LIGHT
-    icon_name: Optional[str] = None
-    html_content: str = ""
+    layout: str = Field(default=LayoutType.TEXT_HEAVY.value)
     previous_page_id: Optional[str] = None
     next_page_id: Optional[str] = None
-    metadata: Dict[str, Any] = Field(default_factory=dict)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    icon: Optional[str] = None
+    content: PageContent = Field(default_factory=PageContent)
+    style: PageStyle = Field(default_factory=PageStyle)
+    sources: List[SourceCitation] = Field(default_factory=list)
+    html: str = ""
+    validation: Dict[str, Any] = Field(default_factory=dict)
+
+    # Backwards compatibility properties / aliases
+    @property
+    def chapter_title(self) -> Optional[str]:
+        return self.chapter_name
+
+    @property
+    def layout_type(self) -> LayoutType:
+        try:
+            return LayoutType(self.layout)
+        except ValueError:
+            return LayoutType.TEXT_HEAVY
+
+    @property
+    def icon_name(self) -> Optional[str]:
+        return self.icon
+
+    @property
+    def html_content(self) -> str:
+        return self.html
 
     @model_validator(mode="after")
     def validate_page_rules(self) -> "Page":
         """Validate chapter opener and theme consistency."""
         if self.chapter_number is not None:
-            # Enforce odd=dark, even=light theme rule
             expected_theme = get_chapter_theme(self.chapter_number)
-            if self.theme != expected_theme:
-                self.theme = expected_theme
+            self.theme = expected_theme
+            self.style.theme = expected_theme
 
-        if self.layout_type == LayoutType.CHAPTER_OPENER:
-            if self.chapter_number is None or not self.chapter_title:
-                raise ValueError("Chapter opener pages must specify chapter_number and chapter_title.")
-            if not self.icon_name:
+        if self.layout == LayoutType.CHAPTER_OPENER.value or self.page_type == LayoutType.CHAPTER_OPENER.value:
+            if self.chapter_number is None or not self.chapter_name:
+                raise ValueError("Chapter opener pages must specify chapter_number and chapter_name.")
+            if not self.icon:
                 raise ValueError("Chapter opener pages must contain exactly one Lucide icon.")
         return self
 
 
 class Cover(BaseModel):
-    """Represents book cover artwork metadata and asset references."""
+    """Represents book cover artwork metadata and asset references stored in covers collection."""
 
     id: str = Field(default_factory=generate_id)
     book_id: str
-    title: str
-    subtitle: Optional[str] = None
-    author: Optional[str] = "VasukiSquare AI"
     width: int = Field(default=1600)
     height: int = Field(default=2560)
-    image_url: Optional[str] = None
+    title: str
+    design: Dict[str, Any] = Field(default_factory=dict)
+    html: str = ""
+    image_path: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    # Compatibility alias
+    @property
+    def subtitle(self) -> Optional[str]:
+        return self.design.get("subtitle")
 
 
 class Book(BaseModel):
-    """Represents the complete book entity."""
+    """Represents the complete book entity stored in books collection."""
 
     id: str = Field(default_factory=generate_id)
+    slug: str = ""
     title: str
     subtitle: Optional[str] = None
-    topic: str
-    target_pages: int = Field(default=60, ge=1)
-    starting_page_id: Optional[str] = None
-    total_pages: int = 0
-    total_chapters: int = 0
+    prompt: str = ""
+    description: str = ""
     status: str = "draft"
-    metadata: Dict[str, Any] = Field(default_factory=dict)
+    chapter_count: int = 0
+    page_count: int = 0
+    starting_page_id: Optional[str] = None
+    cover_id: Optional[str] = None
+    chapters: List[ChapterMetadata] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @model_validator(mode="after")
+    def generate_slug_if_missing(self) -> "Book":
+        if not self.slug and self.title:
+            self.slug = slugify(self.title)
+        if not self.chapter_count and self.chapters:
+            self.chapter_count = len(self.chapters)
+        return self
 
 
 class PagePlan(BaseModel):
@@ -113,4 +204,3 @@ class EditorialPlan(BaseModel):
     tone: str
     estimated_pages: int
     chapters: List[ChapterPlan] = Field(default_factory=list)
-

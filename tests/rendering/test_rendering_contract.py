@@ -1,10 +1,9 @@
 """Rendering contract verification tests specified in TESTS.md."""
 
-import re
 from vasukisquare.renderer.html import HtmlPageRenderer
 from vasukisquare.book.models import Page
 from vasukisquare.book.layout import LayoutType
-from vasukisquare.design.theme import Theme, get_chapter_theme
+from vasukisquare.design.theme import Theme
 
 
 def test_rendering_contract_a4_dimensions():
@@ -12,9 +11,9 @@ def test_rendering_contract_a4_dimensions():
     page = Page(
         book_id="b-render",
         page_number=1,
-        layout_type=LayoutType.TEXT_HEAVY,
+        layout=LayoutType.TEXT_HEAVY.value,
         theme=Theme.LIGHT,
-        html_content="<p>Standard text page.</p>",
+        html="<p>Standard text page.</p>",
     )
     html = renderer.render_page(page)
     # Check page size A4 in CSS (210mm x 297mm)
@@ -28,10 +27,11 @@ def test_rendering_contract_chapter_opener():
         book_id="b-render",
         page_number=5,
         chapter_number=1,
-        chapter_title="Neural Foundations",
-        layout_type=LayoutType.CHAPTER_OPENER,
+        chapter_name="Neural Foundations",
+        page_type=LayoutType.CHAPTER_OPENER.value,
+        layout=LayoutType.CHAPTER_OPENER.value,
         theme=Theme.DARK,
-        icon_name="cpu",
+        icon="cpu",
     )
     html = renderer.render_page(page)
 
@@ -50,8 +50,8 @@ def test_rendering_contract_theme_alternation():
         book_id="b-render",
         page_number=10,
         chapter_number=1,
-        chapter_title="Dark Chapter",
-        layout_type=LayoutType.TEXT_HEAVY,
+        chapter_name="Dark Chapter",
+        layout=LayoutType.TEXT_HEAVY.value,
     )
     assert p_odd.theme == Theme.DARK
     html_odd = renderer.render_page(p_odd)
@@ -62,8 +62,8 @@ def test_rendering_contract_theme_alternation():
         book_id="b-render",
         page_number=20,
         chapter_number=2,
-        chapter_title="Light Chapter",
-        layout_type=LayoutType.TEXT_HEAVY,
+        chapter_name="Light Chapter",
+        layout=LayoutType.TEXT_HEAVY.value,
     )
     assert p_even.theme == Theme.LIGHT
     html_even = renderer.render_page(p_even)
@@ -76,9 +76,9 @@ def test_rendering_contract_page_number_and_chapter_identification():
         book_id="b-render",
         page_number=42,
         chapter_number=3,
-        chapter_title="Distributed Systems",
-        layout_type=LayoutType.TEXT_HEAVY,
-        html_content="<p>Consensus protocols guarantee safety.</p>",
+        chapter_name="Distributed Systems",
+        layout=LayoutType.TEXT_HEAVY.value,
+        html="<p>Consensus protocols guarantee safety.</p>",
     )
     html = renderer.render_page(page, book_title="High Scalability")
 
@@ -86,4 +86,3 @@ def test_rendering_contract_page_number_and_chapter_identification():
     assert "Chapter 3: Distributed Systems" in html
     # Footer must contain page number
     assert '<span class="footer-page-num">42</span>' in html
-
