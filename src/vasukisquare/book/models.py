@@ -73,7 +73,7 @@ class BookIntent(BaseModel):
         default="standard",
         description="Length: short (20-40 pages), standard (40-70 pages), comprehensive (70-120 pages)",
     )
-    chapter_count: int = Field(default=6, ge=3, le=16)
+    chapter_count: int = Field(default=6, ge=1, le=16)
     research_intensity: str = Field(default="deep", description="standard, deep, academic")
     code_requirements: bool = Field(default=True)
     diagram_requirements: bool = Field(default=True)

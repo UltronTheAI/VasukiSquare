@@ -436,9 +436,7 @@ class EditorialPlannerAgent:
             ]
 
         desired_count = chapter_count or intent.chapter_count
-        count = min(desired_count, len(chapter_topics))
-        if count < 3:
-            count = 3
+        count = max(1, desired_count)
 
         source_urls = [d.url for d in corpus.documents] if corpus else []
         chapters: List[PlannedChapter] = []
@@ -465,6 +463,28 @@ class EditorialPlannerAgent:
 
         return chapters
 
+    @staticmethod
+    def calculate_adaptive_chapter_count(target_pages: int) -> int:
+        """Calculate the ideal chapter count so that every chapter has an opener and adequate content pages,
+        while keeping the total physical page count close to target_pages."""
+        if target_pages <= 8:
+            return 1
+        elif target_pages <= 14:
+            return 2
+        elif target_pages <= 22:
+            return 3
+        elif target_pages <= 30:
+            return 4
+        elif target_pages <= 50:
+            return 6
+        elif target_pages <= 80:
+            return 8
+        elif target_pages <= 100:
+            return 10
+        else:
+            return min(12, max(8, target_pages // 10))
+
+
     def _assemble_pages(
         self,
         book_title: str,
@@ -477,8 +497,8 @@ class EditorialPlannerAgent:
         all_pages: List[PlannedPage] = []
         curr_page_num = 1
 
-        # 1. Frontmatter (4 pages)
-        # Page 1: Cover
+        # 1. Frontmatter
+        # Page 1: Cover (always physical page 1)
         p_cover = PlannedPage(
             page_number=curr_page_num,
             page_type=LayoutType.COVER.value,
@@ -490,53 +510,83 @@ class EditorialPlannerAgent:
         all_pages.append(p_cover)
         curr_page_num += 1
 
-        # Page 2: Title / Imprint
-        p_imprint = PlannedPage(
-            page_number=curr_page_num,
-            page_type="imprint",
-            layout=LayoutType.TEXT_HEAVY.value,
-            theme=Theme.LIGHT,
-            brief="Half-title and publisher imprint.",
-        )
-        frontmatter.append(p_imprint)
-        all_pages.append(p_imprint)
-        curr_page_num += 1
+        if target_total_pages <= 12:
+            # Compact frontmatter for short books: Title/Imprint & Notice (1 page) + TOC (1 page)
+            p_title = PlannedPage(
+                page_number=curr_page_num,
+                page_type="imprint",
+                layout=LayoutType.TEXT_HEAVY.value,
+                theme=Theme.LIGHT,
+                brief="Title, publisher imprint, and copyright notice.",
+            )
+            frontmatter.append(p_title)
+            all_pages.append(p_title)
+            curr_page_num += 1
 
-        # Page 3: Copyright / Notice
-        p_copyright = PlannedPage(
-            page_number=curr_page_num,
-            page_type=LayoutType.COPYRIGHT.value,
-            layout=LayoutType.COPYRIGHT.value,
-            theme=Theme.LIGHT,
-            brief="Copyright notice, versioning, and legal disclaimer.",
-        )
-        frontmatter.append(p_copyright)
-        all_pages.append(p_copyright)
-        curr_page_num += 1
+            p_toc = PlannedPage(
+                page_number=curr_page_num,
+                page_type=LayoutType.TOC.value,
+                layout=LayoutType.TOC.value,
+                theme=Theme.LIGHT,
+                brief="Table of contents.",
+            )
+            frontmatter.append(p_toc)
+            all_pages.append(p_toc)
+            curr_page_num += 1
+        else:
+            # Full frontmatter: Imprint (1 page), Copyright (1 page), TOC (1 page)
+            p_imprint = PlannedPage(
+                page_number=curr_page_num,
+                page_type="imprint",
+                layout=LayoutType.TEXT_HEAVY.value,
+                theme=Theme.LIGHT,
+                brief="Half-title and publisher imprint.",
+            )
+            frontmatter.append(p_imprint)
+            all_pages.append(p_imprint)
+            curr_page_num += 1
 
-        # Page 4: Table of Contents
-        p_toc = PlannedPage(
-            page_number=curr_page_num,
-            page_type=LayoutType.TOC.value,
-            layout=LayoutType.TOC.value,
-            theme=Theme.LIGHT,
-            brief="Complete structured table of contents.",
-        )
-        frontmatter.append(p_toc)
-        all_pages.append(p_toc)
-        curr_page_num += 1
+            p_copyright = PlannedPage(
+                page_number=curr_page_num,
+                page_type=LayoutType.COPYRIGHT.value,
+                layout=LayoutType.COPYRIGHT.value,
+                theme=Theme.LIGHT,
+                brief="Copyright notice, versioning, and legal disclaimer.",
+            )
+            frontmatter.append(p_copyright)
+            all_pages.append(p_copyright)
+            curr_page_num += 1
+
+            p_toc = PlannedPage(
+                page_number=curr_page_num,
+                page_type=LayoutType.TOC.value,
+                layout=LayoutType.TOC.value,
+                theme=Theme.LIGHT,
+                brief="Complete structured table of contents.",
+            )
+            frontmatter.append(p_toc)
+            all_pages.append(p_toc)
+            curr_page_num += 1
+
+        # Determine backmatter page budget
+        if target_total_pages <= 12:
+            backmatter_count = 1  # References only
+        elif target_total_pages <= 24:
+            backmatter_count = 2  # References + Thank You
+        else:
+            backmatter_count = 3  # References + Acknowledgements + Thank You
 
         # 2. Strict Page Budgeting for Chapters
-        structural_pages = 7
-        available_content_pages = max(target_total_pages - structural_pages, len(chapters) * 2)
+        structural_pages = len(all_pages) + backmatter_count + len(chapters)  # cover + front + back + chapter openers
+        available_content_pages = max(len(chapters), target_total_pages - structural_pages)
 
         num_chapters = len(chapters)
         base_budget = available_content_pages // num_chapters
         remainder = available_content_pages % num_chapters
 
         for i, ch in enumerate(chapters):
-            ch_budget = base_budget + (1 if i < remainder else 0)
-            ch.page_budget = max(ch_budget, 2)
+            ch_content_budget = base_budget + (1 if i < remainder else 0)
+            ch.page_budget = 1 + ch_content_budget  # 1 opener + content pages
 
         # 3. Chapters
         for ch in chapters:
@@ -594,7 +644,7 @@ class EditorialPlannerAgent:
                 all_pages.append(p_content)
                 curr_page_num += 1
 
-        # 4. Backmatter (3 pages)
+        # 4. Backmatter
         # References Page
         p_refs = PlannedPage(
             page_number=curr_page_num,
@@ -607,30 +657,54 @@ class EditorialPlannerAgent:
         all_pages.append(p_refs)
         curr_page_num += 1
 
-        # Acknowledgement Page
-        p_ack = PlannedPage(
-            page_number=curr_page_num,
-            page_type=LayoutType.ACKNOWLEDGEMENT.value,
-            layout=LayoutType.ACKNOWLEDGEMENT.value,
-            theme=Theme.LIGHT,
-            icon="heart",
-            brief="Author and institutional acknowledgments.",
-        )
-        backmatter.append(p_ack)
-        all_pages.append(p_ack)
-        curr_page_num += 1
+        if backmatter_count >= 3:
+            # Acknowledgement Page
+            p_ack = PlannedPage(
+                page_number=curr_page_num,
+                page_type=LayoutType.ACKNOWLEDGEMENT.value,
+                layout=LayoutType.ACKNOWLEDGEMENT.value,
+                theme=Theme.LIGHT,
+                icon="heart",
+                brief="Author and institutional acknowledgments.",
+            )
+            backmatter.append(p_ack)
+            all_pages.append(p_ack)
+            curr_page_num += 1
 
-        # Thank You Page
-        p_thanks = PlannedPage(
-            page_number=curr_page_num,
-            page_type=LayoutType.THANK_YOU.value,
-            layout=LayoutType.THANK_YOU.value,
-            theme=Theme.DARK,
-            icon="sparkles",
-            brief="Concluding acknowledgments and publisher note.",
+        if backmatter_count >= 2:
+            # Thank You Page
+            p_thanks = PlannedPage(
+                page_number=curr_page_num,
+                page_type=LayoutType.THANK_YOU.value,
+                layout=LayoutType.THANK_YOU.value,
+                theme=Theme.DARK,
+                icon="sparkles",
+                brief="Concluding acknowledgments and publisher note.",
+            )
+            backmatter.append(p_thanks)
+            all_pages.append(p_thanks)
+
+        # Log detailed Page Budget
+        frontmatter_count_clean = len(frontmatter) - 1  # excluding cover
+        content_count = sum(ch.page_budget - 1 for ch in chapters)
+        logger.info(
+            f"Page Budget:\n"
+            f"  Requested final pages: {target_total_pages}\n"
+            f"  Cover: 1\n"
+            f"  Front matter: {frontmatter_count_clean}\n"
+            f"  Chapter openers: {len(chapters)}\n"
+            f"  Content pages: {content_count}\n"
+            f"  Back matter: {len(backmatter)}\n"
+            f"  Planned total: {len(all_pages)}"
         )
-        backmatter.append(p_thanks)
-        all_pages.append(p_thanks)
+
+        # Hard validation guard: ensure planned pages stay strictly within allowed variance
+        max_variance = 1 if target_total_pages <= 20 else 2
+        if abs(len(all_pages) - target_total_pages) > max_variance:
+            raise ValueError(
+                f"Page planning error: Planned {len(all_pages)} pages for target {target_total_pages}, "
+                f"which exceeds allowed variance (±{max_variance})."
+            )
 
         return frontmatter, backmatter, all_pages
 
@@ -661,6 +735,13 @@ class EditorialPlannerAgent:
         )
 
         calculated_chapter_count = intent.chapter_count
+        # Adapt chapter count to requested target page budget
+        if target_pages <= 14:
+            calculated_chapter_count = self.calculate_adaptive_chapter_count(target_pages)
+        elif intent and intent.chapter_count and intent.chapter_count != 6:
+            calculated_chapter_count = intent.chapter_count
+        else:
+            calculated_chapter_count = self.calculate_adaptive_chapter_count(target_pages)
 
         chapters = await self._plan_chapters_with_llm(title, intent, corpus, calculated_chapter_count)
 

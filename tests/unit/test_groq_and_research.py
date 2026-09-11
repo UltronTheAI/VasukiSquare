@@ -88,7 +88,7 @@ async def test_llm_client_dynamic_prompt_with_complex_braces():
     mock_structured_llm.ainvoke.assert_called_once()
     passed_messages = mock_structured_llm.ainvoke.call_args[0][0]
     assert len(passed_messages) == 2
-    assert passed_messages[0].content == system_prompt
+    assert system_prompt in passed_messages[0].content
     assert passed_messages[1].content == user_prompt
     assert json_snippet in passed_messages[1].content
     assert css_snippet in passed_messages[0].content

@@ -69,6 +69,7 @@ class EbookGenerationPipeline:
         """Execute the complete generation pipeline for a book topic."""
         # 0. Validate production environment configuration before starting
         self.settings.validate_production_environment()
+        self.llm_client.log_startup_banner()
 
         self.metrics.topic = topic
         self.metrics.target_pages = target_pages
@@ -81,7 +82,11 @@ class EbookGenerationPipeline:
         pages_dir.mkdir(parents=True, exist_ok=True)
 
         logger.info(f"Starting VasukiSquare Generation Pipeline for topic: '{topic}'")
-        logger.info(f"Active Search Provider: {self.settings.active_search_provider_name} | Groq Model: {self.settings.groq_model}")
+        logger.info(
+            f"Active Search Provider: {self.settings.active_search_provider_name} | "
+            f"Active LLM Provider: {self.llm_client.active_provider.upper()} | "
+            f"Model: {self.llm_client.active_model}"
+        )
 
         # Stage 1: Intent Analysis
         logger.info("Stage 1/7: Inferring Book Intent...")
@@ -311,10 +316,10 @@ class EbookGenerationPipeline:
 
         # Enforce Production Non-Negotiable Contract
         if not self.settings.vasukisquare_mock_mode:
-            if self.metrics.groq.calls == 0:
-                raise RuntimeError("Production failure: 0 Groq LLM calls occurred during generation.")
+            if self.metrics.llm_calls_total == 0:
+                raise RuntimeError(f"Production failure: 0 {self.llm_client.active_provider.upper()} LLM calls occurred during generation.")
             if self.metrics.pages_generated_by_llm == 0:
-                raise RuntimeError("Production failure: 0 pages were authored by Groq LLM during generation.")
+                raise RuntimeError(f"Production failure: 0 pages were authored by {self.llm_client.active_provider.upper()} LLM during generation.")
             if self.metrics.research.web_search_calls == 0:
                 raise RuntimeError("Production failure: 0 web search calls occurred during generation.")
             if self.metrics.research.sources_accepted == 0:
