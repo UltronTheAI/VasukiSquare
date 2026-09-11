@@ -16,6 +16,7 @@ from vasukisquare.renderer.html import HtmlPageRenderer
 from vasukisquare.renderer.cover import CoverRenderer, CoverService
 from vasukisquare.renderer.pdf import PdfRenderer
 from vasukisquare.renderer.overflow import OverflowDetector, PageRepairEngine
+from vasukisquare.renderer.validator import ContentValidator
 from vasukisquare.database.connection import DatabaseManager
 from vasukisquare.database.repository import BookRepository, PageRepository, CoverRepository
 from vasukisquare.pipeline.state import GenerationState
@@ -119,7 +120,18 @@ class EbookGenerationPipeline:
         # Ensure canonical HTML is rendered for all pages prior to MongoDB persistence & export
         for p in state.pages:
             if p.layout != LayoutType.COVER.value or not p.html:
-                p.html = self.html_renderer.render_page(p, state.book_plan.title, topic)
+                p.html = self.html_renderer.render_page(
+                    p,
+                    state.book_plan.title,
+                    topic,
+                    running_title=state.book_plan.running_title,
+                )
+
+        # Validate content quality across all pages
+        content_errors = ContentValidator.validate_book(state.pages)
+        if content_errors:
+            logger.warning(f"Content quality validator identified issues: {content_errors}")
+            state.errors.extend(content_errors)
 
         # Stage 6: Database Persistence
         if persist_db:
@@ -143,6 +155,7 @@ class EbookGenerationPipeline:
                 book_entity = Book(
                     title=state.book_plan.title,
                     subtitle=state.book_plan.subtitle,
+                    running_title=state.book_plan.running_title,
                     prompt=topic,
                     description=state.book_plan.description,
                     chapter_count=len(chapters_meta),
@@ -184,6 +197,7 @@ class EbookGenerationPipeline:
             pages=state.pages,
             book_title=state.book_plan.title,
             book_topic=topic,
+            running_title=state.book_plan.running_title,
             auto_repair=False,
         )
 
@@ -193,7 +207,12 @@ class EbookGenerationPipeline:
 
         # Export individual page HTMLs
         for idx, p in enumerate(state.pages):
-            single_page_html = self.html_renderer.render_page(p, state.book_plan.title, topic)
+            single_page_html = self.html_renderer.render_page(
+                p,
+                state.book_plan.title,
+                topic,
+                running_title=state.book_plan.running_title,
+            )
             p_file = pages_dir / f"page_{idx + 1:03d}.html"
             p_file.write_text(single_page_html, encoding="utf-8")
 

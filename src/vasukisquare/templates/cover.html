@@ -17,7 +17,7 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background-color: {{ plan.background_color }};
+      background-color: {{ plan.background_color or "#001e2b" }};
       color: #ffffff;
       font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
       -webkit-print-color-adjust: exact;
@@ -29,126 +29,126 @@
       width: 1600px;
       height: 2560px;
       overflow: hidden;
-      background: radial-gradient(circle at 50% 30%, rgba(0, 237, 100, 0.08) 0%, transparent 70%),
-                  linear-gradient(180deg, {{ plan.background_color }} 0%, #00121a 100%);
+      background-color: {{ plan.background_color or "#001e2b" }};
+      display: flex;
+      flex-direction: column;
     }
 
-    .svg-background {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 1600px;
-      height: 2560px;
-      z-index: 1;
-      pointer-events: none;
-    }
-
-    /* Safe Content Area (Guaranteed within physical A4 crop) */
+    /* Safe Content Area for physical A4 crop (200px top/bottom, 180px left/right) */
     .safe-content-area {
       position: absolute;
-      top: 200px;
-      bottom: 200px;
+      top: 220px;
+      bottom: 220px;
       left: 180px;
       right: 180px;
-      z-index: 2;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
     }
 
-    .cover-top-badge {
-      display: inline-flex;
+    .cover-brand-header {
+      display: flex;
+      justify-content: space-between;
       align-items: center;
-      gap: 12px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 9999px;
-      padding: 12px 28px;
-      font-size: 22px;
-      font-weight: 600;
-      letter-spacing: 2px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .cover-brand-label {
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: 3px;
       text-transform: uppercase;
-      color: {{ plan.accent_color }};
-      align-self: flex-start;
+      color: {{ plan.accent_color or "#00ed64" }};
     }
 
-    .hero-center-graphic {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      margin: 60px 0;
+    .cover-category-badge {
+      font-size: 18px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #a8b3bc;
     }
 
-    .hero-icon-container {
-      width: 220px;
-      height: 220px;
-      border-radius: 48px;
-      background: rgba(0, 30, 43, 0.7);
-      border: 2px solid {{ plan.accent_color }};
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
-    }
-
-    .cover-typography {
+    .cover-main-body {
       margin-top: auto;
-      margin-bottom: 80px;
+      margin-bottom: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 36px;
+    }
+
+    .cover-icon-wrapper {
+      margin-bottom: 20px;
+    }
+
+    .cover-icon-wrapper svg {
+      width: 80px;
+      height: 80px;
+      stroke-width: 1.75;
     }
 
     .cover-title {
-      font-size: 88px;
-      font-weight: 600;
+      font-size: 92px;
+      font-weight: 700;
       line-height: 1.08;
       letter-spacing: -2px;
       color: #ffffff;
-      margin-bottom: 24px;
+      max-width: 1200px;
+      word-break: break-word;
     }
 
     .cover-subtitle {
-      font-size: 34px;
+      font-size: 32px;
       font-weight: 400;
-      line-height: 1.35;
-      color: #a8b3bc;
-      max-width: 1200px;
+      line-height: 1.40;
+      color: #c1ccd6;
+      max-width: 1100px;
+      word-break: break-word;
+    }
+
+    .cover-divider {
+      width: 120px;
+      height: 4px;
+      background-color: {{ plan.accent_color or "#00ed64" }};
+      margin: 10px 0;
     }
 
     .cover-footer {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-top: 36px;
-      border-top: 2px solid rgba(255, 255, 255, 0.12);
-      font-size: 24px;
+      padding-top: 32px;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      font-size: 20px;
       color: #a8b3bc;
       font-weight: 500;
+      letter-spacing: 1px;
     }
 
-    .brand-signature {
-      color: {{ plan.accent_color }};
+    .cover-footer-left {
+      color: #e1e5e8;
       font-weight: 600;
-      letter-spacing: 1px;
     }
   </style>
 </head>
 <body>
   <div class="cover-canvas">
-    <svg class="svg-background" viewBox="0 0 1600 2560" xmlns="http://www.w3.org/2000/svg">
-      {{ geometric_svg | safe }}
-    </svg>
-
     <div class="safe-content-area">
-      <div class="cover-top-badge">
-        <span>{{ plan.category }}</span>
+      <div class="cover-brand-header">
+        <span class="cover-brand-label">VASUKISQUARE</span>
+        <span class="cover-category-badge">{{ plan.category }}</span>
       </div>
 
-      <div class="hero-center-graphic">
-        <div class="hero-icon-container">
+      <div class="cover-main-body">
+        {% if hero_icon_svg %}
+        <div class="cover-icon-wrapper">
           {{ hero_icon_svg | safe }}
         </div>
-      </div>
+        {% endif %}
 
-      <div class="cover-typography">
+        <div class="cover-divider"></div>
+
         <h1 class="cover-title">{{ plan.title }}</h1>
         {% if plan.subtitle %}
         <p class="cover-subtitle">{{ plan.subtitle }}</p>
@@ -156,11 +156,10 @@
       </div>
 
       <footer class="cover-footer">
-        <span>{{ plan.author }}</span>
-        <span class="brand-signature">VASUKISQUARE</span>
+        <span class="cover-footer-left">{{ plan.author }}</span>
+        <span>VASUKISQUARE TECHNICAL PUBLISHING · FIRST EDITION</span>
       </footer>
     </div>
   </div>
 </body>
 </html>
-

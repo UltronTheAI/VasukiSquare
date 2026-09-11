@@ -136,7 +136,8 @@ class PageWriterAgent:
             )
             blocks = [
                 TextBlock(
-                    text="The consensus engine coordinates state replication across clustered nodes via atomic term transitions."
+                    text="The consensus engine coordinates state replication across clustered nodes via atomic term transitions. "
+                    "Each cluster participant transitions between Follower, Candidate, and Leader states based on heartbeat timeouts and term progression."
                 ),
                 CodeBlock(
                     language="rust",
@@ -147,7 +148,10 @@ class PageWriterAgent:
                 CalloutBlock(
                     variant="tip",
                     title="Implementation Detail",
-                    content="Always persist voted_for and current_term to non-volatile WAL storage prior to acknowledging RPC vote requests.",
+                    content="Always persist voted_for and current_term to non-volatile WAL storage prior to acknowledging RPC vote requests to guard against split-brain quorum states.",
+                ),
+                TextBlock(
+                    text="By guaranteeing monotonic term increases and strict leader completeness, log entries committed in prior terms remain immutable across future leadership transitions."
                 ),
             ]
             return PageContent(headline=headline, blocks=blocks)
@@ -161,21 +165,29 @@ class PageWriterAgent:
                 ["Memory Footprint", "Moderate internal node cache", "Requires Bloom filter and index blocks per SSTable"],
             ]
             blocks = [
-                TextBlock(text="Trade-off matrix evaluating storage architectures under high-throughput workloads:"),
+                TextBlock(
+                    text="Choosing an appropriate storage engine requires evaluating trade-offs between write amplification, read latency, and cache efficiency under production concurrency constraints."
+                ),
                 TableBlock(
                     caption="Table 1.1: Architectural trade-offs between B+ Trees and LSM Trees.",
                     columns=columns,
                     rows=rows,
+                ),
+                TextBlock(
+                    text="While B+ Trees optimize for point-read predictability in transactional databases, LSM Trees maximize ingestion throughput by converting random overwrites into sequential disk flushes."
                 ),
             ]
             return PageContent(headline=headline, blocks=blocks)
 
         elif p.layout == LayoutType.LARGE_NUMBER.value:
             blocks = [
+                TextBlock(
+                    text="Empirical throughput testing across high-performance distributed storage clusters demonstrates linear scalability as node counts increase."
+                ),
                 StatisticBlock(
                     value="1.24M",
                     label="Operations Per Second",
-                    description="Sustained write throughput benchmarked across a 64-node distributed NVMe cluster.",
+                    description="Sustained write throughput benchmarked across a 64-node distributed NVMe cluster under 99.9th percentile SLA constraints.",
                 ),
                 ChartBlock(
                     chart_type="bar",
@@ -198,17 +210,25 @@ class PageWriterAgent:
                 "  L0 -->|5. Compaction| L1[Level 1 SSTables]"
             )
             blocks = [
-                TextBlock(text="The write path ensures zero data loss by recording mutations to disk before acknowledging client requests."),
+                TextBlock(
+                    text="The write path ensures zero data loss by recording mutations to disk before acknowledging client requests, while maintaining high throughput through tiered background compaction."
+                ),
                 DiagramBlock(code=mermaid_code, caption="Figure 1.1: LSM-Tree Ingestion & Compaction Pipeline"),
+                TextBlock(
+                    text="Background compaction continuously merges overlapping key intervals from Level 0 to Level 1, bounding the number of disk seeks required for point and range lookups."
+                ),
             ]
             return PageContent(headline=headline, blocks=blocks)
 
         elif p.layout == LayoutType.RESEARCH_HIGHLIGHT.value:
             blocks = [
+                TextBlock(
+                    text="Rigorous verification of consensus invariants requires formal TLA+ modeling combined with chaos engineering in live testbeds."
+                ),
                 CalloutBlock(
                     variant="important",
-                    title="Primary Finding",
-                    content="Linearizable reads under network partitions require quorum verification before committing read state.",
+                    title="Primary Research Finding",
+                    content="Linearizable reads under network partitions require quorum verification before committing read state to avoid stale reads during split-brain scenarios.",
                 ),
             ]
             for cit in citations[:2]:
@@ -221,10 +241,18 @@ class PageWriterAgent:
                         mode="card",
                     )
                 )
+            blocks.append(
+                TextBlock(
+                    text="Empirical validations confirm that lease-based optimizations reduce read latency by 70% while maintaining linearizability across non-faulty partitions."
+                )
+            )
             return PageContent(headline=headline, blocks=blocks)
 
         elif p.layout == LayoutType.DEFINITION.value:
             blocks = [
+                TextBlock(
+                    text="Fundamental storage primitives establish the contract between volatile memory buffers and durable persistent storage media."
+                ),
                 CalloutBlock(
                     variant="definition",
                     title="Write-Ahead Logging (WAL)",
@@ -239,6 +267,53 @@ class PageWriterAgent:
                         "[info] Replaying 42 uncommitted log segments...",
                         "[success] Recovery complete in 18ms. Listening on 0.0.0.0:27018",
                     ],
+                ),
+                TextBlock(
+                    text="Upon restart following unexpected process termination, the replay engine scans active WAL segments from the last checkpoint to reconstruct complete state."
+                ),
+            ]
+            return PageContent(headline=headline, blocks=blocks)
+
+        elif p.layout == LayoutType.QUOTE.value or p.visual_anchor == VisualAnchorType.QUOTE:
+            blocks = [
+                TextBlock(
+                    text="Software reliability in distributed environments is shaped as much by architectural discipline as by hardware fault tolerance mechanisms."
+                ),
+                QuoteBlock(
+                    quote="Simplicity is prerequisite for reliability. Complex recovery protocols inevitably create unforeseen failure modes.",
+                    author="Edsger W. Dijkstra",
+                    role="Computing Pioneer",
+                ),
+                TextBlock(
+                    text="When building large-scale distributed systems, choosing deterministic, well-understood protocols dramatically simplifies operational troubleshooting and post-incident analysis."
+                ),
+                CalloutBlock(
+                    variant="note",
+                    title="Key Takeaway",
+                    content="Favor explicit state transitions and bounded queues over speculative buffering and unbounded retry policies.",
+                ),
+            ]
+            return PageContent(headline=headline, blocks=blocks)
+
+        elif p.layout == LayoutType.TIMELINE.value or p.visual_anchor == VisualAnchorType.TIMELINE:
+            columns = ["Phase / Era", "Architectural Paradigm", "Key Innovation"]
+            rows = [
+                ["Early Era", "Single-Node ACID Engines", "B-Tree indices & ARIES recovery protocol"],
+                ["Scaling Era", "Distributed Key-Value Stores", "Consistent hashing & Dynamo replication"],
+                ["Modern Era", "NewSQL Distributed RDBMS", "TrueTime / Raft consensus & Spanner transactions"],
+                ["Next Generation", "Serverless & Memory-Tiered", "NVMe-over-Fabrics & disaggregated compute/storage"],
+            ]
+            blocks = [
+                TextBlock(
+                    text="The evolution of data architectures reflects shifting hardware trade-offs from disk spindle contention to network fabric latency."
+                ),
+                TableBlock(
+                    caption="Table 1.2: Chronological progression of distributed storage architectures.",
+                    columns=columns,
+                    rows=rows,
+                ),
+                TextBlock(
+                    text="Contemporary systems increasingly leverage disaggregated compute and storage, offloading replication protocols to hardware-accelerated interconnects."
                 ),
             ]
             return PageContent(headline=headline, blocks=blocks)
@@ -293,25 +368,30 @@ class PageWriterAgent:
             ]
             return PageContent(headline="Thank You for Reading", blocks=blocks)
 
-        # Default Editorial layout with prose and structured note
-        body_text = (
+        # Default Editorial layout with prose, callout, and secondary discussion
+        body_text_1 = (
             f"The architecture of modern software systems demands rigorous separation of concerns, "
             f"fault tolerance, and predictable latency characteristics. When evaluating system invariants, "
             f"engineers must balance consistency guarantees against availability under network partitions. "
             f"By leveraging modern consensus protocols and asynchronous non-blocking I/O primitives, "
             f"contemporary architectures achieve scale without compromising data safety."
         )
+        body_text_2 = (
+            f"Operational telemetry and structured logging provide necessary observability into replica drift "
+            f"and compaction latency. Sustained reliability requires automated partition detection, quorum health monitoring, "
+            f"and self-healing node replacement workflows."
+        )
         blocks = [
-            TextBlock(text=body_text),
+            TextBlock(text=body_text_1),
             CalloutBlock(
                 variant="note",
                 title="System Principle",
                 content="Deterministic state transitions ensure reproducibility across replicas regardless of message arrival interleaving.",
             ),
+            TextBlock(text=body_text_2),
         ]
         return PageContent(
             headline=headline,
-            body=body_text,
             blocks=blocks,
             key_points=["Consistency Guarantees", "Fault Tolerance", "Partition Tolerance"],
         )

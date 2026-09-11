@@ -51,6 +51,7 @@ class HtmlPageRenderer:
         page: Page,
         book_title: str = "VasukiSquare Book",
         book_topic: str = "",
+        running_title: Optional[str] = None,
     ) -> str:
         """Render an individual page model into standalone A4 HTML."""
         template = self.env.get_template("base.html")
@@ -61,11 +62,13 @@ class HtmlPageRenderer:
             icon_svg = render_lucide_icon(name=page.icon_name, color=icon_color, size=icon_size)
 
         blocks_html = self._render_page_blocks(page)
+        calc_running_title = running_title or (book_title.split(":", 1)[0].strip() if ":" in book_title else book_title)
 
         rendered = template.render(
             page=page,
             book_title=book_title,
             book_topic=book_topic,
+            running_title=calc_running_title,
             styles=self._get_css(),
             icon_svg=icon_svg,
             blocks_html=blocks_html,
@@ -77,11 +80,13 @@ class HtmlPageRenderer:
         pages: List[Page],
         book_title: str = "VasukiSquare Book",
         book_topic: str = "",
+        running_title: Optional[str] = None,
         auto_repair: bool = True,
     ) -> str:
         """Assemble and render a sequence of pages into a single cohesive multi-page HTML document."""
         processed_pages = self.repair_engine.repair_pages(pages) if auto_repair else pages
         template = self.env.get_template("book.html")
+        calc_running_title = running_title or (book_title.split(":", 1)[0].strip() if ":" in book_title else book_title)
 
         page_items = []
         for p in processed_pages:
@@ -97,6 +102,7 @@ class HtmlPageRenderer:
             page_items=page_items,
             book_title=book_title,
             book_topic=book_topic,
+            running_title=calc_running_title,
             styles=self._get_css(),
         )
         return rendered

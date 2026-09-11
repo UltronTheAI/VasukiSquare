@@ -179,11 +179,15 @@ html, body {
   --theme-accent-soft: rgba(0, 237, 100, 0.12);
 }
 
-/* Header &amp; Footer Chrome (High-Contrast, Clean Layout) */
+/* Header &amp; Footer Chrome (High-Contrast, Clean Layout, Zero Overflow) */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 1px;
@@ -196,11 +200,24 @@ html, body {
 }
 
 .page-header .header-chapter {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 14px;
   color: var(--theme-text-secondary);
   font-weight: 600;
 }
 
 .page-header .header-topic {
+  flex: 0 1 auto;
+  max-width: 48%;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
   color: var(--theme-text-muted);
 }
 
@@ -210,12 +227,20 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   gap: var(--spacing-md);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .page-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   font-size: 11px;
   color: var(--theme-text-muted);
   margin-top: auto;
@@ -225,11 +250,18 @@ html, body {
 }
 
 .page-footer .footer-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 14px;
   color: var(--theme-text-secondary);
   font-weight: 500;
 }
 
 .page-footer .footer-page-num {
+  flex-shrink: 0;
   color: var(--theme-text);
   font-weight: 700;
   font-size: 12px;
@@ -247,30 +279,40 @@ html, body {
 }
 
 /* Typography Print Rules &amp; Orphan/Widow Protection */
-h1, h2, h3, h4, h5 {
+h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   color: var(--theme-text);
   break-after: avoid;
   page-break-after: avoid;
+  overflow-wrap: break-word;
+  word-break: normal;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-h1 { font-size: 32px; line-height: 1.20; font-weight: 600; }
-h2 { font-size: 24px; line-height: 1.25; font-weight: 600; }
-h3 { font-size: 18px; line-height: 1.30; font-weight: 600; }
+h1 { font-size: 30px; line-height: 1.20; font-weight: 600; }
+h2 { font-size: 22px; line-height: 1.25; font-weight: 600; }
+h3 { font-size: 17px; line-height: 1.30; font-weight: 600; }
 h4 { font-size: 15px; line-height: 1.35; font-weight: 600; }
 h5 { font-size: 13px; line-height: 1.40; font-weight: 600; }
 
-p {
+p, li, td, th, blockquote, .callout-content, .content-body {
   orphans: 3;
   widows: 3;
   margin-bottom: var(--spacing-sm);
   color: var(--theme-text-secondary);
   line-height: 1.6;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 pre, code, table, .component-code-block, .component-terminal-window, .component-table-container, .component-chart-container, .component-callout, .card-box {
   break-inside: avoid;
   page-break-inside: avoid;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* ==========================================================================
@@ -804,20 +846,41 @@ pre, code, table, .component-code-block, .component-terminal-window, .component-
 
 .layout-split_explainer .page-content {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-xl);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--spacing-lg);
+  width: 100%;
+  max-width: 100%;
+}
+
+.layout-split_explainer .page-content &gt; * {
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .layout-comparison .comparison-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-lg);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--spacing-md);
+  width: 100%;
+  max-width: 100%;
+}
+
+.layout-comparison .comparison-grid &gt; * {
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .layout-concept_grid .grid-container {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--spacing-md);
+  width: 100%;
+  max-width: 100%;
+}
+
+.layout-concept_grid .grid-container &gt; * {
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .layout-research_highlight .highlight-card {
@@ -895,36 +958,35 @@ pre, code, table, .component-code-block, .component-terminal-window, .component-
       
       <header class="page-header">
         <span class="header-chapter">Chapter 1: Foundations and Core Concepts</span>
-        <span class="header-topic">The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage</span>
+        <span class="header-topic">The Engineering Behind Modern Databases</span>
       </header>
       
 
       <main class="page-content">
         
           
-          <h2 class="content-headline">Content for section &#39;Historical Context &amp; Evolution&#39; focusing on timeline.</h2>
+          <h2 class="content-headline">Historical Context &amp; Evolution</h2>
           
           
           
-            <p class="content-body">The architecture of modern software systems demands rigorous separation of concerns, fault tolerance, and predictable latency characteristics. When evaluating system invariants, engineers must balance consistency guarantees against availability under network partitions. By leveraging modern consensus protocols and asynchronous non-blocking I/O primitives, contemporary architectures achieve scale without compromising data safety.</p>
+            <p class="content-body">The evolution of data architectures reflects shifting hardware trade-offs from disk spindle contention to network fabric latency.</p>
 
-        <div class="component-callout callout-note theme-dark">
-          <div class="callout-header">
-            <span class="callout-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00ed64" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-info" data-token-color="PRIMARY"><circle cx="12" cy="12" r="10"/></svg></span>
-            <strong class="callout-title">System Principle</strong>
-          </div>
-          <div class="callout-content">
-            <p>Deterministic state transitions ensure reproducibility across replicas regardless of message arrival interleaving.</p>
-          </div>
+        <div class="component-table-container">
+          <table class="component-table theme-dark">
+            <caption class="table-caption">Table 1.2: Chronological progression of distributed storage architectures.</caption>
+            <thead><tr><th style="text-align: left;">Phase / Era</th><th style="text-align: left;">Architectural Paradigm</th><th style="text-align: left;">Key Innovation</th></tr></thead>
+            <tbody><tr><td style="text-align: left;">Early Era</td><td style="text-align: left;">Single-Node ACID Engines</td><td style="text-align: left;">B-Tree indices &amp; ARIES recovery protocol</td></tr><tr><td style="text-align: left;">Scaling Era</td><td style="text-align: left;">Distributed Key-Value Stores</td><td style="text-align: left;">Consistent hashing &amp; Dynamo replication</td></tr><tr><td style="text-align: left;">Modern Era</td><td style="text-align: left;">NewSQL Distributed RDBMS</td><td style="text-align: left;">TrueTime / Raft consensus &amp; Spanner transactions</td></tr><tr><td style="text-align: left;">Next Generation</td><td style="text-align: left;">Serverless &amp; Memory-Tiered</td><td style="text-align: left;">NVMe-over-Fabrics &amp; disaggregated compute/storage</td></tr></tbody>
+          </table>
         </div>
         
+<p class="content-body">Contemporary systems increasingly leverage disaggregated compute and storage, offloading replication protocols to hardware-accelerated interconnects.</p>
           
         
       </main>
 
       
       <footer class="page-footer">
-        <span class="footer-title">The Engineering Behind Modern Databases: B-Trees, Wal, Mvcc And Distributed Storage</span>
+        <span class="footer-title">The Engineering Behind Modern Databases</span>
         <span class="footer-page-num">8</span>
       </footer>
       

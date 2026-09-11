@@ -284,3 +284,93 @@ def test_lucide_svg_loaded_in_html():
     assert "<svg xmlns=\"http://www.w3.org/2000/svg\"" in html
     assert "lucide-sparkles" in html
     assert "stroke=\"#00ed64\"" in html  # Brand green token in dark chapter
+
+
+def test_content_validator_rejects_placeholders():
+    from vasukisquare.renderer.validator import ContentValidator
+    bad_page = Page(
+        book_id="b-test",
+        page_number=5,
+        layout=LayoutType.EDITORIAL.value,
+        content=PageContent(
+            headline="Content for section 'Storage Engine' focusing on code.",
+            body="Here is some placeholder text for the chapter.",
+        ),
+    )
+    errors = ContentValidator.validate_page_content(bad_page)
+    assert len(errors) >= 2
+    assert any("content for section" in err.lower() for err in errors)
+    assert any("placeholder text" in err.lower() for err in errors)
+
+
+def test_density_estimator_calculation():
+    from vasukisquare.renderer.overflow import DensityEstimator
+    from vasukisquare.book.components import TextBlock, CodeBlock, CalloutBlock
+
+    dense_page = Page(
+        book_id="b-test",
+        page_number=6,
+        layout=LayoutType.CODE_FOCUS.value,
+        content=PageContent(
+            headline="Distributed Invariants",
+            blocks=[
+                TextBlock(text="Paragraph 1 with extensive architectural explanations for distributed cluster state machines."),
+                CodeBlock(language="rust", code="fn main() {\n    println!(\"hello\");\n}\n"),
+                CalloutBlock(variant="tip", title="Tip", content="Persistence note."),
+                TextBlock(text="Paragraph 2 evaluating partition tolerances and quorum commit properties."),
+            ],
+        ),
+    )
+    density = DensityEstimator.estimate_page_density(dense_page)
+    # Density should be within reasonable usable page bounds (0.25 to 0.85)
+    assert 0.25 <= density <= 0.85
+
+
+def test_running_title_in_header_and_footer():
+    renderer = HtmlPageRenderer()
+    page = Page(
+        book_id="b-test",
+        page_number=3,
+        chapter_number=1,
+        chapter_name="Consensus Invariants",
+        layout=LayoutType.EDITORIAL.value,
+        theme=Theme.DARK,
+        content=PageContent(headline="Raft Protocol Core", body="Text content here."),
+    )
+    html = renderer.render_page(
+        page,
+        book_title="High Scalability Architecture: Distributed Systems in Practice",
+        running_title="High Scalability Architecture",
+    )
+    assert "High Scalability Architecture" in html
+    assert "Chapter 1: Consensus Invariants" in html
+    assert "class=\"header-topic\"" in html
+    assert "class=\"footer-title\"" in html
+
+
+def test_cover_solid_minimal_layout():
+    from vasukisquare.agents.cover import CoverPlan
+    from vasukisquare.renderer.cover import CoverRenderer
+
+    renderer = CoverRenderer()
+    plan = CoverPlan(
+        title="Modern Distributed Systems",
+        subtitle="Architectural Principles & Real-World Patterns",
+        category="Technical Deep Dive",
+        tone="Authoritative",
+        audience="Principal Engineers",
+        accent_color="#00ed64",
+        background_color="#001e2b",
+        layout_style="minimal",
+        hero_icon="server",
+    )
+    artwork_html = renderer.render_source_artwork(plan)
+    assert "radial-gradient" not in artwork_html
+    assert "#001e2b" in artwork_html
+    assert "VASUKISQUARE" in artwork_html
+    assert "Modern Distributed Systems" in artwork_html
+
+    a4_cover = renderer.render_a4_cover_page(plan, book_id="modern-dist-sys")
+    assert "radial-gradient" not in a4_cover.html
+    assert "cover-hero-solid" in a4_cover.html
+    assert "Modern Distributed Systems" in a4_cover.html

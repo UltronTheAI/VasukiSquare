@@ -1,6 +1,7 @@
 {
   "title": "The Engineering Behind Modern Databases: B-Trees, Wal, Mvcc And Distributed Storage",
   "subtitle": "A Definitive Technical Deep Dive",
+  "running_title": "The Engineering Behind Modern Databases",
   "description": "An authoritative, intermediate guide tailored for Software Engineers, Architects, and Technical Leaders, covering architectural principles, practical implementations, and production patterns.",
   "intent": {
     "book_type": "technical_deep_dive",
@@ -318,7 +319,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "timeline",
-      "brief": "Content for section 'Historical Context & Evolution' focusing on timeline."
+      "brief": "Historical Context & Evolution"
     },
     {
       "page_number": 7,
@@ -329,7 +330,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "text",
-      "brief": "Content for section 'Core Terminology & Taxonomies' focusing on text."
+      "brief": "Core Terminology & Taxonomies"
     },
     {
       "page_number": 8,
@@ -340,7 +341,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "timeline",
-      "brief": "Content for section 'Historical Context & Evolution' focusing on timeline."
+      "brief": "Historical Context & Evolution"
     },
     {
       "page_number": 9,
@@ -351,7 +352,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "text",
-      "brief": "Content for section 'Core Terminology & Taxonomies' focusing on text."
+      "brief": "Core Terminology & Taxonomies"
     },
     {
       "page_number": 10,
@@ -362,7 +363,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "timeline",
-      "brief": "Content for section 'Historical Context & Evolution' focusing on timeline."
+      "brief": "Historical Context & Evolution"
     },
     {
       "page_number": 11,
@@ -373,7 +374,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "text",
-      "brief": "Content for section 'Core Terminology & Taxonomies' focusing on text."
+      "brief": "Core Terminology & Taxonomies"
     },
     {
       "page_number": 12,
@@ -384,7 +385,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "timeline",
-      "brief": "Content for section 'Historical Context & Evolution' focusing on timeline."
+      "brief": "Historical Context & Evolution"
     },
     {
       "page_number": 13,
@@ -406,7 +407,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "diagram",
-      "brief": "Content for section 'System Topology & Component Model' focusing on diagram."
+      "brief": "System Topology & Component Model"
     },
     {
       "page_number": 15,
@@ -417,7 +418,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "text",
-      "brief": "Content for section 'Core Protocols & State Machines' focusing on text."
+      "brief": "Core Protocols & State Machines"
     },
     {
       "page_number": 16,
@@ -428,7 +429,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "diagram",
-      "brief": "Content for section 'System Topology & Component Model' focusing on diagram."
+      "brief": "System Topology & Component Model"
     },
     {
       "page_number": 17,
@@ -439,7 +440,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "text",
-      "brief": "Content for section 'Core Protocols & State Machines' focusing on text."
+      "brief": "Core Protocols & State Machines"
     },
     {
       "page_number": 18,
@@ -450,7 +451,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "diagram",
-      "brief": "Content for section 'System Topology & Component Model' focusing on diagram."
+      "brief": "System Topology & Component Model"
     },
     {
       "page_number": 19,
@@ -461,7 +462,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "text",
-      "brief": "Content for section 'Core Protocols & State Machines' focusing on text."
+      "brief": "Core Protocols & State Machines"
     },
     {
       "page_number": 20,
@@ -472,7 +473,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "diagram",
-      "brief": "Content for section 'System Topology & Component Model' focusing on diagram."
+      "brief": "System Topology & Component Model"
     },
     {
       "page_number": 21,
@@ -494,7 +495,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "code",
-      "brief": "Content for section 'Reference Implementation Patterns' focusing on code."
+      "brief": "Reference Implementation Patterns"
     },
     {
       "page_number": 23,
@@ -505,7 +506,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "table",
-      "brief": "Content for section 'Integration & Developer Experience' focusing on table."
+      "brief": "Integration & Developer Experience"
     },
     {
       "page_number": 24,
@@ -516,7 +517,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "code",
-      "brief": "Content for section 'Reference Implementation Patterns' focusing on code."
+      "brief": "Reference Implementation Patterns"
     },
     {
       "page_number": 25,
@@ -527,7 +528,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "table",
-      "brief": "Content for section 'Integration & Developer Experience' focusing on table."
+      "brief": "Integration & Developer Experience"
     },
     {
       "page_number": 26,
@@ -538,7 +539,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "code",
-      "brief": "Content for section 'Reference Implementation Patterns' focusing on code."
+      "brief": "Reference Implementation Patterns"
     },
     {
       "page_number": 27,
@@ -549,7 +550,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "table",
-      "brief": "Content for section 'Integration & Developer Experience' focusing on table."
+      "brief": "Integration & Developer Experience"
     },
     {
       "page_number": 28,
@@ -560,7 +561,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "code",
-      "brief": "Content for section 'Reference Implementation Patterns' focusing on code."
+      "brief": "Reference Implementation Patterns"
     },
     {
       "page_number": 29,
@@ -582,7 +583,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "statistic",
-      "brief": "Content for section 'Throughput & Latency Benchmarks' focusing on statistic."
+      "brief": "Throughput & Latency Benchmarks"
     },
     {
       "page_number": 31,
@@ -593,7 +594,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "table",
-      "brief": "Content for section 'Architectural Trade-offs Matrix' focusing on table."
+      "brief": "Architectural Trade-offs Matrix"
     },
     {
       "page_number": 32,
@@ -604,7 +605,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "statistic",
-      "brief": "Content for section 'Throughput & Latency Benchmarks' focusing on statistic."
+      "brief": "Throughput & Latency Benchmarks"
     },
     {
       "page_number": 33,
@@ -615,7 +616,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "table",
-      "brief": "Content for section 'Architectural Trade-offs Matrix' focusing on table."
+      "brief": "Architectural Trade-offs Matrix"
     },
     {
       "page_number": 34,
@@ -626,7 +627,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "statistic",
-      "brief": "Content for section 'Throughput & Latency Benchmarks' focusing on statistic."
+      "brief": "Throughput & Latency Benchmarks"
     },
     {
       "page_number": 35,
@@ -637,7 +638,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "table",
-      "brief": "Content for section 'Architectural Trade-offs Matrix' focusing on table."
+      "brief": "Architectural Trade-offs Matrix"
     },
     {
       "page_number": 36,
@@ -648,7 +649,7 @@
       "theme": "light",
       "icon": null,
       "visual_anchor": "statistic",
-      "brief": "Content for section 'Throughput & Latency Benchmarks' focusing on statistic."
+      "brief": "Throughput & Latency Benchmarks"
     },
     {
       "page_number": 37,
@@ -670,7 +671,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "quote",
-      "brief": "Content for section 'Scaling & Reliability Strategies' focusing on quote."
+      "brief": "Scaling & Reliability Strategies"
     },
     {
       "page_number": 39,
@@ -681,7 +682,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "text",
-      "brief": "Content for section 'Production Case Study & Retrospective' focusing on text."
+      "brief": "Production Case Study & Retrospective"
     },
     {
       "page_number": 40,
@@ -692,7 +693,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "quote",
-      "brief": "Content for section 'Scaling & Reliability Strategies' focusing on quote."
+      "brief": "Scaling & Reliability Strategies"
     },
     {
       "page_number": 41,
@@ -703,7 +704,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "text",
-      "brief": "Content for section 'Production Case Study & Retrospective' focusing on text."
+      "brief": "Production Case Study & Retrospective"
     },
     {
       "page_number": 42,
@@ -714,7 +715,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "quote",
-      "brief": "Content for section 'Scaling & Reliability Strategies' focusing on quote."
+      "brief": "Scaling & Reliability Strategies"
     },
     {
       "page_number": 43,
@@ -725,7 +726,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "text",
-      "brief": "Content for section 'Production Case Study & Retrospective' focusing on text."
+      "brief": "Production Case Study & Retrospective"
     },
     {
       "page_number": 44,
@@ -736,7 +737,7 @@
       "theme": "dark",
       "icon": null,
       "visual_anchor": "quote",
-      "brief": "Content for section 'Scaling & Reliability Strategies' focusing on quote."
+      "brief": "Scaling & Reliability Strategies"
     },
     {
       "page_number": 45,
@@ -762,5 +763,5 @@
     }
   ],
   "total_pages": 46,
-  "created_at": "2026-09-11T16:13:09.882652Z"
+  "created_at": "2026-09-11T16:20:23.708335Z"
 }

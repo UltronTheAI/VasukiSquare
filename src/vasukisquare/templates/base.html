@@ -18,7 +18,7 @@
       {% if page.layout_type.value != "chapter_opener" and page.layout_type.value != "cover" %}
       <header class="page-header">
         <span class="header-chapter">{% if page.chapter_number %}Chapter {{ page.chapter_number }}: {{ page.chapter_title }}{% endif %}</span>
-        <span class="header-topic">{{ book_topic }}</span>
+        <span class="header-topic">{{ running_title or book_topic or book_title }}</span>
       </header>
       {% endif %}
 
@@ -55,7 +55,7 @@
 
       {% if page.layout_type.value != "chapter_opener" and page.layout_type.value != "cover" %}
       <footer class="page-footer">
-        <span class="footer-title">{{ book_title }}</span>
+        <span class="footer-title">{{ running_title or book_title }}</span>
         <span class="footer-page-num">{{ page.page_number }}</span>
       </footer>
       {% endif %}

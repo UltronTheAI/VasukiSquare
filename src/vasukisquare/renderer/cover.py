@@ -62,24 +62,29 @@ class CoverRenderer:
     def render_a4_cover_page(self, plan: CoverPlan, book_id: str) -> Page:
         """Generate an A4 Page representation safely framing the cover artwork."""
         accent_token = validate_color_token(plan.accent_color)
-        icon_svg = render_lucide_icon(name=plan.hero_icon, color=accent_token, size=54)
+        bg_token = validate_color_token(plan.background_color)
+        icon_svg = render_lucide_icon(name=plan.hero_icon, color=accent_token, size=56, stroke_width=1.75)
 
         html_content = f"""
-        <div class="cover-hero" style="background: radial-gradient(circle at 50% 30%, rgba(0, 237, 100, 0.12) 0%, transparent 70%);">
-          <div style="margin-bottom: 24px; padding: 6px 18px; border-radius: 9999px; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.15); font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: {plan.accent_color};">
-            {plan.category}
+        <div class="cover-hero cover-hero-solid" style="background-color: {bg_token.value}; padding: 48px 40px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; box-sizing: border-box;">
+          <div class="cover-brand-header" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.15);">
+            <span style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent_token.value};">VASUKISQUARE</span>
+            <span style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #a8b3bc;">{plan.category}</span>
           </div>
-          <div style="margin: 28px 0; width: 100px; height: 100px; border-radius: 24px; background: rgba(0, 30, 43, 0.8); border: 2px solid {plan.accent_color}; display: flex; align-items: center; justify-content: center;">
-            {icon_svg}
+          <div class="cover-main-body" style="margin: auto 0; display: flex; flex-direction: column; gap: 20px;">
+            <div class="cover-icon-wrapper" style="margin-bottom: 8px;">
+              {icon_svg}
+            </div>
+            <div style="width: 60px; height: 3px; background-color: {accent_token.value}; margin: 6px 0;"></div>
+            <h1 class="cover-title" style="font-size: 38px; font-weight: 700; line-height: 1.12; color: #ffffff; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
+              {plan.title}
+            </h1>
+            {f'<p class="cover-subtitle" style="font-size: 15px; color: #c1ccd6; line-height: 1.45; margin: 0; max-width: 520px; word-break: break-word;">{plan.subtitle}</p>' if plan.subtitle else ''}
           </div>
-          <h1 class="cover-title" style="font-size: 42px; font-weight: 600; line-height: 1.15; color: #ffffff; margin-bottom: 14px;">
-            {plan.title}
-          </h1>
-          {f'<p class="cover-subtitle" style="font-size: 16px; color: #a8b3bc; line-height: 1.4; max-width: 440px;">{plan.subtitle}</p>' if plan.subtitle else ''}
-          <div style="margin-top: auto; padding-top: 24px; width: 100%; display: flex; justify-content: space-between; font-size: 12px; color: #a8b3bc; border-top: 1px solid rgba(255, 255, 255, 0.12);">
-            <span>{plan.author}</span>
-            <span style="color: {plan.accent_color}; font-weight: 600; letter-spacing: 1px;">VASUKISQUARE</span>
-          </div>
+          <footer class="cover-footer" style="padding-top: 20px; width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #a8b3bc; border-top: 1px solid rgba(255, 255, 255, 0.15);">
+            <span style="color: #e1e5e8; font-weight: 600;">{plan.author}</span>
+            <span style="letter-spacing: 0.5px;">VASUKISQUARE TECHNICAL PUBLISHING</span>
+          </footer>
         </div>
         """
 

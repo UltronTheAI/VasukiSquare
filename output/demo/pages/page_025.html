@@ -179,11 +179,15 @@ html, body {
   --theme-accent-soft: rgba(0, 237, 100, 0.12);
 }
 
-/* Header &amp; Footer Chrome (High-Contrast, Clean Layout) */
+/* Header &amp; Footer Chrome (High-Contrast, Clean Layout, Zero Overflow) */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 1px;
@@ -196,11 +200,24 @@ html, body {
 }
 
 .page-header .header-chapter {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 14px;
   color: var(--theme-text-secondary);
   font-weight: 600;
 }
 
 .page-header .header-topic {
+  flex: 0 1 auto;
+  max-width: 48%;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: right;
   color: var(--theme-text-muted);
 }
 
@@ -210,12 +227,20 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   gap: var(--spacing-md);
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .page-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   font-size: 11px;
   color: var(--theme-text-muted);
   margin-top: auto;
@@ -225,11 +250,18 @@ html, body {
 }
 
 .page-footer .footer-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-right: 14px;
   color: var(--theme-text-secondary);
   font-weight: 500;
 }
 
 .page-footer .footer-page-num {
+  flex-shrink: 0;
   color: var(--theme-text);
   font-weight: 700;
   font-size: 12px;
@@ -247,30 +279,40 @@ html, body {
 }
 
 /* Typography Print Rules &amp; Orphan/Widow Protection */
-h1, h2, h3, h4, h5 {
+h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-display);
   color: var(--theme-text);
   break-after: avoid;
   page-break-after: avoid;
+  overflow-wrap: break-word;
+  word-break: normal;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
-h1 { font-size: 32px; line-height: 1.20; font-weight: 600; }
-h2 { font-size: 24px; line-height: 1.25; font-weight: 600; }
-h3 { font-size: 18px; line-height: 1.30; font-weight: 600; }
+h1 { font-size: 30px; line-height: 1.20; font-weight: 600; }
+h2 { font-size: 22px; line-height: 1.25; font-weight: 600; }
+h3 { font-size: 17px; line-height: 1.30; font-weight: 600; }
 h4 { font-size: 15px; line-height: 1.35; font-weight: 600; }
 h5 { font-size: 13px; line-height: 1.40; font-weight: 600; }
 
-p {
+p, li, td, th, blockquote, .callout-content, .content-body {
   orphans: 3;
   widows: 3;
   margin-bottom: var(--spacing-sm);
   color: var(--theme-text-secondary);
   line-height: 1.6;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 pre, code, table, .component-code-block, .component-terminal-window, .component-table-container, .component-chart-container, .component-callout, .card-box {
   break-inside: avoid;
   page-break-inside: avoid;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 /* ==========================================================================
@@ -804,20 +846,41 @@ pre, code, table, .component-code-block, .component-terminal-window, .component-
 
 .layout-split_explainer .page-content {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-xl);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--spacing-lg);
+  width: 100%;
+  max-width: 100%;
+}
+
+.layout-split_explainer .page-content &gt; * {
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .layout-comparison .comparison-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-lg);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--spacing-md);
+  width: 100%;
+  max-width: 100%;
+}
+
+.layout-comparison .comparison-grid &gt; * {
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .layout-concept_grid .grid-container {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--spacing-md);
+  width: 100%;
+  max-width: 100%;
+}
+
+.layout-concept_grid .grid-container &gt; * {
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .layout-research_highlight .highlight-card {
@@ -895,18 +958,18 @@ pre, code, table, .component-code-block, .component-terminal-window, .component-
       
       <header class="page-header">
         <span class="header-chapter">Chapter 3: Practical Implementation</span>
-        <span class="header-topic">The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage</span>
+        <span class="header-topic">The Engineering Behind Modern Databases</span>
       </header>
       
 
       <main class="page-content">
         
           
-          <h2 class="content-headline">Content for section &#39;Integration &amp; Developer Experience&#39; focusing on table.</h2>
+          <h2 class="content-headline">Integration &amp; Developer Experience</h2>
           
           
           
-            <p class="content-body">Trade-off matrix evaluating storage architectures under high-throughput workloads:</p>
+            <p class="content-body">Choosing an appropriate storage engine requires evaluating trade-offs between write amplification, read latency, and cache efficiency under production concurrency constraints.</p>
 
         <div class="component-table-container">
           <table class="component-table theme-dark">
@@ -916,13 +979,14 @@ pre, code, table, .component-code-block, .component-terminal-window, .component-
           </table>
         </div>
         
+<p class="content-body">While B+ Trees optimize for point-read predictability in transactional databases, LSM Trees maximize ingestion throughput by converting random overwrites into sequential disk flushes.</p>
           
         
       </main>
 
       
       <footer class="page-footer">
-        <span class="footer-title">The Engineering Behind Modern Databases: B-Trees, Wal, Mvcc And Distributed Storage</span>
+        <span class="footer-title">The Engineering Behind Modern Databases</span>
         <span class="footer-page-num">25</span>
       </footer>
       

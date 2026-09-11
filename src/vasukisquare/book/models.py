@@ -127,6 +127,7 @@ class BookPlan(BaseModel):
 
     title: str
     subtitle: str
+    running_title: Optional[str] = None
     description: str
     intent: BookIntent
     frontmatter_pages: List[PlannedPage] = Field(default_factory=list)
@@ -137,9 +138,16 @@ class BookPlan(BaseModel):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
     @model_validator(mode="after")
-    def calculate_total_pages(self) -> "BookPlan":
+    def calculate_total_pages_and_running_title(self) -> "BookPlan":
         if self.all_planned_pages:
             self.total_pages = len(self.all_planned_pages)
+        if not self.running_title and self.title:
+            # Generate short running title if none provided (e.g. text before ':' or first 4-5 words)
+            if ":" in self.title:
+                self.running_title = self.title.split(":", 1)[0].strip()
+            else:
+                words = self.title.split()
+                self.running_title = " ".join(words[:5]) if len(words) > 5 else self.title
         return self
 
 
@@ -287,6 +295,7 @@ class Book(BaseModel):
     slug: str = ""
     title: str
     subtitle: Optional[str] = None
+    running_title: Optional[str] = None
     prompt: str = ""
     description: str = ""
     status: str = "draft"
@@ -304,6 +313,12 @@ class Book(BaseModel):
             self.slug = slugify(self.title)
         if not self.chapter_count and self.chapters:
             self.chapter_count = len(self.chapters)
+        if not self.running_title and self.title:
+            if ":" in self.title:
+                self.running_title = self.title.split(":", 1)[0].strip()
+            else:
+                words = self.title.split()
+                self.running_title = " ".join(words[:5]) if len(words) > 5 else self.title
         return self
 
 

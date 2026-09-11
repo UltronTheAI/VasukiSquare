@@ -303,7 +303,7 @@ class EditorialPlannerAgent:
                     chapter_title=ch.title,
                     theme=ch.theme,
                     visual_anchor=anchor,
-                    brief=f"Content for section '{sec.title if sec else 'Main'}' focusing on {anchor.value}.",
+                    brief=sec.title if sec else f"Core Concepts: {anchor.value.title()}",
                 )
                 all_pages.append(p_content)
                 curr_page_num += 1
