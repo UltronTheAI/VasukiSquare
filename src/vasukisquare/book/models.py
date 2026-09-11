@@ -1,7 +1,8 @@
-"""Domain schemas and models for Books, Pages, Covers, and Plans."""
+"""Domain schemas and models for Books, Pages, Covers, Intent, and Editorial Plans."""
 
 import re
 from datetime import datetime, timezone
+from enum import Enum
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 from pydantic import BaseModel, Field, model_validator
@@ -18,6 +19,112 @@ def slugify(text: str) -> str:
     """Convert text to a URL/DB safe slug."""
     slug = re.sub(r"[^\w\s-]", "", text).strip().lower()
     return re.sub(r"[-\s]+", "-", slug)
+
+
+class VisualAnchorType(str, Enum):
+    """Visual layout anchor or focal element for a section or page."""
+
+    CODE = "code"
+    TABLE = "table"
+    DIAGRAM = "diagram"
+    TIMELINE = "timeline"
+    QUOTE = "quote"
+    COMPARISON = "comparison"
+    STATISTIC = "statistic"
+    TEXT = "text"
+
+
+class BookIntent(BaseModel):
+    """Inferred user intent, technical scope, and editorial parameters."""
+
+    book_type: str = Field(
+        default="technical_deep_dive",
+        description="Type of book: technical_deep_dive, handbook, architecture_guide, tutorial_manual, executive_briefing",
+    )
+    target_audience: str = Field(
+        default="Software Engineers and Architects",
+        description="Target readership",
+    )
+    technical_depth: str = Field(
+        default="advanced",
+        description="Technical depth: introductory, intermediate, advanced, expert",
+    )
+    tone: str = Field(
+        default="authoritative",
+        description="Editorial tone: authoritative, practical, analytical, educational",
+    )
+    approximate_length: str = Field(
+        default="standard",
+        description="Length: short (20-40 pages), standard (40-70 pages), comprehensive (70-120 pages)",
+    )
+    chapter_count: int = Field(default=6, ge=3, le=16)
+    research_intensity: str = Field(default="deep", description="standard, deep, academic")
+    code_requirements: bool = Field(default=True)
+    diagram_requirements: bool = Field(default=True)
+
+
+class SectionPlan(BaseModel):
+    """Plan for a sub-section within a chapter."""
+
+    title: str
+    key_concepts: List[str] = Field(default_factory=list)
+    visual_anchors: List[VisualAnchorType] = Field(default_factory=lambda: [VisualAnchorType.TEXT])
+    target_page_count: int = Field(default=1, ge=1)
+    description: Optional[str] = None
+
+
+class PlannedChapter(BaseModel):
+    """Plan for an entire chapter including page budget and theme."""
+
+    chapter_number: int = Field(ge=1)
+    title: str
+    subtitle: Optional[str] = None
+    summary: str
+    icon: str = "sparkles"
+    theme: Theme = Theme.LIGHT
+    page_budget: int = Field(default=8, ge=2, description="Total pages including chapter opener")
+    sections: List[SectionPlan] = Field(default_factory=list)
+    sources_to_cite: List[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def set_theme_from_chapter_num(self) -> "PlannedChapter":
+        self.theme = get_chapter_theme(self.chapter_number)
+        return self
+
+
+class PlannedPage(BaseModel):
+    """Individual pre-allocated page specification in the book plan."""
+
+    page_number: int = Field(ge=1)
+    page_type: str
+    layout: str
+    chapter_number: Optional[int] = None
+    chapter_title: Optional[str] = None
+    theme: Theme = Theme.LIGHT
+    icon: Optional[str] = None
+    visual_anchor: Optional[VisualAnchorType] = None
+    brief: str = ""
+
+
+class BookPlan(BaseModel):
+    """Comprehensive editorial plan structuring the entire book."""
+
+    title: str
+    subtitle: str
+    description: str
+    intent: BookIntent
+    frontmatter_pages: List[PlannedPage] = Field(default_factory=list)
+    chapters: List[PlannedChapter] = Field(default_factory=list)
+    backmatter_pages: List[PlannedPage] = Field(default_factory=list)
+    all_planned_pages: List[PlannedPage] = Field(default_factory=list)
+    total_pages: int = 0
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @model_validator(mode="after")
+    def calculate_total_pages(self) -> "BookPlan":
+        if self.all_planned_pages:
+            self.total_pages = len(self.all_planned_pages)
+        return self
 
 
 class SourceCitation(BaseModel):
@@ -74,7 +181,7 @@ class Page(BaseModel):
     book_id: str
     page_number: int = Field(ge=1)
     page_type: str = Field(default=LayoutType.TEXT_HEAVY.value)
-    chapter_number: Optional[int] = Field(default=None, ge=1)
+    chapter_number: Optional[int] = None
     chapter_name: Optional[str] = None
     theme: Theme = Theme.LIGHT
     layout: str = Field(default=LayoutType.TEXT_HEAVY.value)
@@ -136,7 +243,6 @@ class Cover(BaseModel):
     image_path: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    # Compatibility alias
     @property
     def subtitle(self) -> Optional[str]:
         return self.design.get("subtitle")

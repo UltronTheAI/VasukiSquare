@@ -1,4 +1,4 @@
-"""Book domain: models, plans, layouts, and page linking."""
+"""Book domain: models, intent, plans, layouts, and page linking."""
 
 from vasukisquare.book.layout import LayoutType
 from vasukisquare.book.models import (
@@ -9,6 +9,12 @@ from vasukisquare.book.models import (
     PageStyle,
     SourceCitation,
     Cover,
+    VisualAnchorType,
+    BookIntent,
+    SectionPlan,
+    PlannedChapter,
+    PlannedPage,
+    BookPlan,
     PagePlan,
     ChapterPlan,
     EditorialPlan,
@@ -25,6 +31,12 @@ __all__ = [
     "PageStyle",
     "SourceCitation",
     "Cover",
+    "VisualAnchorType",
+    "BookIntent",
+    "SectionPlan",
+    "PlannedChapter",
+    "PlannedPage",
+    "BookPlan",
     "PagePlan",
     "ChapterPlan",
     "EditorialPlan",
