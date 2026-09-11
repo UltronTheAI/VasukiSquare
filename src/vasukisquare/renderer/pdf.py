@@ -2,22 +2,29 @@
 
 import asyncio
 from pathlib import Path
-from typing import Optional, Union
+from typing import List, Optional, Union
 from vasukisquare.config import Settings, get_settings
+from vasukisquare.book.models import Page
+from vasukisquare.renderer.html import HtmlPageRenderer
 
 
 class PdfRenderer:
     """Renders HTML content or HTML files into deterministic A4 PDFs using Playwright."""
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(
+        self,
+        settings: Optional[Settings] = None,
+        html_renderer: Optional[HtmlPageRenderer] = None,
+    ):
         self.settings = settings or get_settings()
+        self.html_renderer = html_renderer or HtmlPageRenderer()
 
     async def render_html_to_pdf(
         self,
         html_content: str,
         output_path: Union[str, Path],
     ) -> Path:
-        """Convert HTML string to an A4 PDF document using Playwright."""
+        """Convert HTML string to an A4 PDF document using Playwright Chromium."""
         from playwright.async_api import async_playwright
 
         out_path = Path(output_path)
@@ -27,12 +34,11 @@ class PdfRenderer:
             browser = await p.chromium.launch(headless=self.settings.chromium_headless)
             page = await browser.new_page()
             
-            await page.set_content(html_content, wait_until="networkidle")
+            await page.set_content(html_content, wait_until="load")
             
             await page.pdf(
                 path=str(out_path),
-                width="210mm",
-                height="297mm",
+                format="A4",
                 print_background=True,
                 margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
             )
@@ -40,7 +46,21 @@ class PdfRenderer:
 
         return out_path
 
+    async def render_book_to_pdf(
+        self,
+        pages: List[Page],
+        output_path: Union[str, Path],
+        book_title: str = "VasukiSquare Book",
+        book_topic: str = "",
+    ) -> Path:
+        """Render a list of Page models directly into an assembled A4 PDF document."""
+        html_content = self.html_renderer.render_book(
+            pages=pages,
+            book_title=book_title,
+            book_topic=book_topic,
+        )
+        return await self.render_html_to_pdf(html_content, output_path)
+
     def render_sync(self, html_content: str, output_path: Union[str, Path]) -> Path:
         """Synchronous wrapper for rendering HTML to PDF."""
         return asyncio.run(self.render_html_to_pdf(html_content, output_path))
-

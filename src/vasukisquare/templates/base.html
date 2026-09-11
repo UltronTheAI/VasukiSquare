@@ -3,39 +3,59 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ page.chapter_title or "VasukiSquare" }}</title>
+  <title>{{ page.chapter_title or book_title or "VasukiSquare" }}</title>
   <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
     {{ styles }}
   </style>
 </head>
 <body>
-  <div class="page theme-{{ page.theme.value }} layout-{{ page.layout_type.value }}">
-    {% if page.layout_type.value != "chapter_opener" and page.layout_type.value != "cover" %}
-    <header class="page-header">
-      <span class="header-chapter">{% if page.chapter_number %}Chapter {{ page.chapter_number }}: {{ page.chapter_title }}{% endif %}</span>
-      <span class="header-topic">{{ book_topic }}</span>
-    </header>
-    {% endif %}
-
-    <main class="page-content">
-      {% if page.layout_type.value == "chapter_opener" %}
-      <div class="chapter-num">Chapter {{ page.chapter_number }}</div>
-      <h1 class="chapter-title">{{ page.chapter_title }}</h1>
-      <div class="chapter-icon">
-        {{ icon_svg | safe }}
-      </div>
-      {% else %}
-        {{ page.html_content | safe }}
+  <div class="page theme-{{ page.theme.value }} layout-{{ page.layout_type.value }}" data-page-number="{{ page.page_number }}">
+    <div class="page-safe-content">
+      {% if page.layout_type.value != "chapter_opener" and page.layout_type.value != "cover" %}
+      <header class="page-header">
+        <span class="header-chapter">{% if page.chapter_number %}Chapter {{ page.chapter_number }}: {{ page.chapter_title }}{% endif %}</span>
+        <span class="header-topic">{{ book_topic }}</span>
+      </header>
       {% endif %}
-    </main>
 
-    {% if page.layout_type.value != "cover" %}
-    <footer class="page-footer">
-      <span class="footer-title">{{ book_title }}</span>
-      <span class="footer-page-num">{{ page.page_number }}</span>
-    </footer>
-    {% endif %}
+      <main class="page-content">
+        {% if page.layout_type.value == "chapter_opener" %}
+        <div class="chapter-num">Chapter {{ page.chapter_number }}</div>
+        <h1 class="chapter-title">{{ page.chapter_title }}</h1>
+        <div class="chapter-icon">
+          {{ icon_svg | safe }}
+        </div>
+        {% elif page.layout_type.value == "cover" %}
+        <div class="cover-hero">
+          <h1 class="cover-title">{{ book_title }}</h1>
+          <p class="cover-subtitle">{{ book_topic }}</p>
+        </div>
+        {% else %}
+          {% if page.content and page.content.headline %}
+          <h2 class="content-headline">{{ page.content.headline }}</h2>
+          {% endif %}
+          
+          {% if page.html %}
+            {{ page.html | safe }}
+          {% elif page.content and page.content.body %}
+            <div class="content-body">
+              <p>{{ page.content.body }}</p>
+            </div>
+          {% endif %}
+        {% endif %}
+      </main>
+
+      {% if page.layout_type.value != "cover" %}
+      <footer class="page-footer">
+        <span class="footer-title">{{ book_title }}</span>
+        <span class="footer-page-num">{{ page.page_number }}</span>
+      </footer>
+      {% endif %}
+    </div>
   </div>
 </body>
 </html>
-

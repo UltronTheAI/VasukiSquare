@@ -71,7 +71,7 @@
 }
 
 @page {
-  size: 210mm 297mm;
+  size: A4;
   margin: 0;
 }
 
@@ -83,26 +83,45 @@
 
 html, body {
   width: var(--page-width);
-  height: var(--page-height);
   font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.5;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
+  background-color: #f0f2f5;
 }
 
-/* Base Page Container */
+.book-document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+/* Base Page Container (Exact A4 Physical Dimensions) */
 .page {
   width: var(--page-width);
   height: var(--page-height);
+  min-width: var(--page-width);
   max-width: var(--page-width);
+  min-height: var(--page-height);
   max-height: var(--page-height);
   overflow: hidden;
   position: relative;
   page-break-after: always;
+  break-after: page;
   padding: 24mm 20mm;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+}
+
+.page-safe-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 /* Dual-Mode Themes */
@@ -128,7 +147,7 @@ html, body {
   --theme-accent: var(--color-brand-green);
 }
 
-/* Header & Footer */
+/* Header & Footer Chrome */
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -139,12 +158,14 @@ html, body {
   text-transform: uppercase;
   color: var(--theme-muted);
   margin-bottom: var(--spacing-xl);
+  flex-shrink: 0;
 }
 
 .page-content {
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .page-footer {
@@ -156,6 +177,26 @@ html, body {
   margin-top: auto;
   padding-top: var(--spacing-sm);
   border-top: 1px solid var(--theme-border);
+  flex-shrink: 0;
+}
+
+/* Typography Print Rules & Orphan/Widow Protection */
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-display);
+  color: var(--theme-text);
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+p {
+  orphans: 3;
+  widows: 3;
+  margin-bottom: var(--spacing-md);
+}
+
+pre, code, table, .card-box {
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 /* ==========================================================================
@@ -163,7 +204,7 @@ html, body {
    ========================================================================== */
 
 /* 1. Chapter Opener (Strictly Minimal) */
-.layout-chapter_opener {
+.layout-chapter_opener .page-safe-content {
   justify-content: center;
   align-items: center;
   text-align: center;
@@ -190,7 +231,7 @@ html, body {
 /* 2. Editorial Layout */
 .layout-editorial .content-headline {
   font-family: var(--font-display);
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 500;
   margin-bottom: var(--spacing-lg);
   color: var(--theme-text);
@@ -198,12 +239,10 @@ html, body {
 .layout-editorial .content-body {
   font-size: 14px;
   line-height: 1.6;
-  column-count: 2;
-  column-gap: var(--spacing-xl);
 }
 
 /* 3. Split Explainer */
-.layout-split_explainer {
+.layout-split_explainer .page-content {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--spacing-xl);
@@ -255,6 +294,7 @@ html, body {
   display: flex;
   justify-content: center;
   align-items: center;
+  height: 280px;
 }
 
 /* 9. Code Focus */
@@ -263,10 +303,12 @@ html, body {
   color: var(--color-on-dark);
   font-family: var(--font-code);
   font-size: 13px;
+  line-height: 1.5;
   padding: var(--spacing-lg);
   border-radius: var(--radius-md);
   border: 1px solid var(--color-hairline-dark);
   overflow-x: auto;
+  max-height: 520px;
 }
 
 /* 10. Concept Grid */
@@ -292,14 +334,13 @@ html, body {
 }
 
 /* 13. Full Bleed Statement */
-.layout-full_bleed_statement {
-  display: flex;
+.layout-full_bleed_statement .page-safe-content {
   justify-content: center;
   align-items: center;
   text-align: center;
 }
 .layout-full_bleed_statement h1 {
-  font-size: 42px;
+  font-size: 38px;
   font-weight: 500;
 }
 
@@ -309,4 +350,28 @@ html, body {
   border-radius: var(--radius-lg);
   padding: var(--spacing-xl);
   border: 1px solid var(--theme-border);
+}
+
+/* Structural: Cover Layout */
+.layout-cover {
+  background-color: var(--color-canvas-dark);
+  color: var(--color-on-dark);
+}
+.layout-cover .cover-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.layout-cover .cover-title {
+  font-size: 48px;
+  font-weight: 600;
+  color: var(--color-brand-green);
+  margin-bottom: var(--spacing-md);
+}
+.layout-cover .cover-subtitle {
+  font-size: 20px;
+  color: var(--color-on-dark-muted);
 }

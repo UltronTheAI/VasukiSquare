@@ -1,17 +1,21 @@
-"""HTML page rendering using Jinja2 templates and design system tokens."""
+"""HTML page and book rendering using Jinja2 templates and design system tokens."""
 
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from vasukisquare.book.models import Page
 from vasukisquare.design.icons import IconColorResolver, render_lucide_icon
-from vasukisquare.design.tokens import ColorToken
+from vasukisquare.renderer.overflow import PageRepairEngine, OverflowDetector
 
 
 class HtmlPageRenderer:
-    """Renders Page models into standalone A4 HTML documents adhering to DESIGN.md."""
+    """Renders Page models and complete Book documents into canonical physical A4 HTML."""
 
-    def __init__(self, templates_dir: Optional[Path] = None):
+    def __init__(
+        self,
+        templates_dir: Optional[Path] = None,
+        repair_engine: Optional[PageRepairEngine] = None,
+    ):
         if templates_dir is None:
             templates_dir = Path(__file__).parent.parent / "templates"
         self.templates_dir = templates_dir
@@ -20,6 +24,7 @@ class HtmlPageRenderer:
             autoescape=select_autoescape(["html", "xml"]),
         )
         self._css_cache: Optional[str] = None
+        self.repair_engine = repair_engine or PageRepairEngine()
 
     def _get_css(self) -> str:
         """Load and cache the base styles CSS."""
@@ -37,11 +42,10 @@ class HtmlPageRenderer:
         book_title: str = "VasukiSquare Book",
         book_topic: str = "",
     ) -> str:
-        """Render a single page into canonical HTML."""
+        """Render an individual page model into standalone A4 HTML."""
         template = self.env.get_template("base.html")
         icon_svg = ""
         if page.icon_name:
-            # Resolve icon color strictly from DESIGN.md tokens
             icon_color = IconColorResolver.resolve_color(page.theme, role="primary")
             icon_svg = render_lucide_icon(name=page.icon_name, color=icon_color, size=48)
 
@@ -51,5 +55,32 @@ class HtmlPageRenderer:
             book_topic=book_topic,
             styles=self._get_css(),
             icon_svg=icon_svg,
+        )
+        return rendered
+
+    def render_book(
+        self,
+        pages: List[Page],
+        book_title: str = "VasukiSquare Book",
+        book_topic: str = "",
+        auto_repair: bool = True,
+    ) -> str:
+        """Assemble and render a sequence of pages into a single cohesive multi-page HTML document."""
+        processed_pages = self.repair_engine.repair_pages(pages) if auto_repair else pages
+        template = self.env.get_template("book.html")
+
+        page_items = []
+        for p in processed_pages:
+            icon_svg = ""
+            if p.icon_name:
+                icon_color = IconColorResolver.resolve_color(p.theme, role="primary")
+                icon_svg = render_lucide_icon(name=p.icon_name, color=icon_color, size=48)
+            page_items.append({"page": p, "icon_svg": icon_svg})
+
+        rendered = template.render(
+            page_items=page_items,
+            book_title=book_title,
+            book_topic=book_topic,
+            styles=self._get_css(),
         )
         return rendered
