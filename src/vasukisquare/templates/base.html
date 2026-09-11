@@ -32,10 +32,29 @@
           <h1 class="chapter-title">{{ page.chapter_title }}</h1>
         </div>
         {% elif page.layout_type.value == "cover" %}
-        <div class="cover-hero">
-          <h1 class="cover-title">{{ book_title }}</h1>
-          <p class="cover-subtitle">{{ book_topic }}</p>
-        </div>
+          {% if page.html %}
+            {{ page.html | safe }}
+          {% elif blocks_html %}
+            {{ blocks_html | safe }}
+          {% elif page.cover_image %}
+            <div class="cover-page"><img src="{{ page.cover_image }}" alt="{{ book_title }} Cover" /></div>
+          {% endif %}
+        {% elif page.layout_type.value in ["imprint", "title"] or page.page_type in ["imprint", "title"] %}
+          <div class="title-page-container">
+            <div class="title-page-header">
+              <span class="typo-eyebrow">VasukiSquare Architectural Series</span>
+            </div>
+            <div class="title-page-body">
+              <h1 class="title-page-title">{{ book_title }}</h1>
+              <div class="title-page-divider"></div>
+              <p class="title-page-subtitle">{{ book_topic or (page.content and page.content.body) or "A Definitive Architecture & Implementation Guide" }}</p>
+            </div>
+            <div class="title-page-imprint">
+              <p><strong>VasukiSquare Technical Publishing Engine</strong></p>
+              <p>Researched from primary authoritative sources and verified for production architectures.</p>
+              <p style="margin-top: 6px; font-size: 11px; color: var(--theme-text-subtle);">First Edition (2026) • All Rights Reserved</p>
+            </div>
+          </div>
         {% elif page.layout_type.value == "thank_you" %}
         <div class="thank-you-brand">
           <span>VASUKISQUARE TECHNICAL PUBLISHING</span>

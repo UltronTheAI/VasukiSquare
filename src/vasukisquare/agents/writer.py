@@ -331,6 +331,20 @@ class PageWriterAgent:
             ]
             return PageContent(headline=headline, blocks=blocks)
 
+        elif p.page_type in ("imprint", "title") or p.layout in ("imprint", "title"):
+            subtitle_text = plan.subtitle or "A Definitive Architecture & Implementation Guide"
+            blocks = [
+                HeadingBlock(level=1, text=plan.title, eyebrow="VasukiSquare Architectural Series"),
+                TextBlock(text=subtitle_text, typography_role="subtitle"),
+                TextBlock(
+                    text="Authored by the VasukiSquare AI Editorial System & Research Engine.\n\n"
+                         "Published by VasukiSquare Technical Press.\n\n"
+                         "First Edition (2026)",
+                    typography_role="body-md",
+                ),
+            ]
+            return PageContent(headline=plan.title, blocks=blocks)
+
         elif p.page_type == LayoutType.COPYRIGHT.value:
             return PageContent(
                 headline="Copyright & Publishing Notice",

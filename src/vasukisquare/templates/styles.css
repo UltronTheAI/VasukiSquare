@@ -1239,3 +1239,130 @@ sub { vertical-align: sub; font-size: 0.75em; line-height: 0; }
     color: inherit !important;
   }
 }
+
+/* ==========================================================================
+   Full-Bleed Cover Page (A4, 0 Margins, Zero Header/Footer/Page-Num)
+   ========================================================================== */
+.page.layout-cover,
+.page.cover-page,
+.page[data-page-type="cover"] {
+  width: var(--page-width) !important;
+  height: var(--page-height) !important;
+  min-width: var(--page-width) !important;
+  max-width: var(--page-width) !important;
+  min-height: var(--page-height) !important;
+  max-height: var(--page-height) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: none !important;
+  overflow: hidden !important;
+  background-color: var(--color-canvas-dark) !important;
+}
+
+.page.layout-cover .page-safe-content,
+.page.cover-page .page-safe-content {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+}
+
+.page.layout-cover .page-content,
+.page.cover-page .page-content {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+.page.layout-cover .page-header,
+.page.layout-cover .page-footer,
+.page.layout-cover .header-chapter,
+.page.layout-cover .footer-page-num,
+.page.layout-cover .footer-title {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+.page.layout-cover .cover-hero,
+.page.layout-cover .cover-hero-solid,
+.page.layout-cover .cover-page-container {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: var(--page-height) !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.page.layout-cover img,
+.cover-page img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+/* ==========================================================================
+   Title / Imprint Page Styling (Page 2)
+   ========================================================================== */
+.page.layout-imprint,
+.page.layout-title {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.title-page-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  padding: 32px 0;
+}
+
+.title-page-header {
+  margin-bottom: auto;
+}
+
+.title-page-body {
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.title-page-title {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 700;
+  line-height: 1.15;
+  color: var(--theme-text);
+  letter-spacing: -0.5px;
+}
+
+.title-page-subtitle {
+  font-size: 16px;
+  color: var(--theme-text-secondary);
+  line-height: 1.45;
+}
+
+.title-page-divider {
+  width: 50px;
+  height: 3px;
+  background-color: var(--theme-accent);
+  margin: 14px 0;
+}
+
+.title-page-imprint {
+  margin-top: auto;
+  font-size: 12px;
+  color: var(--theme-text-muted);
+  line-height: 1.6;
+  border-top: 1px solid var(--theme-border);
+  padding-top: 20px;
+}
+

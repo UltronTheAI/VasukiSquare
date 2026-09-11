@@ -32,10 +32,34 @@ class PdfRenderer:
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=self.settings.chromium_headless)
-            page = await browser.new_page()
+            page = await browser.new_page(viewport={"width": 794, "height": 1123})
             
             await page.set_content(html_content, wait_until="load")
             
+            # 1. Wait for web fonts to load completely
+            try:
+                await page.evaluate("() => document.fonts.ready")
+            except Exception:
+                pass
+
+            # 2. Wait for all raster images to load completely and verify dimensions
+            try:
+                await page.evaluate("""
+                () => Promise.all(
+                    Array.from(document.images).map(img => {
+                        if (img.complete) {
+                            return img.naturalWidth !== 0 ? Promise.resolve() : Promise.reject(new Error('Image failed to load: ' + img.src));
+                        }
+                        return new Promise((resolve, reject) => {
+                            img.onload = () => resolve();
+                            img.onerror = () => reject(new Error('Image load failed: ' + img.src));
+                        });
+                    })
+                )
+                """)
+            except Exception:
+                pass
+
             await page.pdf(
                 path=str(out_path),
                 format="A4",
@@ -45,6 +69,7 @@ class PdfRenderer:
             await browser.close()
 
         return out_path
+
 
     async def render_book_to_pdf(
         self,

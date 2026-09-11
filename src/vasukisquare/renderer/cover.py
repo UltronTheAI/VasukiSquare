@@ -63,15 +63,27 @@ class CoverRenderer:
         """Generate an A4 Page representation safely framing the cover artwork."""
         accent_token = validate_color_token(plan.accent_color)
         bg_token = validate_color_token(plan.background_color)
-        icon_svg = render_lucide_icon(name=plan.hero_icon, color=accent_token, size=56, stroke_width=1.75)
+        sec_token = ColorToken.BRAND_TEAL.value
+        icon_svg = render_lucide_icon(name=plan.hero_icon, color=accent_token, size=64, stroke_width=1.8)
+
+        # Generate geometric vector pattern for A4 canvas (794 x 1123)
+        geometric_svg = CoverPatternGenerator.generate_pattern(
+            style=plan.layout_style,
+            accent_color=accent_token.value,
+            secondary_color=sec_token,
+            canvas_size=(794, 1123),
+        )
 
         html_content = f"""
-        <div class="cover-hero cover-hero-solid" style="background-color: {bg_token.value}; padding: 48px 40px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; box-sizing: border-box;">
-          <div class="cover-brand-header" style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.15);">
+        <div class="cover-hero cover-hero-solid" style="background-color: {bg_token.value}; padding: 48px 40px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
+          <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.15; pointer-events: none; overflow: hidden;">
+            {geometric_svg}
+          </div>
+          <div class="cover-brand-header" style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; padding-bottom: 20px; border-bottom: 1px solid rgba(255, 255, 255, 0.15);">
             <span style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent_token.value};">VASUKISQUARE</span>
             <span style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: #a8b3bc;">{plan.category}</span>
           </div>
-          <div class="cover-main-body" style="margin: auto 0; display: flex; flex-direction: column; gap: 20px;">
+          <div class="cover-main-body" style="position: relative; z-index: 2; margin: auto 0; display: flex; flex-direction: column; gap: 20px;">
             <div class="cover-icon-wrapper" style="margin-bottom: 8px;">
               {icon_svg}
             </div>
@@ -81,7 +93,7 @@ class CoverRenderer:
             </h1>
             {f'<p class="cover-subtitle" style="font-size: 15px; color: #c1ccd6; line-height: 1.45; margin: 0; max-width: 520px; word-break: break-word;">{plan.subtitle}</p>' if plan.subtitle else ''}
           </div>
-          <footer class="cover-footer" style="padding-top: 20px; width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #a8b3bc; border-top: 1px solid rgba(255, 255, 255, 0.15);">
+          <footer class="cover-footer" style="position: relative; z-index: 2; padding-top: 20px; width: 100%; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: #a8b3bc; border-top: 1px solid rgba(255, 255, 255, 0.15);">
             <span style="color: #e1e5e8; font-weight: 600;">{plan.author}</span>
             <span style="letter-spacing: 0.5px;">VASUKISQUARE TECHNICAL PUBLISHING</span>
           </footer>
@@ -99,6 +111,7 @@ class CoverRenderer:
             html=html_content,
             content=PageContent(headline=plan.title, body=plan.subtitle),
         )
+
 
 
 class CoverService:

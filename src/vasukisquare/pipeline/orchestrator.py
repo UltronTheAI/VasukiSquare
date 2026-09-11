@@ -99,7 +99,16 @@ class EbookGenerationPipeline:
             tone=state.intent.tone,
             audience=state.intent.target_audience,
         )
-        a4_cover_page = self.cover_renderer.render_a4_cover_page(state.cover_plan, book_id=state.book_plan.title.lower().replace(" ", "-"))
+        if not state.cover_plan:
+            raise RuntimeError("Book cover is missing or failed to render.")
+
+        a4_cover_page = self.cover_renderer.render_a4_cover_page(
+            state.cover_plan,
+            book_id=state.book_plan.title.lower().replace(" ", "-"),
+        )
+        if not a4_cover_page or not a4_cover_page.html:
+            raise RuntimeError("Book cover is missing or failed to render.")
+
 
         # Stage 5: Page Writing & HTML Generation (with targeted validation)
         logger.info(f"Stage 5/7: Writing {len(state.book_plan.all_planned_pages)} Pages...")
