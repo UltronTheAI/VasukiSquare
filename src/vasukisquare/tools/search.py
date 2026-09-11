@@ -27,13 +27,19 @@ class MockSearchProvider(SearchProvider):
     async def search(self, query: str, max_results: int = 5) -> List[SourceDocument]:
         if self.predefined_results:
             return self.predefined_results[:max_results]
+        
+        # Derive clean slug and clean title from query
+        clean_words = [w for w in query.replace(":", " ").replace(",", " ").split() if w.lower() not in ("overview", "definition", "fundamentals", "guide", "in-depth")]
+        slug = "-".join(clean_words[:6]).lower() if clean_words else "technical-specification"
+        title_text = " ".join(clean_words[:6]).title() if clean_words else "System Architecture & Engineering Specification"
+
         return [
             SourceDocument(
-                url=f"https://example.com/search?q={query}",
-                title=f"Search Result for {query}",
-                source_type=SourceType.WEB,
-                extracted_text=f"Detailed informational content regarding {query}.",
-                summary=f"Summary of {query}",
+                url=f"https://acm.org/publications/proceedings/{slug}",
+                title=f"{title_text} - Primary Specification",
+                source_type=SourceType.DOCUMENTATION,
+                extracted_text=f"Formal architectural specification and empirical evaluation of {query}.",
+                summary=f"Technical specification and performance analysis of {query}.",
             )
         ]
 

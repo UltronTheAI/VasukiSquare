@@ -20,6 +20,17 @@ FORBIDDEN_PLACEHOLDERS = [
     "<insert ",
 ]
 
+# Patterns that indicate search query leakage or raw encoding in visible text
+FORBIDDEN_ARTIFACT_PATTERNS = [
+    "q=",
+    "utm_source=",
+    "utm_medium=",
+    "%20",
+    "%3a",
+    "%2c",
+    "%2f",
+]
+
 
 class ContentValidator:
     """Validates that rendered book pages contain substantive, placeholder-free technical content."""
@@ -47,15 +58,28 @@ class ContentValidator:
                 text_corpus.append(block.caption)
             if hasattr(block, "quote") and block.quote:
                 text_corpus.append(block.quote)
+            if hasattr(block, "title") and block.title:
+                text_corpus.append(block.title)
+            if hasattr(block, "source_title") and block.source_title:
+                text_corpus.append(block.source_title)
 
         # Inspect raw HTML if set
         if page.html:
-            text_corpus.append(page.html)
+            # Strip tags and inspect text nodes
+            import re
+            text_only = re.sub(r"<[^>]+>", " ", page.html)
+            text_corpus.append(text_only)
 
         full_text = " ".join(text_corpus).lower()
         for placeholder in FORBIDDEN_PLACEHOLDERS:
             if placeholder in full_text:
                 err = f"Page {page.page_number} contains forbidden placeholder copy: '{placeholder}'"
+                errors.append(err)
+                logger.error(err)
+
+        for artifact in FORBIDDEN_ARTIFACT_PATTERNS:
+            if artifact in full_text:
+                err = f"Page {page.page_number} contains query/encoding artifact: '{artifact}'"
                 errors.append(err)
                 logger.error(err)
 

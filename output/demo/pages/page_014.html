@@ -270,11 +270,13 @@ html, body {
   background: var(--theme-border);
 }
 
-/* Hide header/footer on Chapter Opener and Cover Pages */
+/* Hide header/footer on Chapter Opener, Cover, and Thank You Pages */
 .page.layout-chapter_opener .page-header,
 .page.layout-chapter_opener .page-footer,
 .page.layout-cover .page-header,
-.page.layout-cover .page-footer {
+.page.layout-cover .page-footer,
+.page.layout-thank_you .page-header,
+.page.layout-thank_you .page-footer {
   display: none !important;
 }
 
@@ -399,6 +401,76 @@ pre, code, table, .component-code-block, .component-terminal-window, .component-
   box-shadow: 0 4px 12px rgba(0, 30, 43, 0.15);
 }
 
+/* Rich Text Inline Formatting &amp; Semantic Marks */
+strong { font-weight: 700; color: var(--theme-text); }
+em { font-style: italic; }
+strong em, em strong { font-weight: 700; font-style: italic; }
+s { text-decoration: line-through; opacity: 0.75; }
+sup { vertical-align: super; font-size: 0.75em; line-height: 0; }
+sub { vertical-align: sub; font-size: 0.75em; line-height: 0; }
+
+.rich-code {
+  font-family: var(--font-code);
+  font-size: 0.88em;
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+  background-color: var(--theme-border);
+  color: var(--theme-accent);
+  border: 1px solid var(--theme-border-strong);
+  word-break: break-word;
+}
+
+.rich-highlight {
+  background-color: rgba(0, 237, 100, 0.22);
+  color: inherit;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.rich-kbd {
+  font-family: var(--font-code);
+  font-size: 0.82em;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background-color: var(--theme-card-bg);
+  border: 1px solid var(--theme-border-strong);
+  box-shadow: 0 1px 0 rgba(0, 30, 43, 0.15);
+  color: var(--theme-text);
+}
+
+.rich-link {
+  color: var(--theme-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.rich-link:hover {
+  opacity: 0.85;
+}
+
+/* Semantic Typography Utility Roles mapped to DESIGN.md */
+.typo-hero-display { font-family: var(--font-display); font-size: 72px; font-weight: 500; line-height: 1.10; letter-spacing: -1.5px; }
+.typo-display-lg   { font-family: var(--font-display); font-size: 56px; font-weight: 500; line-height: 1.15; letter-spacing: -1px; }
+.typo-heading-1    { font-family: var(--font-display); font-size: 48px; font-weight: 500; line-height: 1.20; letter-spacing: -0.5px; }
+.typo-heading-2    { font-family: var(--font-display); font-size: 36px; font-weight: 500; line-height: 1.25; letter-spacing: -0.5px; }
+.typo-heading-3    { font-family: var(--font-display); font-size: 28px; font-weight: 500; line-height: 1.30; }
+.typo-heading-4    { font-family: var(--font-display); font-size: 22px; font-weight: 500; line-height: 1.35; }
+.typo-heading-5    { font-family: var(--font-display); font-size: 18px; font-weight: 600; line-height: 1.40; }
+.typo-subtitle, .typo-lead { font-family: var(--font-body); font-size: 18px; font-weight: 400; line-height: 1.50; color: var(--theme-text-secondary); }
+.typo-body-md      { font-family: var(--font-body); font-size: 16px; font-weight: 400; line-height: 1.55; }
+.typo-body-md-medium { font-family: var(--font-body); font-size: 16px; font-weight: 500; line-height: 1.55; }
+.typo-body-sm      { font-family: var(--font-body); font-size: 14px; font-weight: 400; line-height: 1.50; }
+.typo-body-sm-medium { font-family: var(--font-body); font-size: 14px; font-weight: 500; line-height: 1.50; }
+.typo-caption      { font-family: var(--font-body); font-size: 13px; font-weight: 400; line-height: 1.40; color: var(--theme-text-muted); }
+.typo-caption-bold, .typo-source-label { font-family: var(--font-body); font-size: 13px; font-weight: 600; line-height: 1.40; }
+.typo-micro        { font-family: var(--font-body); font-size: 12px; font-weight: 500; line-height: 1.40; }
+.typo-micro-uppercase, .typo-eyebrow { font-family: var(--font-body); font-size: 11px; font-weight: 600; line-height: 1.40; letter-spacing: 1.5px; text-transform: uppercase; color: var(--theme-accent); }
+.typo-code-md      { font-family: var(--font-code); font-size: 13px; font-weight: 400; line-height: 1.55; }
+.typo-stat-number  { font-family: var(--font-display); font-size: 56px; font-weight: 700; line-height: 1.1; color: var(--color-brand-green); }
+
 .code-header {
   display: flex;
   justify-content: space-between;
@@ -443,16 +515,18 @@ pre, code, table, .component-code-block, .component-terminal-window, .component-
   text-align: right;
 }
 
-/* Syntax Highlighting Tokens */
-.hl-k, .hl-kd, .hl-kp, .hl-kr { color: #00ed64; font-weight: 600; } /* Keywords */
-.hl-s, .hl-s1, .hl-s2, .hl-sa, .hl-sb, .hl-sc { color: #c3f0d2; } /* Strings */
+/* Syntax Highlighting Tokens (Vivid &amp; Accessible across light/dark themes) */
+.hl-k, .hl-kd, .hl-kp, .hl-kr, .hl-kn { color: #00ed64; font-weight: 600; } /* Keywords */
+.hl-s, .hl-s1, .hl-s2, .hl-sa, .hl-sb, .hl-sc, .hl-sd { color: #c3f0d2; } /* Strings */
 .hl-c, .hl-c1, .hl-ch, .hl-cm, .hl-cp, .hl-cpf, .hl-cs { color: #7c8c9a; font-style: italic; } /* Comments */
 .hl-nf, .hl-fm, .hl-na { color: #7b3ff2; font-weight: 600; } /* Functions */
-.hl-nc, .hl-nn, .hl-ne { color: #fa6e39; font-weight: 600; } /* Classes */
-.hl-nb, .hl-bp { color: #3d4f9f; } /* Builtins */
-.hl-mi, .hl-mf, .hl-mh, .hl-mo, .hl-mb { color: #fa6e39; } /* Numbers */
-.hl-o, .hl-ow { color: #00a35c; } /* Operators */
+.hl-nc, .hl-nn, .hl-ne, .hl-nt { color: #fa6e39; font-weight: 600; } /* Classes &amp; Types */
+.hl-nb, .hl-bp { color: #3d4f9f; font-weight: 500; } /* Builtins */
+.hl-mi, .hl-mf, .hl-mh, .hl-mo, .hl-mb, .hl-m { color: #f06bb8; font-weight: 500; } /* Numbers */
+.hl-o, .hl-ow { color: #00ed64; } /* Operators */
 .hl-p { color: #e1e5e8; } /* Punctuation */
+.hl-kt { color: #fa6e39; font-weight: 600; } /* Types */
+.hl-nd { color: #7b3ff2; font-style: italic; } /* Decorators */
 
 /* 2. Terminal Block */
 .component-terminal-window {
@@ -883,35 +957,262 @@ pre, code, table, .component-code-block, .component-terminal-window, .component-
   box-sizing: border-box;
 }
 
-.layout-research_highlight .highlight-card {
-  background-color: var(--theme-card-bg);
-  border: 2px solid var(--color-brand-green);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
+/* Icon Text Items &amp; Concept Lists */
+.component-icon-text {
+  margin: var(--spacing-xs) 0;
 }
-
-/* Structural: Cover Layout */
-.layout-cover {
-  background-color: var(--color-canvas-dark);
-  color: var(--color-on-dark);
-}
-.layout-cover .cover-hero {
-  flex: 1;
+.icon-list-container {
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
+  gap: var(--spacing-sm);
 }
-.layout-cover .cover-title {
-  font-size: 46px;
+.icon-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background-color: var(--theme-card-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+}
+.icon-item-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background-color: var(--theme-border);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.icon-item-badge svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2;
+}
+.icon-item-content {
+  flex: 1;
+  min-width: 0;
+}
+.icon-item-content strong {
+  display: block;
+  font-size: 13.5px;
   font-weight: 700;
-  color: var(--color-brand-green);
+  color: var(--theme-text);
+  margin-bottom: 2px;
+}
+.icon-item-content p {
+  font-size: 13px;
+  color: var(--theme-text-secondary);
+  margin-bottom: 0;
+  line-height: 1.45;
+}
+
+/* ==========================================================================
+   Dedicated Full-Page End Matter Layouts
+   ========================================================================== */
+
+/* 1. Copyright Page Layout */
+.layout-copyright .copyright-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--spacing-md) 0;
+}
+.copyright-header {
+  margin-bottom: var(--spacing-lg);
+}
+.copyright-title {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--theme-text);
+  margin: 0 0 6px 0;
+}
+.copyright-subtitle {
+  font-size: 14px;
+  color: var(--theme-text-secondary);
+  margin: 0;
+}
+.copyright-divider {
+  width: 60px;
+  height: 3px;
+  background-color: var(--theme-accent);
+  margin: var(--spacing-md) 0;
+}
+.copyright-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: var(--spacing-lg);
+  padding: 14px 18px;
+  background-color: var(--theme-card-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+}
+.copyright-meta-item strong {
+  display: block;
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--theme-accent);
+  margin-bottom: 3px;
+}
+.copyright-meta-item span {
+  font-size: 12.5px;
+  color: var(--theme-text);
+  font-weight: 500;
+}
+.copyright-rights-notice {
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--theme-text-secondary);
   margin-bottom: var(--spacing-md);
 }
-.layout-cover .cover-subtitle {
-  font-size: 18px;
-  color: var(--text-secondary-dark);
+.copyright-restriction-box {
+  background-color: var(--theme-card-bg);
+  border: 1px solid var(--theme-border-strong);
+  border-left: 4px solid #fa6e39;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--theme-text-secondary);
+  margin-bottom: var(--spacing-lg);
+}
+.copyright-footer-legal {
+  font-size: 11px;
+  color: var(--theme-text-muted);
+  border-top: 1px solid var(--theme-border);
+  padding-top: 14px;
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* 2. Acknowledgement Page Layout */
+.layout-acknowledgement .acknowledgement-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  box-sizing: border-box;
+  padding: var(--spacing-lg) 0;
+}
+.ack-header {
+  margin-bottom: var(--spacing-lg);
+}
+.ack-icon-wrapper {
+  margin-bottom: 12px;
+}
+.ack-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--theme-text);
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+}
+.ack-lead {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--theme-accent);
+  line-height: 1.5;
+  margin: 0 0 var(--spacing-md) 0;
+}
+.ack-body {
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--theme-text-secondary);
+  margin-bottom: var(--spacing-lg);
+}
+.ack-signature-block {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--theme-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+.ack-signature-name {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--theme-text);
+}
+.ack-signature-affil {
+  font-size: 11.5px;
+  color: var(--theme-text-muted);
+}
+
+/* 3. Thank You Page Layout (Deliberate Full-Page Ending) */
+.layout-thank_you .page-safe-content {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  text-align: center !important;
+  height: 100% !important;
+  box-sizing: border-box !important;
+  padding: 40px 32px !important;
+}
+.layout-thank_you .thank-you-brand {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #00ed64;
+}
+.layout-thank_you .thank-you-body {
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  max-width: 500px;
+}
+.layout-thank_you .thank-you-icon {
+  margin-bottom: 6px;
+}
+.layout-thank_you .thank-you-icon svg {
+  width: 68px;
+  height: 68px;
+  stroke-width: 1.75;
+}
+.layout-thank_you .thank-you-divider {
+  width: 60px;
+  height: 3px;
+  background-color: #00ed64;
+  margin: 4px 0;
+}
+.layout-thank_you .thank-you-title {
+  font-family: var(--font-display);
+  font-size: 42px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: #ffffff;
+  margin: 0;
+  line-height: 1.12;
+}
+.layout-thank_you .thank-you-statement {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: #c1ccd6;
+  margin: 0;
+}
+.layout-thank_you .thank-you-footer {
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+  padding-top: 18px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: #a8b3bc;
 }
 
 /* ==========================================================================
@@ -969,7 +1270,7 @@ pre, code, table, .component-code-block, .component-terminal-window, .component-
           
           
           
-            <p class="content-body">The write path ensures zero data loss by recording mutations to disk before acknowledging client requests, while maintaining high throughput through tiered background compaction.</p>
+            <p class="content-body typo-body-md">The write path ensures zero data loss by recording mutations to disk before acknowledging client requests, while maintaining high throughput through tiered background compaction.</p>
 
         <figure class="component-diagram-figure theme-light">
           <div class="diagram-frame">
@@ -990,7 +1291,7 @@ pre, code, table, .component-code-block, .component-terminal-window, .component-
           <figcaption class="diagram-caption">Figure 1.1: LSM-Tree Ingestion &amp; Compaction Pipeline</figcaption>
         </figure>
         
-<p class="content-body">Background compaction continuously merges overlapping key intervals from Level 0 to Level 1, bounding the number of disk seeks required for point and range lookups.</p>
+<p class="content-body typo-body-md">Background compaction continuously merges overlapping key intervals from Level 0 to Level 1, bounding the number of disk seeks required for point and range lookups.</p>
           
         
       </main>

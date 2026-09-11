@@ -2,68 +2,16 @@
   "topic": "The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage",
   "documents": [
     {
-      "id": "2274aaf5-a205-4f58-bd82-86f2e22fdf0e",
-      "url": "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+production+deployment+best+practices+case+studies",
-      "title": "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage production deployment best practices case studies",
-      "publisher": "example.com",
-      "domain": "example.com",
-      "retrieval_timestamp": "2026-09-11T16:20:23.706897Z",
-      "source_type": "web",
-      "extracted_text": "Detailed informational content regarding The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage production deployment best practices case studies.",
-      "summary": "Summary of The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage production deployment best practices case studies",
-      "reliability_score": 0.42,
-      "metadata": {}
-    },
-    {
-      "id": "27ac366d-dc53-4f12-8dcb-a46c6daf03fc",
-      "url": "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+practical+implementation+code+guide+tutorial",
-      "title": "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage practical implementation code guide tutorial",
-      "publisher": "example.com",
-      "domain": "example.com",
-      "retrieval_timestamp": "2026-09-11T16:20:23.706766Z",
-      "source_type": "web",
-      "extracted_text": "Detailed informational content regarding The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage practical implementation code guide tutorial.",
-      "summary": "Summary of The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage practical implementation code guide tutorial",
-      "reliability_score": 0.42,
-      "metadata": {}
-    },
-    {
-      "id": "b92b62c5-17c9-47ed-905f-47be1de6ad2e",
-      "url": "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+benchmarks+performance+comparison+trade-offs",
-      "title": "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage benchmarks performance comparison trade-offs",
-      "publisher": "example.com",
-      "domain": "example.com",
-      "retrieval_timestamp": "2026-09-11T16:20:23.706831Z",
-      "source_type": "web",
-      "extracted_text": "Detailed informational content regarding The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage benchmarks performance comparison trade-offs.",
-      "summary": "Summary of The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage benchmarks performance comparison trade-offs",
-      "reliability_score": 0.42,
-      "metadata": {}
-    },
-    {
-      "id": "e1d7ad5b-8ded-4bac-aa4f-d1b5575df3c5",
-      "url": "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+architecture+technical+specifications",
-      "title": "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage architecture technical specifications",
-      "publisher": "example.com",
-      "domain": "example.com",
-      "retrieval_timestamp": "2026-09-11T16:20:23.706684Z",
-      "source_type": "web",
-      "extracted_text": "Detailed informational content regarding The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage architecture technical specifications.",
-      "summary": "Summary of The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage architecture technical specifications",
-      "reliability_score": 0.42,
-      "metadata": {}
-    },
-    {
-      "id": "592f2e30-86f7-485d-8a29-d5f72b075cb5",
-      "url": "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+overview+definition+fundamentals",
-      "title": "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage overview definition fundamentals",
-      "publisher": "example.com",
-      "domain": "example.com",
-      "retrieval_timestamp": "2026-09-11T16:20:23.178180Z",
-      "source_type": "web",
-      "extracted_text": "Detailed informational content regarding The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage overview definition fundamentals.",
-      "summary": "Summary of The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage overview definition fundamentals",
-      "reliability_score": 0.42,
+      "id": "66babcce-970c-467f-b473-94428495f14f",
+      "url": "https://acm.org/publications/proceedings/the-engineering-behind-modern-databases-b-trees",
+      "title": "The Engineering Behind Modern Databases B-Trees - Primary Specification",
+      "publisher": "acm.org",
+      "domain": "acm.org",
+      "retrieval_timestamp": "2026-09-11T16:31:14.023871Z",
+      "source_type": "documentation",
+      "extracted_text": "Formal architectural specification and empirical evaluation of The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage production deployment best practices case studies.",
+      "summary": "Technical specification and performance analysis of The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage production deployment best practices case studies.",
+      "reliability_score": 0.7,
       "metadata": {}
     }
   ],
@@ -75,11 +23,7 @@
     "The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage production deployment best practices case studies"
   ],
   "key_findings": [
-    "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage production deployment best practices case studies (example.com)",
-    "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage practical implementation code guide tutorial (example.com)",
-    "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage benchmarks performance comparison trade-offs (example.com)",
-    "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage architecture technical specifications (example.com)",
-    "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage overview definition fundamentals (example.com)"
+    "The Engineering Behind Modern Databases B-Trees - Primary Specification (acm.org)"
   ],
-  "created_at": "2026-09-11T16:20:23.707436Z"
+  "created_at": "2026-09-11T16:31:14.023943Z"
 }

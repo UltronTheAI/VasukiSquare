@@ -42,6 +42,7 @@ class LayoutType(str, Enum):
     TOC = "toc"
     CHAPTER_OPENER = "chapter_opener"
     REFERENCES = "references"
+    ACKNOWLEDGEMENT = "acknowledgement"
     THANK_YOU = "thank_you"
 
     # Compatibility Aliases

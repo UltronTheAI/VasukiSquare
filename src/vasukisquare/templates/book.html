@@ -16,7 +16,7 @@
   {% for item in page_items %}
   <div class="page theme-{{ item.page.theme.value }} layout-{{ item.page.layout_type.value }}" data-page-number="{{ item.page.page_number }}">
     <div class="page-safe-content">
-      {% if item.page.layout_type.value != "chapter_opener" and item.page.layout_type.value != "cover" %}
+      {% if item.page.layout_type.value not in ["chapter_opener", "cover", "thank_you"] %}
       <header class="page-header">
         <span class="header-chapter">{% if item.page.chapter_number %}Chapter {{ item.page.chapter_number }}: {{ item.page.chapter_title }}{% endif %}</span>
         <span class="header-topic">{{ running_title or book_topic or book_title }}</span>
@@ -37,8 +37,25 @@
           <h1 class="cover-title">{{ book_title }}</h1>
           <p class="cover-subtitle">{{ book_topic }}</p>
         </div>
+        {% elif item.page.layout_type.value == "thank_you" %}
+        <div class="thank-you-brand">
+          <span>VASUKISQUARE TECHNICAL PUBLISHING</span>
+          <span>END OF VOLUME</span>
+        </div>
+        <div class="thank-you-body">
+          <div class="thank-you-icon">
+            {{ item.icon_svg | safe }}
+          </div>
+          <div class="thank-you-divider"></div>
+          <h1 class="thank-you-title">{{ (item.page.content and item.page.content.headline) or "THANK YOU" }}</h1>
+          <p class="thank-you-statement">{{ (item.page.content and item.page.content.body) or "Thank you for reading. Researched from primary authoritative sources and rendered deterministically to physical A4 print specifications by VasukiSquare." }}</p>
+        </div>
+        <div class="thank-you-footer">
+          <span>{{ running_title or book_title }}</span>
+          <span>FIRST EDITION</span>
+        </div>
         {% else %}
-          {% if item.page.content and item.page.content.headline %}
+          {% if item.page.content and item.page.content.headline and item.page.layout_type.value not in ["copyright", "acknowledgement"] %}
           <h2 class="content-headline">{{ item.page.content.headline }}</h2>
           {% endif %}
           
@@ -54,7 +71,7 @@
         {% endif %}
       </main>
 
-      {% if item.page.layout_type.value != "chapter_opener" and item.page.layout_type.value != "cover" %}
+      {% if item.page.layout_type.value not in ["chapter_opener", "cover", "thank_you"] %}
       <footer class="page-footer">
         <span class="footer-title">{{ running_title or book_title }}</span>
         <span class="footer-page-num">{{ item.page.page_number }}</span>

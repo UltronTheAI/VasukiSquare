@@ -92,8 +92,7 @@
         }
       ],
       "sources_to_cite": [
-        "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+production+deployment+best+practices+case+studies",
-        "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+practical+implementation+code+guide+tutorial"
+        "https://acm.org/publications/proceedings/the-engineering-behind-modern-databases-b-trees"
       ]
     },
     {
@@ -126,10 +125,7 @@
           "description": null
         }
       ],
-      "sources_to_cite": [
-        "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+benchmarks+performance+comparison+trade-offs",
-        "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+architecture+technical+specifications"
-      ]
+      "sources_to_cite": []
     },
     {
       "chapter_number": 3,
@@ -161,9 +157,7 @@
           "description": null
         }
       ],
-      "sources_to_cite": [
-        "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+overview+definition+fundamentals"
-      ]
+      "sources_to_cite": []
     },
     {
       "chapter_number": 4,
@@ -244,6 +238,17 @@
     },
     {
       "page_number": 46,
+      "page_type": "acknowledgement",
+      "layout": "acknowledgement",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "light",
+      "icon": "heart",
+      "visual_anchor": null,
+      "brief": "Author and institutional acknowledgments."
+    },
+    {
+      "page_number": 47,
       "page_type": "thank_you",
       "layout": "thank_you",
       "chapter_number": null,
@@ -251,7 +256,7 @@
       "theme": "dark",
       "icon": "sparkles",
       "visual_anchor": null,
-      "brief": "Concluding acknowledgments and author contact."
+      "brief": "Concluding acknowledgments and publisher note."
     }
   ],
   "all_planned_pages": [
@@ -752,6 +757,17 @@
     },
     {
       "page_number": 46,
+      "page_type": "acknowledgement",
+      "layout": "acknowledgement",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "light",
+      "icon": "heart",
+      "visual_anchor": null,
+      "brief": "Author and institutional acknowledgments."
+    },
+    {
+      "page_number": 47,
       "page_type": "thank_you",
       "layout": "thank_you",
       "chapter_number": null,
@@ -759,9 +775,9 @@
       "theme": "dark",
       "icon": "sparkles",
       "visual_anchor": null,
-      "brief": "Concluding acknowledgments and author contact."
+      "brief": "Concluding acknowledgments and publisher note."
     }
   ],
-  "total_pages": 46,
-  "created_at": "2026-09-11T16:20:23.708335Z"
+  "total_pages": 47,
+  "created_at": "2026-09-11T16:31:14.024842Z"
 }

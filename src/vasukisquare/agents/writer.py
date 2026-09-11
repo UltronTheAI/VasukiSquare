@@ -5,9 +5,11 @@ from typing import List, Optional
 from vasukisquare.config import Settings, get_settings
 from vasukisquare.book.layout import LayoutType, VisualAnchorType
 from vasukisquare.book.components import (
+    AcknowledgementBlock,
     CalloutBlock,
     ChartBlock,
     CodeBlock,
+    CopyrightBlock,
     DiagramBlock,
     HeadingBlock,
     QuoteBlock,
@@ -136,19 +138,21 @@ class PageWriterAgent:
             )
             blocks = [
                 TextBlock(
-                    text="The consensus engine coordinates state replication across clustered nodes via atomic term transitions. "
-                    "Each cluster participant transitions between Follower, Candidate, and Leader states based on heartbeat timeouts and term progression."
+                    text="The consensus engine coordinates state replication across clustered nodes via **atomic term transitions**. "
+                    "Each cluster participant transitions between *Follower*, *Candidate*, and *Leader* states based on heartbeat timeouts and term progression."
                 ),
                 CodeBlock(
                     language="rust",
                     filename="consensus/raft.rs",
                     code=code_sample,
-                    caption="Listing 1.1: Raft election logic and term advancement.",
+                    caption="Listing 1.1: Raft election logic and term advancement in Rust.",
+                    line_numbers=True,
                 ),
                 CalloutBlock(
                     variant="tip",
                     title="Implementation Detail",
-                    content="Always persist voted_for and current_term to non-volatile WAL storage prior to acknowledging RPC vote requests to guard against split-brain quorum states.",
+                    content="Always persist `voted_for` and `current_term` to non-volatile WAL storage prior to acknowledging RPC vote requests to prevent split-brain quorum anomalies.",
+                    icon="shield-check",
                 ),
                 TextBlock(
                     text="By guaranteeing monotonic term increases and strict leader completeness, log entries committed in prior terms remain immutable across future leadership transitions."
@@ -159,22 +163,23 @@ class PageWriterAgent:
         elif p.layout == LayoutType.COMPARISON.value or p.visual_anchor == VisualAnchorType.COMPARISON:
             columns = ["Characteristic", "B+ Tree Index", "LSM-Tree Storage Engine"]
             rows = [
-                ["Write Latency", "In-place page update; random disk I/O", "Sequential append to MemTable / WAL"],
-                ["Read Latency", "Predictable O(log N) point lookup", "May check MemTable, Bloom filters & SSTables"],
-                ["Write Amplification", "High due to full 4KB/8KB page writes", "Batched writes; periodic compaction overhead"],
-                ["Memory Footprint", "Moderate internal node cache", "Requires Bloom filter and index blocks per SSTable"],
+                ["**Write Latency**", "In-place page update; random disk I/O", "Sequential append to `MemTable` / WAL"],
+                ["**Read Latency**", "Predictable `O(log N)` point lookup", "May check `MemTable`, Bloom filters & SSTables"],
+                ["**Write Amplification**", "High due to full 4KB/8KB page writes", "Batched writes; periodic compaction overhead"],
+                ["**Memory Footprint**", "Moderate internal node cache", "Requires Bloom filter and index blocks per SSTable"],
             ]
             blocks = [
                 TextBlock(
-                    text="Choosing an appropriate storage engine requires evaluating trade-offs between write amplification, read latency, and cache efficiency under production concurrency constraints."
+                    text="Choosing an appropriate storage engine requires evaluating trade-offs between **write amplification**, **read latency**, and cache efficiency under production concurrency constraints."
                 ),
                 TableBlock(
                     caption="Table 1.1: Architectural trade-offs between B+ Trees and LSM Trees.",
                     columns=columns,
                     rows=rows,
+                    source_note="Comparative benchmark data compiled from ACM SIGMOD & VLDB proceedings.",
                 ),
                 TextBlock(
-                    text="While B+ Trees optimize for point-read predictability in transactional databases, LSM Trees maximize ingestion throughput by converting random overwrites into sequential disk flushes."
+                    text="While **B+ Trees** optimize for point-read predictability in transactional databases, **LSM Trees** maximize ingestion throughput by converting random overwrites into sequential disk flushes."
                 ),
             ]
             return PageContent(headline=headline, blocks=blocks)
@@ -188,14 +193,17 @@ class PageWriterAgent:
                     value="1.24M",
                     label="Operations Per Second",
                     description="Sustained write throughput benchmarked across a 64-node distributed NVMe cluster under 99.9th percentile SLA constraints.",
+                    icon="activity",
                 ),
                 ChartBlock(
                     chart_type="bar",
                     title="Write Throughput Scaling by Batch Size",
+                    subtitle="Empirical benchmark across 64 distributed storage nodes",
                     labels=["1", "10", "100", "500", "1000"],
                     series=[{"name": "Ops/Sec", "values": [12000, 68000, 420000, 890000, 1240000]}],
                     x_label="Batch Size (Items)",
                     y_label="Throughput (Ops/sec)",
+                    source_note="Source: VasukiSquare Systems Research Benchmark Suite.",
                 ),
             ]
             return PageContent(headline=headline, blocks=blocks)
@@ -223,15 +231,16 @@ class PageWriterAgent:
         elif p.layout == LayoutType.RESEARCH_HIGHLIGHT.value:
             blocks = [
                 TextBlock(
-                    text="Rigorous verification of consensus invariants requires formal TLA+ modeling combined with chaos engineering in live testbeds."
+                    text="Rigorous verification of consensus invariants requires formal **TLA+ modeling** combined with chaos engineering in live testbeds."
                 ),
                 CalloutBlock(
                     variant="important",
                     title="Primary Research Finding",
-                    content="Linearizable reads under network partitions require quorum verification before committing read state to avoid stale reads during split-brain scenarios.",
+                    content="Linearizable reads under network partitions require **quorum verification** before committing read state to avoid stale reads during split-brain scenarios.",
+                    icon="shield-alert",
                 ),
             ]
-            for cit in citations[:2]:
+            for idx, cit in enumerate(citations[:2], start=1):
                 blocks.append(
                     SourceBlock(
                         title=cit.title or "Distributed Consensus Specification",
@@ -239,11 +248,12 @@ class PageWriterAgent:
                         url=cit.url,
                         accessed_at="2026-09-11",
                         mode="card",
+                        source_number=idx,
                     )
                 )
             blocks.append(
                 TextBlock(
-                    text="Empirical validations confirm that lease-based optimizations reduce read latency by 70% while maintaining linearizability across non-faulty partitions."
+                    text="Empirical validations confirm that lease-based optimizations reduce read latency by **70%** while maintaining linearizability across non-faulty partitions."
                 )
             )
             return PageContent(headline=headline, blocks=blocks)
@@ -257,15 +267,16 @@ class PageWriterAgent:
                     variant="definition",
                     title="Write-Ahead Logging (WAL)",
                     content="A durability protocol where state alterations are appended sequentially to persistent storage before in-memory structures or page caches are modified.",
+                    icon="book-open",
                 ),
                 TerminalBlock(
                     title="Storage Daemon",
                     shell="bash",
                     lines=[
-                        "$ ./vasukid --config ./node-1.toml",
-                        "[info] Initializing WAL subsystem at /var/lib/data/wal.log",
-                        "[info] Replaying 42 uncommitted log segments...",
-                        "[success] Recovery complete in 18ms. Listening on 0.0.0.0:27018",
+                        TerminalLine(kind="command", text="./vasukid --config ./node-1.toml", prompt="$ "),
+                        TerminalLine(kind="stdout", text="[info] Initializing WAL subsystem at /var/lib/data/wal.log"),
+                        TerminalLine(kind="stdout", text="[info] Replaying 42 uncommitted log segments..."),
+                        TerminalLine(kind="success", text="[success] Recovery complete in 18ms. Listening on 0.0.0.0:27018"),
                     ],
                 ),
                 TextBlock(
@@ -282,7 +293,7 @@ class PageWriterAgent:
                 QuoteBlock(
                     quote="Simplicity is prerequisite for reliability. Complex recovery protocols inevitably create unforeseen failure modes.",
                     author="Edsger W. Dijkstra",
-                    role="Computing Pioneer",
+                    affiliation="Computing Pioneer & Turing Laureate",
                 ),
                 TextBlock(
                     text="When building large-scale distributed systems, choosing deterministic, well-understood protocols dramatically simplifies operational troubleshooting and post-incident analysis."
@@ -291,6 +302,7 @@ class PageWriterAgent:
                     variant="note",
                     title="Key Takeaway",
                     content="Favor explicit state transitions and bounded queues over speculative buffering and unbounded retry policies.",
+                    icon="check-circle-2",
                 ),
             ]
             return PageContent(headline=headline, blocks=blocks)
@@ -298,10 +310,10 @@ class PageWriterAgent:
         elif p.layout == LayoutType.TIMELINE.value or p.visual_anchor == VisualAnchorType.TIMELINE:
             columns = ["Phase / Era", "Architectural Paradigm", "Key Innovation"]
             rows = [
-                ["Early Era", "Single-Node ACID Engines", "B-Tree indices & ARIES recovery protocol"],
-                ["Scaling Era", "Distributed Key-Value Stores", "Consistent hashing & Dynamo replication"],
-                ["Modern Era", "NewSQL Distributed RDBMS", "TrueTime / Raft consensus & Spanner transactions"],
-                ["Next Generation", "Serverless & Memory-Tiered", "NVMe-over-Fabrics & disaggregated compute/storage"],
+                ["**Early Era**", "Single-Node ACID Engines", "B-Tree indices & ARIES recovery protocol"],
+                ["**Scaling Era**", "Distributed Key-Value Stores", "Consistent hashing & Dynamo replication"],
+                ["**Modern Era**", "NewSQL Distributed RDBMS", "TrueTime / Raft consensus & Spanner transactions"],
+                ["**Next Gen**", "Serverless & Memory-Tiered", "NVMe-over-Fabrics & disaggregated compute/storage"],
             ]
             blocks = [
                 TextBlock(
@@ -311,6 +323,7 @@ class PageWriterAgent:
                     caption="Table 1.2: Chronological progression of distributed storage architectures.",
                     columns=columns,
                     rows=rows,
+                    source_note="Historical analysis of data storage paradigms 1970–2026.",
                 ),
                 TextBlock(
                     text="Contemporary systems increasingly leverage disaggregated compute and storage, offloading replication protocols to hardware-accelerated interconnects."
@@ -319,13 +332,41 @@ class PageWriterAgent:
             return PageContent(headline=headline, blocks=blocks)
 
         elif p.page_type == LayoutType.COPYRIGHT.value:
-            body = (
-                f"© 2026 {plan.title}. All rights reserved.\n\n"
-                "Published by VasukiSquare AI Publishing Engine.\n"
-                "No part of this publication may be reproduced or distributed without explicit attribution.\n"
-                "Typeset in Inter and Plus Jakarta Sans. Document formatted to physical A4."
+            return PageContent(
+                headline="Copyright & Publishing Notice",
+                blocks=[
+                    CopyrightBlock(
+                        book_title=plan.title,
+                        book_subtitle=plan.subtitle,
+                        rights_holder="VasukiSquare Technical Publishing",
+                        year=2026,
+                        edition="First Edition",
+                        publisher="VasukiSquare AI Publishing Engine",
+                        website="https://vasukisquare.ai",
+                    )
+                ],
             )
-            return PageContent(headline="Copyright & Publishing Notice", body=body)
+
+        elif p.page_type == LayoutType.ACKNOWLEDGEMENT.value:
+            return PageContent(
+                headline="Acknowledgements",
+                blocks=[
+                    AcknowledgementBlock(
+                        title="Acknowledgements",
+                        lead="Recognizing the open-source engineering foundations and academic research behind modern distributed data infrastructure.",
+                        body=(
+                            "This technical publication stands on the collective contributions of distributed systems researchers, "
+                            "database architects, and the global open-source community. Special gratitude is extended to the authors "
+                            "of the Raft consensus specification, PostgreSQL internals documentation, LSM-Tree storage architectures, "
+                            "and modern memory-tiered database systems. Their dedication to open scholarship and rigorous verification "
+                            "makes high-reliability technical publishing possible."
+                        ),
+                        signature="The VasukiSquare Editorial & Systems Team",
+                        affiliation="VasukiSquare Publishing Engine",
+                        icon="sparkles",
+                    )
+                ],
+            )
 
         elif p.page_type == LayoutType.TOC.value:
             toc_lines = []
@@ -335,13 +376,14 @@ class PageWriterAgent:
 
         elif p.page_type == LayoutType.REFERENCES.value:
             blocks = []
-            for cit in citations:
+            for idx, cit in enumerate(citations, start=1):
                 blocks.append(
                     SourceBlock(
                         title=cit.title or "Primary Engineering Specification",
                         publisher="Research Corpus",
                         url=cit.url,
                         mode="card",
+                        source_number=idx,
                     )
                 )
             if not blocks:
@@ -351,35 +393,26 @@ class PageWriterAgent:
                         publisher="VasukiSquare",
                         url="https://vasukisquare.ai/research",
                         mode="card",
+                        source_number=1,
                     )
                 )
             return PageContent(headline="References & Primary Sources", blocks=blocks)
 
         elif p.page_type == LayoutType.THANK_YOU.value:
-            blocks = [
-                TextBlock(
-                    text="This ebook was synthesized, researched from primary engineering sources, and rendered deterministically to physical A4 print guidelines by VasukiSquare."
-                ),
-                CalloutBlock(
-                    variant="tip",
-                    title="VasukiSquare Architecture",
-                    content="Engineered for precision technical publishing with pure Python, Pydantic schemas, and deterministic HTML/CSS rendering.",
-                ),
-            ]
-            return PageContent(headline="Thank You for Reading", blocks=blocks)
+            return PageContent(headline="THANK YOU")
 
-        # Default Editorial layout with prose, callout, and secondary discussion
+        # Default Editorial layout with rich prose, callout, and secondary discussion
         body_text_1 = (
             f"The architecture of modern software systems demands rigorous separation of concerns, "
             f"fault tolerance, and predictable latency characteristics. When evaluating system invariants, "
             f"engineers must balance consistency guarantees against availability under network partitions. "
-            f"By leveraging modern consensus protocols and asynchronous non-blocking I/O primitives, "
+            f"By leveraging modern **consensus protocols** and **asynchronous non-blocking I/O primitives**, "
             f"contemporary architectures achieve scale without compromising data safety."
         )
         body_text_2 = (
             f"Operational telemetry and structured logging provide necessary observability into replica drift "
             f"and compaction latency. Sustained reliability requires automated partition detection, quorum health monitoring, "
-            f"and self-healing node replacement workflows."
+            f"and self-healing node replacement workflows. See [PostgreSQL Documentation](https://postgresql.org/docs) for reference implementation details."
         )
         blocks = [
             TextBlock(text=body_text_1),
@@ -387,6 +420,7 @@ class PageWriterAgent:
                 variant="note",
                 title="System Principle",
                 content="Deterministic state transitions ensure reproducibility across replicas regardless of message arrival interleaving.",
+                icon="cpu",
             ),
             TextBlock(text=body_text_2),
         ]

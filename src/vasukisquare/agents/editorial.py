@@ -321,6 +321,19 @@ class EditorialPlannerAgent:
         all_pages.append(p_refs)
         curr_page_num += 1
 
+        # Acknowledgement Page
+        p_ack = PlannedPage(
+            page_number=curr_page_num,
+            page_type=LayoutType.ACKNOWLEDGEMENT.value,
+            layout=LayoutType.ACKNOWLEDGEMENT.value,
+            theme=Theme.LIGHT,
+            icon="heart",
+            brief="Author and institutional acknowledgments.",
+        )
+        backmatter.append(p_ack)
+        all_pages.append(p_ack)
+        curr_page_num += 1
+
         # Thank You Page
         p_thanks = PlannedPage(
             page_number=curr_page_num,
@@ -328,7 +341,7 @@ class EditorialPlannerAgent:
             layout=LayoutType.THANK_YOU.value,
             theme=Theme.DARK,
             icon="sparkles",
-            brief="Concluding acknowledgments and author contact.",
+            brief="Concluding acknowledgments and publisher note.",
         )
         backmatter.append(p_thanks)
         all_pages.append(p_thanks)

@@ -148,6 +148,30 @@ TYPOGRAPHY_SPECS: Dict[str, TypographySpec] = {
     "code-md": TypographySpec(font_family=FONT_CODE_STACK, font_size="13px", font_weight=400, line_height=1.55, letter_spacing="normal"),
 }
 
+# Semantic typography aliases mapped directly to DESIGN.md hierarchy tokens
+SEMANTIC_TYPOGRAPHY_ALIASES: Dict[str, str] = {
+    "page-title": "heading-1",
+    "section-title": "heading-2",
+    "subsection-title": "heading-3",
+    "body": "body-md",
+    "lead": "subtitle",
+    "caption": "caption",
+    "eyebrow": "micro-uppercase",
+    "quote": "heading-4",
+    "stat-number": "hero-display",
+    "source-label": "caption-bold",
+    "code": "code-md",
+}
+
+
+def resolve_typography_role(role: Optional[str]) -> TypographySpec:
+    """Resolve a semantic typography role alias or token name to its TypographySpec."""
+    if not role:
+        return TYPOGRAPHY_SPECS["body-md"]
+    role_key = role.strip().lower().replace("_", "-")
+    target_token = SEMANTIC_TYPOGRAPHY_ALIASES.get(role_key, role_key)
+    return TYPOGRAPHY_SPECS.get(target_token, TYPOGRAPHY_SPECS["body-md"])
+
 
 class DesignTokens(BaseModel):
     """Complete container for the VasukiSquare design system."""

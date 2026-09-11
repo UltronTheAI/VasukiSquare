@@ -86,12 +86,11 @@ def test_book_plan_generation_structure():
             # Lucide icon present
             assert ch.icon is not None
 
-        # 4. Backmatter assertions (References, Thank You)
-        assert len(plan.backmatter_pages) == 2
-        ref_page = plan.backmatter_pages[0]
-        thank_page = plan.backmatter_pages[1]
-        assert ref_page.layout == LayoutType.REFERENCES.value
-        assert thank_page.layout == LayoutType.THANK_YOU.value
+        # 4. Backmatter assertions (References, Acknowledgement, Thank You)
+        backmatter_layouts = [p.layout for p in plan.backmatter_pages]
+        assert LayoutType.REFERENCES.value in backmatter_layouts
+        assert LayoutType.THANK_YOU.value in backmatter_layouts
+        assert plan.backmatter_pages[-1].layout == LayoutType.THANK_YOU.value
 
         # 5. Full sequential page numbering and total summation
         all_pages = plan.all_planned_pages
