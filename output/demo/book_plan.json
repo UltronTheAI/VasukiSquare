@@ -1,0 +1,769 @@
+{
+  "title": "How Modern Databases Work: Storage Engines, Distributed Consensus, And Vector Search",
+  "subtitle": "A Definitive Technical Deep Dive",
+  "description": "An authoritative, intermediate guide tailored for Software Engineers, Architects, and Technical Leaders, covering architectural principles, practical implementations, and production patterns.",
+  "intent": {
+    "book_type": "technical_deep_dive",
+    "target_audience": "Software Engineers, Architects, and Technical Leaders",
+    "technical_depth": "intermediate",
+    "tone": "authoritative",
+    "approximate_length": "standard",
+    "chapter_count": 5,
+    "research_intensity": "deep",
+    "code_requirements": true,
+    "diagram_requirements": true
+  },
+  "frontmatter_pages": [
+    {
+      "page_number": 1,
+      "page_type": "cover",
+      "layout": "cover",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": null,
+      "brief": "High-impact visual book cover."
+    },
+    {
+      "page_number": 2,
+      "page_type": "imprint",
+      "layout": "editorial",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": null,
+      "brief": "Half-title and publisher imprint."
+    },
+    {
+      "page_number": 3,
+      "page_type": "copyright",
+      "layout": "copyright",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": null,
+      "brief": "Copyright notice, versioning, and legal disclaimer."
+    },
+    {
+      "page_number": 4,
+      "page_type": "toc",
+      "layout": "toc",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": null,
+      "brief": "Complete structured table of contents."
+    }
+  ],
+  "chapters": [
+    {
+      "chapter_number": 1,
+      "title": "Foundations and Core Concepts",
+      "subtitle": null,
+      "summary": "Theoretical baseline, history, and key definitions.",
+      "icon": "sparkles",
+      "theme": "dark",
+      "page_budget": 8,
+      "sections": [
+        {
+          "title": "Historical Context & Evolution",
+          "key_concepts": [],
+          "visual_anchors": [
+            "timeline",
+            "text"
+          ],
+          "target_page_count": 1,
+          "description": null
+        },
+        {
+          "title": "Core Terminology & Taxonomies",
+          "key_concepts": [],
+          "visual_anchors": [
+            "table",
+            "text"
+          ],
+          "target_page_count": 1,
+          "description": null
+        }
+      ],
+      "sources_to_cite": [
+        "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+production+deployment+best+practices+case+studies",
+        "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+practical+implementation+code+guide+tutorial"
+      ]
+    },
+    {
+      "chapter_number": 2,
+      "title": "Architectural Principles",
+      "subtitle": null,
+      "summary": "Internal mechanisms, components, and data flow.",
+      "icon": "cpu",
+      "theme": "light",
+      "page_budget": 8,
+      "sections": [
+        {
+          "title": "System Topology & Component Model",
+          "key_concepts": [],
+          "visual_anchors": [
+            "diagram",
+            "text"
+          ],
+          "target_page_count": 1,
+          "description": null
+        },
+        {
+          "title": "Core Protocols & State Machines",
+          "key_concepts": [],
+          "visual_anchors": [
+            "statistic",
+            "text"
+          ],
+          "target_page_count": 1,
+          "description": null
+        }
+      ],
+      "sources_to_cite": [
+        "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+benchmarks+performance+comparison+trade-offs",
+        "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+architecture+technical+specifications"
+      ]
+    },
+    {
+      "chapter_number": 3,
+      "title": "Practical Implementation",
+      "subtitle": null,
+      "summary": "Engineering patterns, code structures, and workflows.",
+      "icon": "database",
+      "theme": "dark",
+      "page_budget": 8,
+      "sections": [
+        {
+          "title": "Reference Implementation Patterns",
+          "key_concepts": [],
+          "visual_anchors": [
+            "code",
+            "text"
+          ],
+          "target_page_count": 1,
+          "description": null
+        },
+        {
+          "title": "Integration & Developer Experience",
+          "key_concepts": [],
+          "visual_anchors": [
+            "code",
+            "table"
+          ],
+          "target_page_count": 1,
+          "description": null
+        }
+      ],
+      "sources_to_cite": [
+        "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+overview+definition+fundamentals",
+        "https://en.wikipedia.org/wiki/Citizen_science"
+      ]
+    },
+    {
+      "chapter_number": 4,
+      "title": "Performance, Benchmarks & Trade-offs",
+      "subtitle": null,
+      "summary": "Quantitative evaluations and comparative analysis.",
+      "icon": "layers",
+      "theme": "light",
+      "page_budget": 8,
+      "sections": [
+        {
+          "title": "Throughput & Latency Benchmarks",
+          "key_concepts": [],
+          "visual_anchors": [
+            "statistic",
+            "comparison"
+          ],
+          "target_page_count": 1,
+          "description": null
+        },
+        {
+          "title": "Architectural Trade-offs Matrix",
+          "key_concepts": [],
+          "visual_anchors": [
+            "comparison",
+            "table"
+          ],
+          "target_page_count": 1,
+          "description": null
+        }
+      ],
+      "sources_to_cite": [
+        "https://en.wikipedia.org/wiki/Wikipedia"
+      ]
+    },
+    {
+      "chapter_number": 5,
+      "title": "Production Best Practices & Case Studies",
+      "subtitle": null,
+      "summary": "Operational scaling, security, and real-world post-mortems.",
+      "icon": "code",
+      "theme": "dark",
+      "page_budget": 8,
+      "sections": [
+        {
+          "title": "Scaling & Reliability Strategies",
+          "key_concepts": [],
+          "visual_anchors": [
+            "quote",
+            "text"
+          ],
+          "target_page_count": 1,
+          "description": null
+        },
+        {
+          "title": "Production Case Study & Retrospective",
+          "key_concepts": [],
+          "visual_anchors": [
+            "timeline",
+            "text"
+          ],
+          "target_page_count": 1,
+          "description": null
+        }
+      ],
+      "sources_to_cite": []
+    }
+  ],
+  "backmatter_pages": [
+    {
+      "page_number": 45,
+      "page_type": "references",
+      "layout": "references",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": null,
+      "brief": "Comprehensive bibliography and primary source citations."
+    },
+    {
+      "page_number": 46,
+      "page_type": "thank_you",
+      "layout": "thank_you",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "dark",
+      "icon": "sparkles",
+      "visual_anchor": null,
+      "brief": "Concluding acknowledgments and author contact."
+    }
+  ],
+  "all_planned_pages": [
+    {
+      "page_number": 1,
+      "page_type": "cover",
+      "layout": "cover",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": null,
+      "brief": "High-impact visual book cover."
+    },
+    {
+      "page_number": 2,
+      "page_type": "imprint",
+      "layout": "editorial",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": null,
+      "brief": "Half-title and publisher imprint."
+    },
+    {
+      "page_number": 3,
+      "page_type": "copyright",
+      "layout": "copyright",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": null,
+      "brief": "Copyright notice, versioning, and legal disclaimer."
+    },
+    {
+      "page_number": 4,
+      "page_type": "toc",
+      "layout": "toc",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": null,
+      "brief": "Complete structured table of contents."
+    },
+    {
+      "page_number": 5,
+      "page_type": "chapter_opener",
+      "layout": "chapter_opener",
+      "chapter_number": 1,
+      "chapter_title": "Foundations and Core Concepts",
+      "theme": "dark",
+      "icon": "sparkles",
+      "visual_anchor": null,
+      "brief": "Chapter 1 Opener: Lucide icon, number, and title only."
+    },
+    {
+      "page_number": 6,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 1,
+      "chapter_title": "Foundations and Core Concepts",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "timeline",
+      "brief": "Content for section 'Historical Context & Evolution' focusing on timeline."
+    },
+    {
+      "page_number": 7,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 1,
+      "chapter_title": "Foundations and Core Concepts",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "text",
+      "brief": "Content for section 'Core Terminology & Taxonomies' focusing on text."
+    },
+    {
+      "page_number": 8,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 1,
+      "chapter_title": "Foundations and Core Concepts",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "timeline",
+      "brief": "Content for section 'Historical Context & Evolution' focusing on timeline."
+    },
+    {
+      "page_number": 9,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 1,
+      "chapter_title": "Foundations and Core Concepts",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "text",
+      "brief": "Content for section 'Core Terminology & Taxonomies' focusing on text."
+    },
+    {
+      "page_number": 10,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 1,
+      "chapter_title": "Foundations and Core Concepts",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "timeline",
+      "brief": "Content for section 'Historical Context & Evolution' focusing on timeline."
+    },
+    {
+      "page_number": 11,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 1,
+      "chapter_title": "Foundations and Core Concepts",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "text",
+      "brief": "Content for section 'Core Terminology & Taxonomies' focusing on text."
+    },
+    {
+      "page_number": 12,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 1,
+      "chapter_title": "Foundations and Core Concepts",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "timeline",
+      "brief": "Content for section 'Historical Context & Evolution' focusing on timeline."
+    },
+    {
+      "page_number": 13,
+      "page_type": "chapter_opener",
+      "layout": "chapter_opener",
+      "chapter_number": 2,
+      "chapter_title": "Architectural Principles",
+      "theme": "light",
+      "icon": "cpu",
+      "visual_anchor": null,
+      "brief": "Chapter 2 Opener: Lucide icon, number, and title only."
+    },
+    {
+      "page_number": 14,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 2,
+      "chapter_title": "Architectural Principles",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "diagram",
+      "brief": "Content for section 'System Topology & Component Model' focusing on diagram."
+    },
+    {
+      "page_number": 15,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 2,
+      "chapter_title": "Architectural Principles",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "text",
+      "brief": "Content for section 'Core Protocols & State Machines' focusing on text."
+    },
+    {
+      "page_number": 16,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 2,
+      "chapter_title": "Architectural Principles",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "diagram",
+      "brief": "Content for section 'System Topology & Component Model' focusing on diagram."
+    },
+    {
+      "page_number": 17,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 2,
+      "chapter_title": "Architectural Principles",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "text",
+      "brief": "Content for section 'Core Protocols & State Machines' focusing on text."
+    },
+    {
+      "page_number": 18,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 2,
+      "chapter_title": "Architectural Principles",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "diagram",
+      "brief": "Content for section 'System Topology & Component Model' focusing on diagram."
+    },
+    {
+      "page_number": 19,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 2,
+      "chapter_title": "Architectural Principles",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "text",
+      "brief": "Content for section 'Core Protocols & State Machines' focusing on text."
+    },
+    {
+      "page_number": 20,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 2,
+      "chapter_title": "Architectural Principles",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "diagram",
+      "brief": "Content for section 'System Topology & Component Model' focusing on diagram."
+    },
+    {
+      "page_number": 21,
+      "page_type": "chapter_opener",
+      "layout": "chapter_opener",
+      "chapter_number": 3,
+      "chapter_title": "Practical Implementation",
+      "theme": "dark",
+      "icon": "database",
+      "visual_anchor": null,
+      "brief": "Chapter 3 Opener: Lucide icon, number, and title only."
+    },
+    {
+      "page_number": 22,
+      "page_type": "chapter_content",
+      "layout": "code_focus",
+      "chapter_number": 3,
+      "chapter_title": "Practical Implementation",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "code",
+      "brief": "Content for section 'Reference Implementation Patterns' focusing on code."
+    },
+    {
+      "page_number": 23,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 3,
+      "chapter_title": "Practical Implementation",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "table",
+      "brief": "Content for section 'Integration & Developer Experience' focusing on table."
+    },
+    {
+      "page_number": 24,
+      "page_type": "chapter_content",
+      "layout": "code_focus",
+      "chapter_number": 3,
+      "chapter_title": "Practical Implementation",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "code",
+      "brief": "Content for section 'Reference Implementation Patterns' focusing on code."
+    },
+    {
+      "page_number": 25,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 3,
+      "chapter_title": "Practical Implementation",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "table",
+      "brief": "Content for section 'Integration & Developer Experience' focusing on table."
+    },
+    {
+      "page_number": 26,
+      "page_type": "chapter_content",
+      "layout": "code_focus",
+      "chapter_number": 3,
+      "chapter_title": "Practical Implementation",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "code",
+      "brief": "Content for section 'Reference Implementation Patterns' focusing on code."
+    },
+    {
+      "page_number": 27,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 3,
+      "chapter_title": "Practical Implementation",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "table",
+      "brief": "Content for section 'Integration & Developer Experience' focusing on table."
+    },
+    {
+      "page_number": 28,
+      "page_type": "chapter_content",
+      "layout": "code_focus",
+      "chapter_number": 3,
+      "chapter_title": "Practical Implementation",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "code",
+      "brief": "Content for section 'Reference Implementation Patterns' focusing on code."
+    },
+    {
+      "page_number": 29,
+      "page_type": "chapter_opener",
+      "layout": "chapter_opener",
+      "chapter_number": 4,
+      "chapter_title": "Performance, Benchmarks & Trade-offs",
+      "theme": "light",
+      "icon": "layers",
+      "visual_anchor": null,
+      "brief": "Chapter 4 Opener: Lucide icon, number, and title only."
+    },
+    {
+      "page_number": 30,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 4,
+      "chapter_title": "Performance, Benchmarks & Trade-offs",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "statistic",
+      "brief": "Content for section 'Throughput & Latency Benchmarks' focusing on statistic."
+    },
+    {
+      "page_number": 31,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 4,
+      "chapter_title": "Performance, Benchmarks & Trade-offs",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "table",
+      "brief": "Content for section 'Architectural Trade-offs Matrix' focusing on table."
+    },
+    {
+      "page_number": 32,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 4,
+      "chapter_title": "Performance, Benchmarks & Trade-offs",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "statistic",
+      "brief": "Content for section 'Throughput & Latency Benchmarks' focusing on statistic."
+    },
+    {
+      "page_number": 33,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 4,
+      "chapter_title": "Performance, Benchmarks & Trade-offs",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "table",
+      "brief": "Content for section 'Architectural Trade-offs Matrix' focusing on table."
+    },
+    {
+      "page_number": 34,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 4,
+      "chapter_title": "Performance, Benchmarks & Trade-offs",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "statistic",
+      "brief": "Content for section 'Throughput & Latency Benchmarks' focusing on statistic."
+    },
+    {
+      "page_number": 35,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 4,
+      "chapter_title": "Performance, Benchmarks & Trade-offs",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "table",
+      "brief": "Content for section 'Architectural Trade-offs Matrix' focusing on table."
+    },
+    {
+      "page_number": 36,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 4,
+      "chapter_title": "Performance, Benchmarks & Trade-offs",
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": "statistic",
+      "brief": "Content for section 'Throughput & Latency Benchmarks' focusing on statistic."
+    },
+    {
+      "page_number": 37,
+      "page_type": "chapter_opener",
+      "layout": "chapter_opener",
+      "chapter_number": 5,
+      "chapter_title": "Production Best Practices & Case Studies",
+      "theme": "dark",
+      "icon": "code",
+      "visual_anchor": null,
+      "brief": "Chapter 5 Opener: Lucide icon, number, and title only."
+    },
+    {
+      "page_number": 38,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 5,
+      "chapter_title": "Production Best Practices & Case Studies",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "quote",
+      "brief": "Content for section 'Scaling & Reliability Strategies' focusing on quote."
+    },
+    {
+      "page_number": 39,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 5,
+      "chapter_title": "Production Best Practices & Case Studies",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "text",
+      "brief": "Content for section 'Production Case Study & Retrospective' focusing on text."
+    },
+    {
+      "page_number": 40,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 5,
+      "chapter_title": "Production Best Practices & Case Studies",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "quote",
+      "brief": "Content for section 'Scaling & Reliability Strategies' focusing on quote."
+    },
+    {
+      "page_number": 41,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 5,
+      "chapter_title": "Production Best Practices & Case Studies",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "text",
+      "brief": "Content for section 'Production Case Study & Retrospective' focusing on text."
+    },
+    {
+      "page_number": 42,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 5,
+      "chapter_title": "Production Best Practices & Case Studies",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "quote",
+      "brief": "Content for section 'Scaling & Reliability Strategies' focusing on quote."
+    },
+    {
+      "page_number": 43,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 5,
+      "chapter_title": "Production Best Practices & Case Studies",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "text",
+      "brief": "Content for section 'Production Case Study & Retrospective' focusing on text."
+    },
+    {
+      "page_number": 44,
+      "page_type": "chapter_content",
+      "layout": "editorial",
+      "chapter_number": 5,
+      "chapter_title": "Production Best Practices & Case Studies",
+      "theme": "dark",
+      "icon": null,
+      "visual_anchor": "quote",
+      "brief": "Content for section 'Scaling & Reliability Strategies' focusing on quote."
+    },
+    {
+      "page_number": 45,
+      "page_type": "references",
+      "layout": "references",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "light",
+      "icon": null,
+      "visual_anchor": null,
+      "brief": "Comprehensive bibliography and primary source citations."
+    },
+    {
+      "page_number": 46,
+      "page_type": "thank_you",
+      "layout": "thank_you",
+      "chapter_number": null,
+      "chapter_title": null,
+      "theme": "dark",
+      "icon": "sparkles",
+      "visual_anchor": null,
+      "brief": "Concluding acknowledgments and author contact."
+    }
+  ],
+  "total_pages": 46,
+  "created_at": "2026-09-11T15:55:39.866166Z"
+}

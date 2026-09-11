@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>How Modern Databases Work: Storage Engines, Distributed Consensus, And Vector Search - Cover</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 1600px;
+      height: 2560px;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      background-color: #001e2b;
+      color: #ffffff;
+      font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .cover-canvas {
+      position: relative;
+      width: 1600px;
+      height: 2560px;
+      overflow: hidden;
+      background: radial-gradient(circle at 50% 30%, rgba(0, 237, 100, 0.08) 0%, transparent 70%),
+                  linear-gradient(180deg, #001e2b 0%, #00121a 100%);
+    }
+
+    .svg-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1600px;
+      height: 2560px;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Safe Content Area (Guaranteed within physical A4 crop) */
+    .safe-content-area {
+      position: absolute;
+      top: 200px;
+      bottom: 200px;
+      left: 180px;
+      right: 180px;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+    }
+
+    .cover-top-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 9999px;
+      padding: 12px 28px;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #00ed64;
+      align-self: flex-start;
+    }
+
+    .hero-center-graphic {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      margin: 60px 0;
+    }
+
+    .hero-icon-container {
+      width: 220px;
+      height: 220px;
+      border-radius: 48px;
+      background: rgba(0, 30, 43, 0.7);
+      border: 2px solid #00ed64;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+    }
+
+    .cover-typography {
+      margin-top: auto;
+      margin-bottom: 80px;
+    }
+
+    .cover-title {
+      font-size: 88px;
+      font-weight: 600;
+      line-height: 1.08;
+      letter-spacing: -2px;
+      color: #ffffff;
+      margin-bottom: 24px;
+    }
+
+    .cover-subtitle {
+      font-size: 34px;
+      font-weight: 400;
+      line-height: 1.35;
+      color: #a8b3bc;
+      max-width: 1200px;
+    }
+
+    .cover-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-top: 36px;
+      border-top: 2px solid rgba(255, 255, 255, 0.12);
+      font-size: 24px;
+      color: #a8b3bc;
+      font-weight: 500;
+    }
+
+    .brand-signature {
+      color: #00ed64;
+      font-weight: 600;
+      letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+  <div class="cover-canvas">
+    <svg class="svg-background" viewBox="0 0 1600 2560" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="800" cy="1075" r="220" fill="none" stroke="#003d4f" stroke-width="1.5" stroke-dasharray="8 6" opacity="0.45"/><circle cx="800" cy="1075" r="360" fill="none" stroke="#003d4f" stroke-width="1.5" stroke-dasharray="8 6" opacity="0.45"/><circle cx="800" cy="1075" r="520" fill="none" stroke="#003d4f" stroke-width="1.5" stroke-dasharray="8 6" opacity="0.45"/><circle cx="800" cy="1075" r="680" fill="none" stroke="#003d4f" stroke-width="1.5" stroke-dasharray="8 6" opacity="0.45"/><circle cx="800" cy="1075" r="840" fill="none" stroke="#003d4f" stroke-width="1.5" stroke-dasharray="8 6" opacity="0.45"/><ellipse cx="800" cy="1075" rx="600" ry="240" fill="none" stroke="#00ed64" stroke-width="2.5" transform="rotate(-25 800 1075)" opacity="0.7"/><circle cx="1180" cy="915" r="12" fill="#00ed64"/>
+    </svg>
+
+    <div class="safe-content-area">
+      <div class="cover-top-badge">
+        <span>Technical Deep Dive</span>
+      </div>
+
+      <div class="hero-center-graphic">
+        <div class="hero-icon-container">
+          <svg xmlns="http://www.w3.org/2000/svg" width="110" height="110" viewBox="0 0 24 24" fill="none" stroke="#00ed64" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-database" data-token-color="PRIMARY"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>
+        </div>
+      </div>
+
+      <div class="cover-typography">
+        <h1 class="cover-title">How Modern Databases Work: Storage Engines, Distributed Consensus, And Vector Search</h1>
+        
+        <p class="cover-subtitle">A Definitive Technical Deep Dive</p>
+        
+      </div>
+
+      <footer class="cover-footer">
+        <span>VasukiSquare AI</span>
+        <span class="brand-signature">VASUKISQUARE</span>
+      </footer>
+    </div>
+  </div>
+</body>
+</html>

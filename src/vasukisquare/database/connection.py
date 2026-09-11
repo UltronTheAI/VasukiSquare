@@ -9,9 +9,10 @@ from vasukisquare.config import Settings, get_settings
 class DatabaseManager:
     """Manages PyMongo client, database connection lifecycle, and schema initialization."""
 
-    def __init__(self, settings: Optional[Settings] = None):
+    def __init__(self, settings: Optional[Settings] = None, db: Optional[Database] = None):
         self.settings = settings or get_settings()
         self._client: Optional[MongoClient] = None
+        self._db: Optional[Database] = db
 
     @property
     def client(self) -> MongoClient:
@@ -26,7 +27,14 @@ class DatabaseManager:
     @property
     def db(self) -> Database:
         """Get the configured database."""
+        if self._db is not None:
+            return self._db
         return self.client[self.settings.mongodb_database]
+
+    @db.setter
+    def db(self, value: Database) -> None:
+        """Set a custom database instance (e.g. for testing)."""
+        self._db = value
 
     def init_all_indexes(self) -> None:
         """Initialize all required MongoDB indexes across collections."""

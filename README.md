@@ -1,58 +1,140 @@
 # VasukiSquare
 
-VasukiSquare is an AI-powered research, editorial, HTML layout, and PDF generation engine written in Python.
+VasukiSquare is an AI-powered research, editorial planning, HTML layout, and PDF generation engine written in Python.
 
-It generates professionally designed ebooks from a user topic or description, enforcing strict visual design guidelines, source attribution, and deterministic A4 PDF page rendering.
+It generates professionally designed technical ebooks from a user prompt or topic description, enforcing strict visual design guidelines, verified source attribution, MongoDB linked-list persistence, and deterministic physical A4 PDF rendering.
+
+---
 
 ## Core Generation Pipeline
 
+VasukiSquare decomposes book creation into distinct, verifiable reasoning and rendering stages:
+
 ```
-Prompt
-  └── Intent
-        └── Research
-              └── Editorial Plan
-                    └── Chapter Plan
-                          └── Page Plan
-                                └── Page Content
-                                      └── HTML Rendering
-                                            └── Validation
-                                                  └── MongoDB Persistence
-                                                        └── PDF Rendering
+User Prompt
+  ├── 1. Intent Analysis (Category, Audience, Tone, Depth, Budgets)
+  ├── 2. Multi-Perspective Deep Research (Search, Wiki, Docs, Feeds with Deduplication)
+  ├── 3. Editorial & Structural Planning (Frontmatter, Chapters, Backmatter)
+  ├── 4. Cover Planning & Artwork Design (1600x2560 Source Artwork + A4 Safe Crop)
+  ├── 5. Page Writing & Layout Assembly (14 Editorial Layouts + Controlled Overflow Repair)
+  ├── 6. MongoDB Persistence (3-Collection Linked Graph: Books, Pages, Covers)
+  └── 7. Canonical HTML & A4 PDF Compilation (Chromium Rendering, Zero Margins)
 ```
+
+---
 
 ## Key Principles & Architecture
 
-- **Python Only & Typed**: Strict Pydantic models for all structured generation and data models.
-- **Design System as Source of Truth**: Layouts, typography, and color tokens strictly follow `DESIGN.md`.
-- **Lucide Icons**: Semantic SVG icon handling using design token colors.
-- **MongoDB Persistence**: Books, pages, and covers are persisted with explicit page linking (`starting_page_id`, `book_id`, `previous_page_id`, `next_page_id`).
-- **A4 Physical Page Layout**: Canonical HTML/CSS rendering formatted specifically for A4 printing via Playwright/Chromium.
+- **Strictly Typed Python**: Structured Pydantic v2 schemas across all domain models, planner outputs, and database documents.
+- **Visual Source of Truth**: Layouts, typography, and color tokens strictly conform to [`DESIGN.md`](DESIGN.md).
+- **Three-Collection MongoDB Model**: Persistent storage across `books`, `pages`, and `covers` with bi-directionally linked page graphs.
+- **Physical A4 Standard**: Every page renders to exact physical A4 dimensions (`210mm × 297mm`, `@page { size: A4; margin: 0; }`).
+- **Targeted Repair & Retry**: If a page overflows or fails validation, only that page is split or adjusted without re-running expensive web research or regenerating the entire book.
+- **Dynamic Theming**: Odd chapters use dark theme; even chapters use light theme.
+- **Minimal Chapter Openers**: Opener pages feature only the chapter number, chapter title, and one Lucide icon.
 
-## Quick Start
+---
 
-1. **Install Dependencies**:
-   ```bash
-   pip install -e .
-   ```
+## Installation & Setup
 
-2. **Configure Environment**:
-   Copy `.env.example` to `.env` and configure your API keys and MongoDB connection:
-   ```bash
-   cp .env.example .env
-   ```
+### 1. Clone & Install Dependencies
+```bash
+# Clone repository
+git clone https://github.com/UltronTheAI/VasukiSquare.git
+cd VasukiSquare
 
-3. **Run Tests**:
-   ```bash
-   pytest tests/unit -q
-   pytest tests/integration -q
-   pytest tests/rendering -q
-   pytest -q
-   ```
+# Install Python package in editable mode with dependencies
+pip install -e .
 
-## Documentation
+# Install Playwright browser binary for PDF generation
+playwright install chromium
+```
 
-- [Getting Started](docs/getting-started.md)
-- [Architecture](docs/architecture.md)
-- [Configuration](docs/configuration.md)
-- [Design Specification](DESIGN.md)
-- [Testing Contract](TESTS.md)
+### 2. Configure Environment Variables
+Copy `.env.example` to `.env` and set your credentials:
+```bash
+cp .env.example .env
+```
+
+Key environment variables:
+```ini
+APP_ENV=development
+GROQ_API_KEY=gsk_your_groq_api_key_here
+GROQ_MODEL=llama-3.3-70b-versatile
+MONGODB_URI=mongodb://localhost:27017
+MONGODB_DATABASE=vasukisquare
+PDF_OUTPUT_DIR=./output
+```
+
+---
+
+## CLI & Demo Usage
+
+### Generate an Ebook via CLI
+```bash
+python scripts/generate_book.py \
+  --topic "Designing Scalable Distributed Systems with Raft and LSM-Trees" \
+  --target-pages 50 \
+  --output-dir output/distributed_systems \
+  --pdf \
+  --cover
+```
+
+### Generate the End-to-End Demo
+To produce a complete 40+ page demo book verifying all artifacts and database linking invariants:
+```bash
+python scripts/generate_demo.py
+```
+
+### Output Directory Structure
+```
+output/demo/
+├── book.pdf             # Physical A4 printable PDF document
+├── book.html            # Complete compiled HTML book
+├── cover.html           # 1600x2560 source artwork HTML
+├── cover.png            # High-resolution raster cover artwork
+├── research.json        # Normalized, ranked research corpus & citations
+├── book_plan.json       # Structural intent, chapter outline, and page budgets
+└── pages/               # Individual standalone page HTML files
+    ├── page_001.html
+    ├── page_002.html
+    └── ...
+```
+
+---
+
+## Verification & Testing
+
+VasukiSquare includes a comprehensive test suite across unit, integration, and rendering contracts:
+
+```bash
+# Run all unit tests
+pytest tests/unit -q
+
+# Run MongoDB and pipeline integration tests
+pytest tests/integration -q
+
+# Run A4 layout contract and snapshot rendering tests
+pytest tests/rendering -q
+
+# Run entire test suite
+pytest -q
+```
+
+---
+
+## Detailed Documentation
+
+Comprehensive subsystem documentation is available in [`docs/`](docs/):
+
+- [Architecture & Pipeline](docs/architecture.md)
+- [Getting Started Guide](docs/getting-started.md)
+- [Configuration Reference](docs/configuration.md)
+- [MongoDB Schema & Page Graph](docs/mongodb-schema.md)
+- [Deep Research Subsystem](docs/research.md)
+- [Editorial Planning Agent](docs/editorial-planning.md)
+- [Design System & Layout Engine](docs/design-system.md)
+- [Rendering & PDF Compilation](docs/rendering-and-pdf.md)
+- [End-to-End Pipeline](docs/pipeline.md)
+- [Visual Design Specification](DESIGN.md)
+- [Testing Specification & Layout Fixtures](TESTS.md)

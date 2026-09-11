@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance, Benchmarks &amp; Trade-offs</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    /* VasukiSquare Design System Canonical CSS mapped from DESIGN.md */
+
+:root {
+  /* Generated Color Tokens */
+  --color-primary: #00ed64;
+  --color-primary-deep: #00b545;
+  --color-primary-pressed: #008c34;
+  --color-on-primary: #001e2b;
+  --color-brand-green: #00ed64;
+  --color-brand-green-dark: #00684a;
+  --color-brand-green-mid: #00a35c;
+  --color-brand-green-soft: #c3f0d2;
+  --color-brand-teal-deep: #001e2b;
+  --color-brand-teal: #003d4f;
+  --color-brand-teal-mid: #00684a;
+  --color-accent-purple: #7b3ff2;
+  --color-accent-orange: #fa6e39;
+  --color-accent-pink: #f06bb8;
+  --color-accent-blue: #3d4f9f;
+  --color-semantic-warning-bg: #fff8e0;
+  --color-semantic-warning-text: #946f3f;
+  --color-canvas: #ffffff;
+  --color-canvas-dark: #001e2b;
+  --color-surface: #f9fbfa;
+  --color-surface-soft: #f4f7f6;
+  --color-surface-feature: #e3fcef;
+  --color-hairline: #e1e5e8;
+  --color-hairline-soft: #eceff1;
+  --color-hairline-strong: #c1ccd6;
+  --color-hairline-dark: #1c2d38;
+  --color-ink: #001e2b;
+  --color-charcoal: #1c2d38;
+  --color-slate: #3d4f5b;
+  --color-steel: #5c6c7a;
+  --color-stone: #7c8c9a;
+  --color-muted: #a8b3bc;
+  --color-on-dark: #ffffff;
+  --color-on-dark-muted: #a8b3bc;
+
+  /* Spacing Scale */
+  --spacing-xxs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 20px;
+  --spacing-xl: 24px;
+  --spacing-xxl: 32px;
+  --spacing-xxxl: 40px;
+  --spacing-section-sm: 48px;
+  --spacing-section: 64px;
+  --spacing-section-lg: 96px;
+  --spacing-hero: 120px;
+
+  /* Radii Scale */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-xxl: 24px;
+  --radius-full: 9999px;
+
+  /* Typography Stacks */
+  --font-display: &#39;Plus Jakarta Sans&#39;, &#39;Inter&#39;, -apple-system, BlinkMacSystemFont, &#39;Segoe UI&#39;, Roboto, sans-serif;
+  --font-body: &#39;Inter&#39;, &#39;Plus Jakarta Sans&#39;, -apple-system, BlinkMacSystemFont, &#39;Segoe UI&#39;, Roboto, sans-serif;
+  --font-code: &#39;JetBrains Mono&#39;, &#39;Fira Code&#39;, &#39;Source Code Pro&#39;, monospace;
+
+  /* Exact A4 Metrics */
+  --page-width: 210mm;
+  --page-height: 297mm;
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: var(--page-width);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  background-color: #f0f2f5;
+}
+
+.book-document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+/* Base Page Container (Exact A4 Physical Dimensions) */
+.page {
+  width: var(--page-width);
+  height: var(--page-height);
+  min-width: var(--page-width);
+  max-width: var(--page-width);
+  min-height: var(--page-height);
+  max-height: var(--page-height);
+  overflow: hidden;
+  position: relative;
+  page-break-after: always;
+  break-after: page;
+  padding: 24mm 20mm;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.page-safe-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Dual-Mode Themes */
+.page.theme-light {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  --theme-bg: var(--color-canvas);
+  --theme-text: var(--color-ink);
+  --theme-card-bg: var(--color-surface);
+  --theme-border: var(--color-hairline);
+  --theme-muted: var(--color-muted);
+  --theme-accent: var(--color-brand-green-dark);
+}
+
+.page.theme-dark {
+  background-color: var(--color-canvas-dark);
+  color: var(--color-on-dark);
+  --theme-bg: var(--color-canvas-dark);
+  --theme-text: var(--color-on-dark);
+  --theme-card-bg: var(--color-brand-teal);
+  --theme-border: var(--color-hairline-dark);
+  --theme-muted: var(--color-on-dark-muted);
+  --theme-accent: var(--color-brand-green);
+}
+
+/* Header &amp; Footer Chrome */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--theme-muted);
+  margin-bottom: var(--spacing-xl);
+  flex-shrink: 0;
+}
+
+.page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--theme-muted);
+  margin-top: auto;
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--theme-border);
+  flex-shrink: 0;
+}
+
+/* Typography Print Rules &amp; Orphan/Widow Protection */
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-display);
+  color: var(--theme-text);
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+p {
+  orphans: 3;
+  widows: 3;
+  margin-bottom: var(--spacing-md);
+}
+
+pre, code, table, .card-box {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* ==========================================================================
+   Controlled Layouts (14 Editorial Layouts + Structural)
+   ========================================================================== */
+
+/* 1. Chapter Opener (Strictly Minimal) */
+.layout-chapter_opener .page-safe-content {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.layout-chapter_opener .chapter-num {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--theme-accent);
+  margin-bottom: var(--spacing-md);
+}
+.layout-chapter_opener .chapter-title {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 1.20;
+  margin-bottom: var(--spacing-xl);
+}
+.layout-chapter_opener .chapter-icon {
+  margin-top: var(--spacing-sm);
+}
+
+/* 2. Editorial Layout */
+.layout-editorial .content-headline {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 500;
+  margin-bottom: var(--spacing-lg);
+  color: var(--theme-text);
+}
+.layout-editorial .content-body {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 3. Split Explainer */
+.layout-split_explainer .page-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xl);
+}
+
+/* 4. Large Number / Metric */
+.layout-large_number .stat-highlight {
+  font-family: var(--font-display);
+  font-size: 64px;
+  font-weight: 600;
+  color: var(--color-brand-green);
+  line-height: 1.1;
+  margin-bottom: var(--spacing-md);
+}
+
+/* 5. Quote Layout */
+.layout-quote blockquote {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 4px solid var(--theme-accent);
+  padding-left: var(--spacing-xl);
+  margin: var(--spacing-xxl) 0;
+}
+
+/* 6. Timeline Layout */
+.layout-timeline .timeline-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  border-left: 2px solid var(--theme-border);
+  padding-left: var(--spacing-xl);
+}
+
+/* 7. Comparison Layout */
+.layout-comparison .comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+/* 8. Diagram Focus */
+.layout-diagram_focus .diagram-frame {
+  background-color: var(--theme-card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  border: 1px solid var(--theme-border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 280px;
+}
+
+/* 9. Code Focus */
+.layout-code_focus pre {
+  background-color: var(--color-canvas-dark);
+  color: var(--color-on-dark);
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-hairline-dark);
+  overflow-x: auto;
+  max-height: 520px;
+}
+
+/* 10. Concept Grid */
+.layout-concept_grid .grid-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+/* 11. Research Highlight */
+.layout-research_highlight .highlight-card {
+  background-color: var(--color-surface-feature);
+  border: 2px solid var(--color-brand-green);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+}
+
+/* 12. Definition */
+.layout-definition dt {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--theme-accent);
+}
+
+/* 13. Full Bleed Statement */
+.layout-full_bleed_statement .page-safe-content {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.layout-full_bleed_statement h1 {
+  font-size: 38px;
+  font-weight: 500;
+}
+
+/* 14. Summary */
+.layout-summary .summary-box {
+  background-color: var(--theme-card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  border: 1px solid var(--theme-border);
+}
+
+/* Structural: Cover Layout */
+.layout-cover {
+  background-color: var(--color-canvas-dark);
+  color: var(--color-on-dark);
+}
+.layout-cover .cover-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.layout-cover .cover-title {
+  font-size: 48px;
+  font-weight: 600;
+  color: var(--color-brand-green);
+  margin-bottom: var(--spacing-md);
+}
+.layout-cover .cover-subtitle {
+  font-size: 20px;
+  color: var(--color-on-dark-muted);
+}
+
+  </style>
+</head>
+<body>
+  <div class="page theme-light layout-editorial" data-page-number="35">
+    <div class="page-safe-content">
+      
+      <header class="page-header">
+        <span class="header-chapter">Chapter 4: Performance, Benchmarks &amp; Trade-offs</span>
+        <span class="header-topic">How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search</span>
+      </header>
+      
+
+      <main class="page-content">
+        
+          
+          <h2 class="content-headline">Content for section &#39;Architectural Trade-offs Matrix&#39; focusing on table.</h2>
+          
+          
+          
+            <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Performance, Benchmarks &amp; Trade-offs</title>
+  <style>
+    @page {
+      size: A4;
+      margin: 0;
+    }
+    /* VasukiSquare Design System Canonical CSS mapped from DESIGN.md */
+
+:root {
+  /* Generated Color Tokens */
+  --color-primary: #00ed64;
+  --color-primary-deep: #00b545;
+  --color-primary-pressed: #008c34;
+  --color-on-primary: #001e2b;
+  --color-brand-green: #00ed64;
+  --color-brand-green-dark: #00684a;
+  --color-brand-green-mid: #00a35c;
+  --color-brand-green-soft: #c3f0d2;
+  --color-brand-teal-deep: #001e2b;
+  --color-brand-teal: #003d4f;
+  --color-brand-teal-mid: #00684a;
+  --color-accent-purple: #7b3ff2;
+  --color-accent-orange: #fa6e39;
+  --color-accent-pink: #f06bb8;
+  --color-accent-blue: #3d4f9f;
+  --color-semantic-warning-bg: #fff8e0;
+  --color-semantic-warning-text: #946f3f;
+  --color-canvas: #ffffff;
+  --color-canvas-dark: #001e2b;
+  --color-surface: #f9fbfa;
+  --color-surface-soft: #f4f7f6;
+  --color-surface-feature: #e3fcef;
+  --color-hairline: #e1e5e8;
+  --color-hairline-soft: #eceff1;
+  --color-hairline-strong: #c1ccd6;
+  --color-hairline-dark: #1c2d38;
+  --color-ink: #001e2b;
+  --color-charcoal: #1c2d38;
+  --color-slate: #3d4f5b;
+  --color-steel: #5c6c7a;
+  --color-stone: #7c8c9a;
+  --color-muted: #a8b3bc;
+  --color-on-dark: #ffffff;
+  --color-on-dark-muted: #a8b3bc;
+
+  /* Spacing Scale */
+  --spacing-xxs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 20px;
+  --spacing-xl: 24px;
+  --spacing-xxl: 32px;
+  --spacing-xxxl: 40px;
+  --spacing-section-sm: 48px;
+  --spacing-section: 64px;
+  --spacing-section-lg: 96px;
+  --spacing-hero: 120px;
+
+  /* Radii Scale */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-xxl: 24px;
+  --radius-full: 9999px;
+
+  /* Typography Stacks */
+  --font-display: &#39;Plus Jakarta Sans&#39;, &#39;Inter&#39;, -apple-system, BlinkMacSystemFont, &#39;Segoe UI&#39;, Roboto, sans-serif;
+  --font-body: &#39;Inter&#39;, &#39;Plus Jakarta Sans&#39;, -apple-system, BlinkMacSystemFont, &#39;Segoe UI&#39;, Roboto, sans-serif;
+  --font-code: &#39;JetBrains Mono&#39;, &#39;Fira Code&#39;, &#39;Source Code Pro&#39;, monospace;
+
+  /* Exact A4 Metrics */
+  --page-width: 210mm;
+  --page-height: 297mm;
+}
+
+@page {
+  size: A4;
+  margin: 0;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: var(--page-width);
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  background-color: #f0f2f5;
+}
+
+.book-document {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+/* Base Page Container (Exact A4 Physical Dimensions) */
+.page {
+  width: var(--page-width);
+  height: var(--page-height);
+  min-width: var(--page-width);
+  max-width: var(--page-width);
+  min-height: var(--page-height);
+  max-height: var(--page-height);
+  overflow: hidden;
+  position: relative;
+  page-break-after: always;
+  break-after: page;
+  padding: 24mm 20mm;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.page-safe-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Dual-Mode Themes */
+.page.theme-light {
+  background-color: var(--color-canvas);
+  color: var(--color-ink);
+  --theme-bg: var(--color-canvas);
+  --theme-text: var(--color-ink);
+  --theme-card-bg: var(--color-surface);
+  --theme-border: var(--color-hairline);
+  --theme-muted: var(--color-muted);
+  --theme-accent: var(--color-brand-green-dark);
+}
+
+.page.theme-dark {
+  background-color: var(--color-canvas-dark);
+  color: var(--color-on-dark);
+  --theme-bg: var(--color-canvas-dark);
+  --theme-text: var(--color-on-dark);
+  --theme-card-bg: var(--color-brand-teal);
+  --theme-border: var(--color-hairline-dark);
+  --theme-muted: var(--color-on-dark-muted);
+  --theme-accent: var(--color-brand-green);
+}
+
+/* Header &amp; Footer Chrome */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--theme-muted);
+  margin-bottom: var(--spacing-xl);
+  flex-shrink: 0;
+}
+
+.page-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.page-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: var(--theme-muted);
+  margin-top: auto;
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid var(--theme-border);
+  flex-shrink: 0;
+}
+
+/* Typography Print Rules &amp; Orphan/Widow Protection */
+h1, h2, h3, h4, h5 {
+  font-family: var(--font-display);
+  color: var(--theme-text);
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+p {
+  orphans: 3;
+  widows: 3;
+  margin-bottom: var(--spacing-md);
+}
+
+pre, code, table, .card-box {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* ==========================================================================
+   Controlled Layouts (14 Editorial Layouts + Structural)
+   ========================================================================== */
+
+/* 1. Chapter Opener (Strictly Minimal) */
+.layout-chapter_opener .page-safe-content {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.layout-chapter_opener .chapter-num {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--theme-accent);
+  margin-bottom: var(--spacing-md);
+}
+.layout-chapter_opener .chapter-title {
+  font-family: var(--font-display);
+  font-size: 40px;
+  font-weight: 500;
+  line-height: 1.20;
+  margin-bottom: var(--spacing-xl);
+}
+.layout-chapter_opener .chapter-icon {
+  margin-top: var(--spacing-sm);
+}
+
+/* 2. Editorial Layout */
+.layout-editorial .content-headline {
+  font-family: var(--font-display);
+  font-size: 26px;
+  font-weight: 500;
+  margin-bottom: var(--spacing-lg);
+  color: var(--theme-text);
+}
+.layout-editorial .content-body {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* 3. Split Explainer */
+.layout-split_explainer .page-content {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-xl);
+}
+
+/* 4. Large Number / Metric */
+.layout-large_number .stat-highlight {
+  font-family: var(--font-display);
+  font-size: 64px;
+  font-weight: 600;
+  color: var(--color-brand-green);
+  line-height: 1.1;
+  margin-bottom: var(--spacing-md);
+}
+
+/* 5. Quote Layout */
+.layout-quote blockquote {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-style: italic;
+  line-height: 1.4;
+  border-left: 4px solid var(--theme-accent);
+  padding-left: var(--spacing-xl);
+  margin: var(--spacing-xxl) 0;
+}
+
+/* 6. Timeline Layout */
+.layout-timeline .timeline-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+  border-left: 2px solid var(--theme-border);
+  padding-left: var(--spacing-xl);
+}
+
+/* 7. Comparison Layout */
+.layout-comparison .comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-lg);
+}
+
+/* 8. Diagram Focus */
+.layout-diagram_focus .diagram-frame {
+  background-color: var(--theme-card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  border: 1px solid var(--theme-border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 280px;
+}
+
+/* 9. Code Focus */
+.layout-code_focus pre {
+  background-color: var(--color-canvas-dark);
+  color: var(--color-on-dark);
+  font-family: var(--font-code);
+  font-size: 13px;
+  line-height: 1.5;
+  padding: var(--spacing-lg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-hairline-dark);
+  overflow-x: auto;
+  max-height: 520px;
+}
+
+/* 10. Concept Grid */
+.layout-concept_grid .grid-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--spacing-md);
+}
+
+/* 11. Research Highlight */
+.layout-research_highlight .highlight-card {
+  background-color: var(--color-surface-feature);
+  border: 2px solid var(--color-brand-green);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+}
+
+/* 12. Definition */
+.layout-definition dt {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--theme-accent);
+}
+
+/* 13. Full Bleed Statement */
+.layout-full_bleed_statement .page-safe-content {
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.layout-full_bleed_statement h1 {
+  font-size: 38px;
+  font-weight: 500;
+}
+
+/* 14. Summary */
+.layout-summary .summary-box {
+  background-color: var(--theme-card-bg);
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-xl);
+  border: 1px solid var(--theme-border);
+}
+
+/* Structural: Cover Layout */
+.layout-cover {
+  background-color: var(--color-canvas-dark);
+  color: var(--color-on-dark);
+}
+.layout-cover .cover-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+.layout-cover .cover-title {
+  font-size: 48px;
+  font-weight: 600;
+  color: var(--color-brand-green);
+  margin-bottom: var(--spacing-md);
+}
+.layout-cover .cover-subtitle {
+  font-size: 20px;
+  color: var(--color-on-dark-muted);
+}
+
+  </style>
+</head>
+<body>
+  <div class="page theme-light layout-editorial" data-page-number="35">
+    <div class="page-safe-content">
+      
+      <header class="page-header">
+        <span class="header-chapter">Chapter 4: Performance, Benchmarks &amp; Trade-offs</span>
+        <span class="header-topic">How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search</span>
+      </header>
+      
+
+      <main class="page-content">
+        
+          
+          <h2 class="content-headline">Content for section &#39;Architectural Trade-offs Matrix&#39; focusing on table.</h2>
+          
+          
+          
+            
+        <div class="layout-editorial">
+          <p class="content-body">The architecture of modern software systems demands rigorous separation of concerns, fault tolerance, and predictable latency characteristics. When evaluating system invariants, engineers must balance consistency guarantees against availability under network partitions. By leveraging modern consensus protocols and asynchronous non-blocking I/O primitives, contemporary architectures achieve unprecedented scale without compromising data safety.</p>
+          <ul style="margin-top: 16px; padding-left: 20px;">
+            <li style="margin-bottom: 6px;">Consistency Guarantees</li><li style="margin-bottom: 6px;">Fault Tolerance</li><li style="margin-bottom: 6px;">Partition Tolerance</li>
+          </ul>
+        </div>
+        
+          
+        
+      </main>
+
+      
+      <footer class="page-footer">
+        <span class="footer-title">How Modern Databases Work: Storage Engines, Distributed Consensus, And Vector Search</span>
+        <span class="footer-page-num">35</span>
+      </footer>
+      
+    </div>
+  </div>
+</body>
+</html>
+          
+        
+      </main>
+
+      
+      <footer class="page-footer">
+        <span class="footer-title">How Modern Databases Work: Storage Engines, Distributed Consensus, And Vector Search</span>
+        <span class="footer-page-num">35</span>
+      </footer>
+      
+    </div>
+  </div>
+</body>
+</html>
