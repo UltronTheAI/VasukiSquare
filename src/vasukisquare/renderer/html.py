@@ -1,10 +1,11 @@
-"""HTML page and book rendering using Jinja2 templates and design system tokens."""
+"""HTML page and book rendering using Jinja2 templates, component blocks, and design system tokens."""
 
 from pathlib import Path
 from typing import List, Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from vasukisquare.book.models import Page
 from vasukisquare.design.icons import IconColorResolver, render_lucide_icon
+from vasukisquare.renderer.components import ComponentRenderer
 from vasukisquare.renderer.overflow import PageRepairEngine, OverflowDetector
 
 
@@ -36,6 +37,15 @@ class HtmlPageRenderer:
                 self._css_cache = ""
         return self._css_cache
 
+    def _render_page_blocks(self, page: Page) -> str:
+        """Render all structured content blocks associated with a page."""
+        if not page.content or not getattr(page.content, "blocks", None):
+            return ""
+        rendered_parts = []
+        for block in page.content.blocks:
+            rendered_parts.append(ComponentRenderer.render_block(block, theme=page.theme))
+        return "\n".join(rendered_parts)
+
     def render_page(
         self,
         page: Page,
@@ -46,8 +56,11 @@ class HtmlPageRenderer:
         template = self.env.get_template("base.html")
         icon_svg = ""
         if page.icon_name:
+            icon_size = 64 if page.layout == "chapter_opener" or page.page_type == "chapter_opener" else 48
             icon_color = IconColorResolver.resolve_color(page.theme, role="primary")
-            icon_svg = render_lucide_icon(name=page.icon_name, color=icon_color, size=48)
+            icon_svg = render_lucide_icon(name=page.icon_name, color=icon_color, size=icon_size)
+
+        blocks_html = self._render_page_blocks(page)
 
         rendered = template.render(
             page=page,
@@ -55,6 +68,7 @@ class HtmlPageRenderer:
             book_topic=book_topic,
             styles=self._get_css(),
             icon_svg=icon_svg,
+            blocks_html=blocks_html,
         )
         return rendered
 
@@ -73,9 +87,11 @@ class HtmlPageRenderer:
         for p in processed_pages:
             icon_svg = ""
             if p.icon_name:
+                icon_size = 64 if p.layout == "chapter_opener" or p.page_type == "chapter_opener" else 48
                 icon_color = IconColorResolver.resolve_color(p.theme, role="primary")
-                icon_svg = render_lucide_icon(name=p.icon_name, color=icon_color, size=48)
-            page_items.append({"page": p, "icon_svg": icon_svg})
+                icon_svg = render_lucide_icon(name=p.icon_name, color=icon_color, size=icon_size)
+            blocks_html = self._render_page_blocks(p)
+            page_items.append({"page": p, "icon_svg": icon_svg, "blocks_html": blocks_html})
 
         rendered = template.render(
             page_items=page_items,

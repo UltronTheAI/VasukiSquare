@@ -1,115 +1,85 @@
 {
-  "topic": "How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search",
+  "topic": "The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage",
   "documents": [
     {
-      "id": "c588b630-1414-4547-8981-887da2dfbc00",
-      "url": "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+production+deployment+best+practices+case+studies",
-      "title": "Search Result for How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search production deployment best practices case studies",
+      "id": "61da097e-1823-446c-98b1-7d2706e92e58",
+      "url": "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+production+deployment+best+practices+case+studies",
+      "title": "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage production deployment best practices case studies",
       "publisher": "example.com",
       "domain": "example.com",
-      "retrieval_timestamp": "2026-09-11T15:55:39.863855Z",
+      "retrieval_timestamp": "2026-09-11T16:13:09.879085Z",
       "source_type": "web",
-      "extracted_text": "Detailed informational content regarding How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search production deployment best practices case studies.",
-      "summary": "Summary of How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search production deployment best practices case studies",
+      "extracted_text": "Detailed informational content regarding The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage production deployment best practices case studies.",
+      "summary": "Summary of The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage production deployment best practices case studies",
       "reliability_score": 0.42,
       "metadata": {}
     },
     {
-      "id": "7f195e37-9d43-4fbd-b420-6ca5fbd1090e",
-      "url": "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+practical+implementation+code+guide+tutorial",
-      "title": "Search Result for How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search practical implementation code guide tutorial",
+      "id": "bb787a34-e00b-4f68-b4bd-4e84538aafa0",
+      "url": "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+practical+implementation+code+guide+tutorial",
+      "title": "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage practical implementation code guide tutorial",
       "publisher": "example.com",
       "domain": "example.com",
-      "retrieval_timestamp": "2026-09-11T15:55:39.863716Z",
+      "retrieval_timestamp": "2026-09-11T16:13:09.878758Z",
       "source_type": "web",
-      "extracted_text": "Detailed informational content regarding How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search practical implementation code guide tutorial.",
-      "summary": "Summary of How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search practical implementation code guide tutorial",
+      "extracted_text": "Detailed informational content regarding The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage practical implementation code guide tutorial.",
+      "summary": "Summary of The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage practical implementation code guide tutorial",
       "reliability_score": 0.42,
       "metadata": {}
     },
     {
-      "id": "d2d23d23-d515-4ca5-9ae4-111711c8c89d",
-      "url": "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+benchmarks+performance+comparison+trade-offs",
-      "title": "Search Result for How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search benchmarks performance comparison trade-offs",
+      "id": "1e9a4d2b-da94-459a-91b3-392d70089771",
+      "url": "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+benchmarks+performance+comparison+trade-offs",
+      "title": "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage benchmarks performance comparison trade-offs",
       "publisher": "example.com",
       "domain": "example.com",
-      "retrieval_timestamp": "2026-09-11T15:55:39.863788Z",
+      "retrieval_timestamp": "2026-09-11T16:13:09.878932Z",
       "source_type": "web",
-      "extracted_text": "Detailed informational content regarding How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search benchmarks performance comparison trade-offs.",
-      "summary": "Summary of How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search benchmarks performance comparison trade-offs",
+      "extracted_text": "Detailed informational content regarding The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage benchmarks performance comparison trade-offs.",
+      "summary": "Summary of The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage benchmarks performance comparison trade-offs",
       "reliability_score": 0.42,
       "metadata": {}
     },
     {
-      "id": "500a2479-d6a7-4810-a973-141c88980ade",
-      "url": "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+architecture+technical+specifications",
-      "title": "Search Result for How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search architecture technical specifications",
+      "id": "2c873414-7c17-4928-ac88-1e41e2f6810a",
+      "url": "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+architecture+technical+specifications",
+      "title": "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage architecture technical specifications",
       "publisher": "example.com",
       "domain": "example.com",
-      "retrieval_timestamp": "2026-09-11T15:55:39.863627Z",
+      "retrieval_timestamp": "2026-09-11T16:13:09.878546Z",
       "source_type": "web",
-      "extracted_text": "Detailed informational content regarding How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search architecture technical specifications.",
-      "summary": "Summary of How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search architecture technical specifications",
+      "extracted_text": "Detailed informational content regarding The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage architecture technical specifications.",
+      "summary": "Summary of The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage architecture technical specifications",
       "reliability_score": 0.42,
       "metadata": {}
     },
     {
-      "id": "1b25a4fd-9d8f-4d1a-a72a-ff1bfb5de8f5",
-      "url": "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+overview+definition+fundamentals",
-      "title": "Search Result for How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search overview definition fundamentals",
+      "id": "a6b6dd76-b083-43b8-b1fb-5d68f1958d0a",
+      "url": "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+overview+definition+fundamentals",
+      "title": "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage overview definition fundamentals",
       "publisher": "example.com",
       "domain": "example.com",
-      "retrieval_timestamp": "2026-09-11T15:55:39.178714Z",
+      "retrieval_timestamp": "2026-09-11T16:13:09.257375Z",
       "source_type": "web",
-      "extracted_text": "Detailed informational content regarding How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search overview definition fundamentals.",
-      "summary": "Summary of How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search overview definition fundamentals",
+      "extracted_text": "Detailed informational content regarding The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage overview definition fundamentals.",
+      "summary": "Summary of The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage overview definition fundamentals",
       "reliability_score": 0.42,
       "metadata": {}
-    },
-    {
-      "id": "5e8a1864-6f04-49bb-ac1e-293e816b08b5",
-      "url": "https://en.wikipedia.org/wiki/Citizen_science",
-      "title": "Citizen science - Wikipedia",
-      "publisher": "Wikipedia",
-      "domain": "en.wikipedia.org",
-      "retrieval_timestamp": "2026-09-11T15:55:39.863255Z",
-      "source_type": "wikipedia",
-      "extracted_text": "science, social science, and many other disciplines. The exact definition of &quot;citizen science&quot; varies, with different individuals and organizations having",
-      "summary": "science, social science, and many other disciplines. The exact definition of &quot;citizen science&quot; varies, with different individuals and organizations having",
-      "reliability_score": 0.35,
-      "metadata": {
-        "page_id": 2155752
-      }
-    },
-    {
-      "id": "18d5026d-0591-4617-b444-8fa4428ba09f",
-      "url": "https://en.wikipedia.org/wiki/Wikipedia",
-      "title": "Wikipedia - Wikipedia",
-      "publisher": "Wikipedia",
-      "domain": "en.wikipedia.org",
-      "retrieval_timestamp": "2026-09-11T15:55:39.863309Z",
-      "source_type": "wikipedia",
-      "extracted_text": "(December 2015). &quot;An agent-based model of edit wars in Wikipedia: How and when is consensus reached&quot;. 2015 Winter Simulation Conference (WSC). Huntington",
-      "summary": "(December 2015). &quot;An agent-based model of edit wars in Wikipedia: How and when is consensus reached&quot;. 2015 Winter Simulation Conference (WSC). Huntington",
-      "reliability_score": 0.35,
-      "metadata": {
-        "page_id": 5043734
-      }
     }
   ],
   "queries_executed": [
-    "How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search overview definition fundamentals",
-    "How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search architecture technical specifications",
-    "How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search practical implementation code guide tutorial",
-    "How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search benchmarks performance comparison trade-offs",
-    "How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search production deployment best practices case studies"
+    "The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage overview definition fundamentals",
+    "The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage architecture technical specifications",
+    "The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage practical implementation code guide tutorial",
+    "The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage benchmarks performance comparison trade-offs",
+    "The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage production deployment best practices case studies"
   ],
   "key_findings": [
-    "Search Result for How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search production deployment best practices case studies (example.com)",
-    "Search Result for How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search practical implementation code guide tutorial (example.com)",
-    "Search Result for How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search benchmarks performance comparison trade-offs (example.com)",
-    "Search Result for How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search architecture technical specifications (example.com)",
-    "Search Result for How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search overview definition fundamentals (example.com)"
+    "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage production deployment best practices case studies (example.com)",
+    "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage practical implementation code guide tutorial (example.com)",
+    "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage benchmarks performance comparison trade-offs (example.com)",
+    "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage architecture technical specifications (example.com)",
+    "Search Result for The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage overview definition fundamentals (example.com)"
   ],
-  "created_at": "2026-09-11T15:55:39.864739Z"
+  "created_at": "2026-09-11T16:13:09.880701Z"
 }

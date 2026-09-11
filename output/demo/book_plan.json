@@ -1,5 +1,5 @@
 {
-  "title": "How Modern Databases Work: Storage Engines, Distributed Consensus, And Vector Search",
+  "title": "The Engineering Behind Modern Databases: B-Trees, Wal, Mvcc And Distributed Storage",
   "subtitle": "A Definitive Technical Deep Dive",
   "description": "An authoritative, intermediate guide tailored for Software Engineers, Architects, and Technical Leaders, covering architectural principles, practical implementations, and production patterns.",
   "intent": {
@@ -91,8 +91,8 @@
         }
       ],
       "sources_to_cite": [
-        "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+production+deployment+best+practices+case+studies",
-        "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+practical+implementation+code+guide+tutorial"
+        "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+production+deployment+best+practices+case+studies",
+        "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+practical+implementation+code+guide+tutorial"
       ]
     },
     {
@@ -126,8 +126,8 @@
         }
       ],
       "sources_to_cite": [
-        "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+benchmarks+performance+comparison+trade-offs",
-        "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+architecture+technical+specifications"
+        "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+benchmarks+performance+comparison+trade-offs",
+        "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+architecture+technical+specifications"
       ]
     },
     {
@@ -161,8 +161,7 @@
         }
       ],
       "sources_to_cite": [
-        "https://example.com/search?q=How+Modern+Databases+Work%3A+Storage+Engines%2C+Distributed+Consensus%2C+and+Vector+Search+overview+definition+fundamentals",
-        "https://en.wikipedia.org/wiki/Citizen_science"
+        "https://example.com/search?q=The+Engineering+Behind+Modern+Databases%3A+B-Trees%2C+WAL%2C+MVCC+and+Distributed+Storage+overview+definition+fundamentals"
       ]
     },
     {
@@ -195,9 +194,7 @@
           "description": null
         }
       ],
-      "sources_to_cite": [
-        "https://en.wikipedia.org/wiki/Wikipedia"
-      ]
+      "sources_to_cite": []
     },
     {
       "chapter_number": 5,
@@ -315,7 +312,7 @@
     {
       "page_number": 6,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "timeline",
       "chapter_number": 1,
       "chapter_title": "Foundations and Core Concepts",
       "theme": "dark",
@@ -337,7 +334,7 @@
     {
       "page_number": 8,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "timeline",
       "chapter_number": 1,
       "chapter_title": "Foundations and Core Concepts",
       "theme": "dark",
@@ -359,7 +356,7 @@
     {
       "page_number": 10,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "timeline",
       "chapter_number": 1,
       "chapter_title": "Foundations and Core Concepts",
       "theme": "dark",
@@ -381,7 +378,7 @@
     {
       "page_number": 12,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "timeline",
       "chapter_number": 1,
       "chapter_title": "Foundations and Core Concepts",
       "theme": "dark",
@@ -403,7 +400,7 @@
     {
       "page_number": 14,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "diagram_focus",
       "chapter_number": 2,
       "chapter_title": "Architectural Principles",
       "theme": "light",
@@ -425,7 +422,7 @@
     {
       "page_number": 16,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "diagram_focus",
       "chapter_number": 2,
       "chapter_title": "Architectural Principles",
       "theme": "light",
@@ -447,7 +444,7 @@
     {
       "page_number": 18,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "diagram_focus",
       "chapter_number": 2,
       "chapter_title": "Architectural Principles",
       "theme": "light",
@@ -469,7 +466,7 @@
     {
       "page_number": 20,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "diagram_focus",
       "chapter_number": 2,
       "chapter_title": "Architectural Principles",
       "theme": "light",
@@ -502,7 +499,7 @@
     {
       "page_number": 23,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "comparison",
       "chapter_number": 3,
       "chapter_title": "Practical Implementation",
       "theme": "dark",
@@ -524,7 +521,7 @@
     {
       "page_number": 25,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "comparison",
       "chapter_number": 3,
       "chapter_title": "Practical Implementation",
       "theme": "dark",
@@ -546,7 +543,7 @@
     {
       "page_number": 27,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "comparison",
       "chapter_number": 3,
       "chapter_title": "Practical Implementation",
       "theme": "dark",
@@ -579,7 +576,7 @@
     {
       "page_number": 30,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "large_number",
       "chapter_number": 4,
       "chapter_title": "Performance, Benchmarks & Trade-offs",
       "theme": "light",
@@ -590,7 +587,7 @@
     {
       "page_number": 31,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "comparison",
       "chapter_number": 4,
       "chapter_title": "Performance, Benchmarks & Trade-offs",
       "theme": "light",
@@ -601,7 +598,7 @@
     {
       "page_number": 32,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "large_number",
       "chapter_number": 4,
       "chapter_title": "Performance, Benchmarks & Trade-offs",
       "theme": "light",
@@ -612,7 +609,7 @@
     {
       "page_number": 33,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "comparison",
       "chapter_number": 4,
       "chapter_title": "Performance, Benchmarks & Trade-offs",
       "theme": "light",
@@ -623,7 +620,7 @@
     {
       "page_number": 34,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "large_number",
       "chapter_number": 4,
       "chapter_title": "Performance, Benchmarks & Trade-offs",
       "theme": "light",
@@ -634,7 +631,7 @@
     {
       "page_number": 35,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "comparison",
       "chapter_number": 4,
       "chapter_title": "Performance, Benchmarks & Trade-offs",
       "theme": "light",
@@ -645,7 +642,7 @@
     {
       "page_number": 36,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "large_number",
       "chapter_number": 4,
       "chapter_title": "Performance, Benchmarks & Trade-offs",
       "theme": "light",
@@ -667,7 +664,7 @@
     {
       "page_number": 38,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "quote",
       "chapter_number": 5,
       "chapter_title": "Production Best Practices & Case Studies",
       "theme": "dark",
@@ -689,7 +686,7 @@
     {
       "page_number": 40,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "quote",
       "chapter_number": 5,
       "chapter_title": "Production Best Practices & Case Studies",
       "theme": "dark",
@@ -711,7 +708,7 @@
     {
       "page_number": 42,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "quote",
       "chapter_number": 5,
       "chapter_title": "Production Best Practices & Case Studies",
       "theme": "dark",
@@ -733,7 +730,7 @@
     {
       "page_number": 44,
       "page_type": "chapter_content",
-      "layout": "editorial",
+      "layout": "quote",
       "chapter_number": 5,
       "chapter_title": "Production Best Practices & Case Studies",
       "theme": "dark",
@@ -765,5 +762,5 @@
     }
   ],
   "total_pages": 46,
-  "created_at": "2026-09-11T15:55:39.866166Z"
+  "created_at": "2026-09-11T16:13:09.882652Z"
 }

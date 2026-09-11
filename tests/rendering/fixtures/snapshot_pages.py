@@ -1,6 +1,19 @@
-"""Snapshot page fixtures for the 10 core layouts specified in TESTS.md."""
+"""Snapshot page fixtures for the core layouts and technical components specified in TESTS.md."""
 
 from vasukisquare.book.layout import LayoutType
+from vasukisquare.book.components import (
+    CalloutBlock,
+    ChartBlock,
+    CodeBlock,
+    DiagramBlock,
+    HeadingBlock,
+    QuoteBlock,
+    SourceBlock,
+    StatisticBlock,
+    TableBlock,
+    TerminalBlock,
+    TextBlock,
+)
 from vasukisquare.book.models import Page, PageContent, PageStyle, SourceCitation
 from vasukisquare.design.theme import Theme
 
@@ -94,7 +107,7 @@ def get_regression_fixture_pages() -> list[Page]:
         ),
     )
 
-    # 7. Code Page
+    # 7. Code Page (with structured CodeBlock)
     p7 = Page(
         id="fixture-7-code",
         book_id=book_id,
@@ -106,15 +119,18 @@ def get_regression_fixture_pages() -> list[Page]:
         theme=Theme.DARK,
         content=PageContent(
             headline="Replication RPC Handler",
-            code_snippets=[{
-                "language": "python",
-                "code": "async def append_entries(request: AppendEntriesRequest) -> AppendEntriesResponse:\n    if request.term < current_term:\n        return AppendEntriesResponse(success=False)\n    return AppendEntriesResponse(success=True)",
-            }],
+            blocks=[
+                CodeBlock(
+                    language="python",
+                    filename="consensus/rpc.py",
+                    code="async def append_entries(request: AppendEntriesRequest) -> AppendEntriesResponse:\n    if request.term < current_term:\n        return AppendEntriesResponse(success=False)\n    return AppendEntriesResponse(success=True)",
+                    caption="Listing 1.1: RPC Handler for term validation.",
+                )
+            ],
         ),
-        html="<pre><code class=\"language-python\">async def append_entries(request: AppendEntriesRequest) -> AppendEntriesResponse:\n    if request.term < current_term:\n        return AppendEntriesResponse(success=False)\n    return AppendEntriesResponse(success=True)</code></pre>",
     )
 
-    # 8. Comparison Page
+    # 8. Comparison Page (with structured TableBlock)
     p8 = Page(
         id="fixture-8-comparison",
         book_id=book_id,
@@ -126,14 +142,20 @@ def get_regression_fixture_pages() -> list[Page]:
         theme=Theme.LIGHT,
         content=PageContent(
             headline="HNSW vs IVF-PQ Performance Comparison",
+            blocks=[
+                TableBlock(
+                    caption="Index Performance Summary",
+                    columns=["Index Type", "Recall@10", "Search Latency", "Build Time"],
+                    rows=[
+                        ["HNSW (M=16)", "98.4%", "0.45 ms", "14.2 min"],
+                        ["IVF-PQ (nlist=1024)", "91.2%", "1.12 ms", "3.8 min"],
+                    ],
+                )
+            ],
         ),
-        html="""<div class="comparison-grid">
-          <div class="card-box"><h3>HNSW</h3><p>Higher memory usage, sub-millisecond search latency, graph-based navigation.</p></div>
-          <div class="card-box"><h3>IVF-PQ</h3><p>Compressed memory footprint, vector quantization, inverted file clustering.</p></div>
-        </div>""",
     )
 
-    # 9. References Page
+    # 9. References Page (with structured SourceBlock)
     p9 = Page(
         id="fixture-9-references",
         book_id=book_id,
@@ -149,7 +171,17 @@ def get_regression_fixture_pages() -> list[Page]:
                 page_number=1,
             )
         ],
-        html="<ul><li>Ongaro, D., & Ousterhout, J. (2014). In Search of an Understandable Consensus Algorithm. USENIX ATC.</li></ul>",
+        content=PageContent(
+            headline="References & Primary Sources",
+            blocks=[
+                SourceBlock(
+                    title="In Search of an Understandable Consensus Algorithm",
+                    publisher="USENIX ATC",
+                    url="https://raft.github.io/raft.pdf",
+                    accessed_at="2026-09-11",
+                )
+            ],
+        ),
     )
 
     # 10. Thank-You Page
@@ -175,3 +207,290 @@ def get_regression_fixture_pages() -> list[Page]:
 
     return pages
 
+
+def get_technical_component_fixture_pages() -> dict[str, Page]:
+    """Return dictionary of individual test fixture pages covering all required technical components."""
+    book_id = "test-tech-components"
+
+    # 1. Light Editorial Page
+    p_light_editorial = Page(
+        id="test-light-editorial",
+        book_id=book_id,
+        page_number=2,
+        chapter_number=2,
+        chapter_name="Storage Internals",
+        theme=Theme.LIGHT,
+        layout=LayoutType.EDITORIAL.value,
+        content=PageContent(
+            headline="Storage Engine Concurrency",
+            blocks=[
+                TextBlock(text="Multi-Version Concurrency Control (MVCC) isolates active transactions."),
+                CalloutBlock(variant="note", title="Isolation Level", content="Snapshot isolation prevents dirty reads."),
+            ],
+        ),
+    )
+
+    # 2. Dark Editorial Page
+    p_dark_editorial = Page(
+        id="test-dark-editorial",
+        book_id=book_id,
+        page_number=3,
+        chapter_number=1,
+        chapter_name="Distributed Consensus",
+        theme=Theme.DARK,
+        layout=LayoutType.EDITORIAL.value,
+        content=PageContent(
+            headline="Log Replication Protocol",
+            blocks=[
+                TextBlock(text="Follower nodes append entries sent by the leader after verifying term constraints."),
+                CalloutBlock(variant="important", title="Quorum Requirement", content="Strict majority required."),
+            ],
+        ),
+    )
+
+    # 3. Dark Chapter Opener
+    p_dark_opener = Page(
+        id="test-dark-opener",
+        book_id=book_id,
+        page_number=1,
+        chapter_number=1,
+        chapter_name="Distributed Consensus",
+        page_type=LayoutType.CHAPTER_OPENER.value,
+        layout=LayoutType.CHAPTER_OPENER.value,
+        theme=Theme.DARK,
+        icon="sparkles",
+    )
+
+    # 4. Light Chapter Opener
+    p_light_opener = Page(
+        id="test-light-opener",
+        book_id=book_id,
+        page_number=10,
+        chapter_number=2,
+        chapter_name="Storage Internals",
+        page_type=LayoutType.CHAPTER_OPENER.value,
+        layout=LayoutType.CHAPTER_OPENER.value,
+        theme=Theme.LIGHT,
+        icon="database",
+    )
+
+    # 5. Python Code Block
+    p_python_code = Page(
+        id="test-python-code",
+        book_id=book_id,
+        page_number=11,
+        chapter_number=1,
+        chapter_name="Distributed Consensus",
+        theme=Theme.DARK,
+        content=PageContent(
+            headline="Python RPC Handler",
+            blocks=[
+                CodeBlock(
+                    language="python",
+                    filename="consensus/rpc.py",
+                    code="class RaftNode:\n    def __init__(self, node_id: str):\n        self.term = 0\n        self.is_leader = False",
+                    caption="Python RaftNode class definition.",
+                )
+            ],
+        ),
+    )
+
+    # 6. Rust Code Block
+    p_rust_code = Page(
+        id="test-rust-code",
+        book_id=book_id,
+        page_number=12,
+        chapter_number=1,
+        chapter_name="Distributed Consensus",
+        theme=Theme.DARK,
+        content=PageContent(
+            headline="Rust Storage Driver",
+            blocks=[
+                CodeBlock(
+                    language="rust",
+                    filename="storage/wal.rs",
+                    code="pub struct WalRecord {\n    pub lsn: u64,\n    pub payload: Vec<u8>,\n}",
+                    caption="Rust WalRecord struct.",
+                )
+            ],
+        ),
+    )
+
+    # 7. Terminal Block
+    p_terminal = Page(
+        id="test-terminal",
+        book_id=book_id,
+        page_number=13,
+        chapter_number=2,
+        chapter_name="Storage Internals",
+        theme=Theme.LIGHT,
+        content=PageContent(
+            headline="Command Execution",
+            blocks=[
+                TerminalBlock(
+                    title="Console",
+                    shell="bash",
+                    lines=["$ ./vasuki --start", "[info] Cluster initialized", "[success] Ready on port 27018"],
+                )
+            ],
+        ),
+    )
+
+    # 8. Table Block
+    p_table = Page(
+        id="test-table",
+        book_id=book_id,
+        page_number=14,
+        chapter_number=2,
+        chapter_name="Storage Internals",
+        theme=Theme.LIGHT,
+        content=PageContent(
+            headline="Engine Matrix",
+            blocks=[
+                TableBlock(
+                    caption="Engine Characteristics",
+                    columns=["Engine", "Read IO", "Write IO"],
+                    rows=[["B-Tree", "Low", "High"], ["LSM-Tree", "Medium", "Low"]],
+                )
+            ],
+        ),
+    )
+
+    # 9. Source Links
+    p_source = Page(
+        id="test-source",
+        book_id=book_id,
+        page_number=15,
+        chapter_number=2,
+        chapter_name="Storage Internals",
+        theme=Theme.LIGHT,
+        content=PageContent(
+            headline="Primary Citations",
+            blocks=[
+                SourceBlock(
+                    title="PostgreSQL WAL Architecture",
+                    publisher="PostgreSQL Global",
+                    url="https://postgresql.org/docs/wal",
+                    accessed_at="2026-09-11",
+                    mode="card",
+                )
+            ],
+        ),
+    )
+
+    # 10. Callout
+    p_callout = Page(
+        id="test-callout",
+        book_id=book_id,
+        page_number=16,
+        chapter_number=1,
+        chapter_name="Distributed Consensus",
+        theme=Theme.DARK,
+        content=PageContent(
+            headline="Important Principle",
+            blocks=[
+                CalloutBlock(
+                    variant="important",
+                    title="Safety Guarantee",
+                    content="Never acknowledge a write before quorum persistence.",
+                )
+            ],
+        ),
+    )
+
+    # 11. Bar Chart
+    p_barchart = Page(
+        id="test-barchart",
+        book_id=book_id,
+        page_number=17,
+        chapter_number=2,
+        chapter_name="Storage Internals",
+        theme=Theme.LIGHT,
+        content=PageContent(
+            headline="Throughput Analysis",
+            blocks=[
+                ChartBlock(
+                    chart_type="bar",
+                    title="Batch Size vs Ops/Sec",
+                    labels=["1", "10", "100"],
+                    series=[{"name": "Ops", "values": [1000, 8000, 45000]}],
+                )
+            ],
+        ),
+    )
+
+    # 12. Line Chart
+    p_linechart = Page(
+        id="test-linechart",
+        book_id=book_id,
+        page_number=18,
+        chapter_number=1,
+        chapter_name="Distributed Consensus",
+        theme=Theme.DARK,
+        content=PageContent(
+            headline="Latency Degradation",
+            blocks=[
+                ChartBlock(
+                    chart_type="line",
+                    title="p99 Latency under Load",
+                    labels=["1k", "5k", "10k"],
+                    series=[{"name": "ms", "values": [2, 5, 14]}],
+                )
+            ],
+        ),
+    )
+
+    # 13. Mermaid Diagram
+    p_diagram = Page(
+        id="test-diagram",
+        book_id=book_id,
+        page_number=19,
+        chapter_number=1,
+        chapter_name="Distributed Consensus",
+        theme=Theme.DARK,
+        content=PageContent(
+            headline="Architecture Pipeline",
+            blocks=[
+                DiagramBlock(
+                    code="graph TD\n  Client --> WAL\n  WAL --> MemTable",
+                    caption="Write Path Architecture",
+                )
+            ],
+        ),
+    )
+
+    # 14. Multi-Component Technical Page
+    p_multi = Page(
+        id="test-multi-component",
+        book_id=book_id,
+        page_number=20,
+        chapter_number=2,
+        chapter_name="Storage Internals",
+        theme=Theme.LIGHT,
+        content=PageContent(
+            headline="Comprehensive Storage Page",
+            blocks=[
+                TextBlock(text="LSM Storage combines append-only WAL logs with leveled SSTables."),
+                CodeBlock(language="rust", filename="lsm.rs", code="struct LSMTree { memtable: MemTable }"),
+                CalloutBlock(variant="tip", title="Performance Tip", content="Tune bloom filter bit depth."),
+                SourceBlock(title="LSM Paper", publisher="ACM", url="https://acm.org/lsm.pdf", mode="card"),
+            ],
+        ),
+    )
+
+    return {
+        "light_editorial": p_light_editorial,
+        "dark_editorial": p_dark_editorial,
+        "dark_chapter_opener": p_dark_opener,
+        "light_chapter_opener": p_light_opener,
+        "python_code": p_python_code,
+        "rust_code": p_rust_code,
+        "terminal": p_terminal,
+        "table": p_table,
+        "source": p_source,
+        "callout": p_callout,
+        "bar_chart": p_barchart,
+        "line_chart": p_linechart,
+        "diagram": p_diagram,
+        "multi_component": p_multi,
+    }

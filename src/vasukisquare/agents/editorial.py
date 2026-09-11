@@ -281,11 +281,19 @@ class EditorialPlannerAgent:
                 sec = ch.sections[sec_idx] if ch.sections else None
                 anchor = sec.visual_anchors[cp_idx % len(sec.visual_anchors)] if sec and sec.visual_anchors else VisualAnchorType.TEXT
                 
-                layout_type = LayoutType.TEXT_HEAVY.value
+                layout_type = LayoutType.EDITORIAL.value
                 if anchor == VisualAnchorType.CODE:
-                    layout_type = LayoutType.CODE.value
-                elif anchor == VisualAnchorType.COMPARISON:
+                    layout_type = LayoutType.CODE_FOCUS.value
+                elif anchor in (VisualAnchorType.COMPARISON, VisualAnchorType.TABLE):
                     layout_type = LayoutType.COMPARISON.value
+                elif anchor == VisualAnchorType.DIAGRAM:
+                    layout_type = LayoutType.DIAGRAM_FOCUS.value
+                elif anchor == VisualAnchorType.STATISTIC:
+                    layout_type = LayoutType.LARGE_NUMBER.value
+                elif anchor == VisualAnchorType.QUOTE:
+                    layout_type = LayoutType.QUOTE.value
+                elif anchor == VisualAnchorType.TIMELINE:
+                    layout_type = LayoutType.TIMELINE.value
 
                 p_content = PlannedPage(
                     page_number=curr_page_num,

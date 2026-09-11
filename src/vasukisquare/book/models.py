@@ -143,6 +143,22 @@ class BookPlan(BaseModel):
         return self
 
 
+from vasukisquare.book.components import (
+    CalloutBlock,
+    ChartBlock,
+    CodeBlock,
+    ContentBlock,
+    DiagramBlock,
+    HeadingBlock,
+    QuoteBlock,
+    SourceBlock,
+    StatisticBlock,
+    TableBlock,
+    TerminalBlock,
+    TextBlock,
+)
+
+
 class SourceCitation(BaseModel):
     """Citation metadata referencing external research."""
 
@@ -161,6 +177,7 @@ class PageContent(BaseModel):
     key_points: List[str] = Field(default_factory=list)
     code_snippets: List[Dict[str, str]] = Field(default_factory=list)
     callouts: List[Dict[str, str]] = Field(default_factory=list)
+    blocks: List[ContentBlock] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
 
 

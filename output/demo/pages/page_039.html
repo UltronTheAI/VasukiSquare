@@ -48,413 +48,16 @@
   --color-on-dark: #ffffff;
   --color-on-dark-muted: #a8b3bc;
 
-  /* Spacing Scale */
-  --spacing-xxs: 4px;
-  --spacing-xs: 8px;
-  --spacing-sm: 12px;
-  --spacing-md: 16px;
-  --spacing-lg: 20px;
-  --spacing-xl: 24px;
-  --spacing-xxl: 32px;
-  --spacing-xxxl: 40px;
-  --spacing-section-sm: 48px;
-  --spacing-section: 64px;
-  --spacing-section-lg: 96px;
-  --spacing-hero: 120px;
+  /* Explicit Semantic Text Contrast Tokens */
+  --text-primary: #001e2b;         /* Ink: 100% contrast on light canvas */
+  --text-secondary: #3d4f5b;       /* Slate: readable secondary text */
+  --text-muted: #5c6c7a;           /* Steel: high-contrast captions &amp; headers */
+  --text-subtle: #7c8c9a;          /* Stone: metadata &amp; structural labels */
 
-  /* Radii Scale */
-  --radius-xs: 4px;
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
-  --radius-xxl: 24px;
-  --radius-full: 9999px;
-
-  /* Typography Stacks */
-  --font-display: &#39;Plus Jakarta Sans&#39;, &#39;Inter&#39;, -apple-system, BlinkMacSystemFont, &#39;Segoe UI&#39;, Roboto, sans-serif;
-  --font-body: &#39;Inter&#39;, &#39;Plus Jakarta Sans&#39;, -apple-system, BlinkMacSystemFont, &#39;Segoe UI&#39;, Roboto, sans-serif;
-  --font-code: &#39;JetBrains Mono&#39;, &#39;Fira Code&#39;, &#39;Source Code Pro&#39;, monospace;
-
-  /* Exact A4 Metrics */
-  --page-width: 210mm;
-  --page-height: 297mm;
-}
-
-@page {
-  size: A4;
-  margin: 0;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-html, body {
-  width: var(--page-width);
-  font-family: var(--font-body);
-  font-size: 14px;
-  line-height: 1.5;
-  -webkit-print-color-adjust: exact;
-  print-color-adjust: exact;
-  background-color: #f0f2f5;
-}
-
-.book-document {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-}
-
-/* Base Page Container (Exact A4 Physical Dimensions) */
-.page {
-  width: var(--page-width);
-  height: var(--page-height);
-  min-width: var(--page-width);
-  max-width: var(--page-width);
-  min-height: var(--page-height);
-  max-height: var(--page-height);
-  overflow: hidden;
-  position: relative;
-  page-break-after: always;
-  break-after: page;
-  padding: 24mm 20mm;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-.page-safe-content {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-/* Dual-Mode Themes */
-.page.theme-light {
-  background-color: var(--color-canvas);
-  color: var(--color-ink);
-  --theme-bg: var(--color-canvas);
-  --theme-text: var(--color-ink);
-  --theme-card-bg: var(--color-surface);
-  --theme-border: var(--color-hairline);
-  --theme-muted: var(--color-muted);
-  --theme-accent: var(--color-brand-green-dark);
-}
-
-.page.theme-dark {
-  background-color: var(--color-canvas-dark);
-  color: var(--color-on-dark);
-  --theme-bg: var(--color-canvas-dark);
-  --theme-text: var(--color-on-dark);
-  --theme-card-bg: var(--color-brand-teal);
-  --theme-border: var(--color-hairline-dark);
-  --theme-muted: var(--color-on-dark-muted);
-  --theme-accent: var(--color-brand-green);
-}
-
-/* Header &amp; Footer Chrome */
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 1px;
-  text-transform: uppercase;
-  color: var(--theme-muted);
-  margin-bottom: var(--spacing-xl);
-  flex-shrink: 0;
-}
-
-.page-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.page-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 11px;
-  color: var(--theme-muted);
-  margin-top: auto;
-  padding-top: var(--spacing-sm);
-  border-top: 1px solid var(--theme-border);
-  flex-shrink: 0;
-}
-
-/* Typography Print Rules &amp; Orphan/Widow Protection */
-h1, h2, h3, h4, h5 {
-  font-family: var(--font-display);
-  color: var(--theme-text);
-  break-after: avoid;
-  page-break-after: avoid;
-}
-
-p {
-  orphans: 3;
-  widows: 3;
-  margin-bottom: var(--spacing-md);
-}
-
-pre, code, table, .card-box {
-  break-inside: avoid;
-  page-break-inside: avoid;
-}
-
-/* ==========================================================================
-   Controlled Layouts (14 Editorial Layouts + Structural)
-   ========================================================================== */
-
-/* 1. Chapter Opener (Strictly Minimal) */
-.layout-chapter_opener .page-safe-content {
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-}
-.layout-chapter_opener .chapter-num {
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--theme-accent);
-  margin-bottom: var(--spacing-md);
-}
-.layout-chapter_opener .chapter-title {
-  font-family: var(--font-display);
-  font-size: 40px;
-  font-weight: 500;
-  line-height: 1.20;
-  margin-bottom: var(--spacing-xl);
-}
-.layout-chapter_opener .chapter-icon {
-  margin-top: var(--spacing-sm);
-}
-
-/* 2. Editorial Layout */
-.layout-editorial .content-headline {
-  font-family: var(--font-display);
-  font-size: 26px;
-  font-weight: 500;
-  margin-bottom: var(--spacing-lg);
-  color: var(--theme-text);
-}
-.layout-editorial .content-body {
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-/* 3. Split Explainer */
-.layout-split_explainer .page-content {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-xl);
-}
-
-/* 4. Large Number / Metric */
-.layout-large_number .stat-highlight {
-  font-family: var(--font-display);
-  font-size: 64px;
-  font-weight: 600;
-  color: var(--color-brand-green);
-  line-height: 1.1;
-  margin-bottom: var(--spacing-md);
-}
-
-/* 5. Quote Layout */
-.layout-quote blockquote {
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-style: italic;
-  line-height: 1.4;
-  border-left: 4px solid var(--theme-accent);
-  padding-left: var(--spacing-xl);
-  margin: var(--spacing-xxl) 0;
-}
-
-/* 6. Timeline Layout */
-.layout-timeline .timeline-container {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-  border-left: 2px solid var(--theme-border);
-  padding-left: var(--spacing-xl);
-}
-
-/* 7. Comparison Layout */
-.layout-comparison .comparison-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--spacing-lg);
-}
-
-/* 8. Diagram Focus */
-.layout-diagram_focus .diagram-frame {
-  background-color: var(--theme-card-bg);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
-  border: 1px solid var(--theme-border);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 280px;
-}
-
-/* 9. Code Focus */
-.layout-code_focus pre {
-  background-color: var(--color-canvas-dark);
-  color: var(--color-on-dark);
-  font-family: var(--font-code);
-  font-size: 13px;
-  line-height: 1.5;
-  padding: var(--spacing-lg);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-hairline-dark);
-  overflow-x: auto;
-  max-height: 520px;
-}
-
-/* 10. Concept Grid */
-.layout-concept_grid .grid-container {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--spacing-md);
-}
-
-/* 11. Research Highlight */
-.layout-research_highlight .highlight-card {
-  background-color: var(--color-surface-feature);
-  border: 2px solid var(--color-brand-green);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
-}
-
-/* 12. Definition */
-.layout-definition dt {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--theme-accent);
-}
-
-/* 13. Full Bleed Statement */
-.layout-full_bleed_statement .page-safe-content {
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-}
-.layout-full_bleed_statement h1 {
-  font-size: 38px;
-  font-weight: 500;
-}
-
-/* 14. Summary */
-.layout-summary .summary-box {
-  background-color: var(--theme-card-bg);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
-  border: 1px solid var(--theme-border);
-}
-
-/* Structural: Cover Layout */
-.layout-cover {
-  background-color: var(--color-canvas-dark);
-  color: var(--color-on-dark);
-}
-.layout-cover .cover-hero {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-}
-.layout-cover .cover-title {
-  font-size: 48px;
-  font-weight: 600;
-  color: var(--color-brand-green);
-  margin-bottom: var(--spacing-md);
-}
-.layout-cover .cover-subtitle {
-  font-size: 20px;
-  color: var(--color-on-dark-muted);
-}
-
-  </style>
-</head>
-<body>
-  <div class="page theme-dark layout-editorial" data-page-number="39">
-    <div class="page-safe-content">
-      
-      <header class="page-header">
-        <span class="header-chapter">Chapter 5: Production Best Practices &amp; Case Studies</span>
-        <span class="header-topic">How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search</span>
-      </header>
-      
-
-      <main class="page-content">
-        
-          
-          <h2 class="content-headline">Content for section &#39;Production Case Study &amp; Retrospective&#39; focusing on text.</h2>
-          
-          
-          
-            <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Production Best Practices &amp; Case Studies</title>
-  <style>
-    @page {
-      size: A4;
-      margin: 0;
-    }
-    /* VasukiSquare Design System Canonical CSS mapped from DESIGN.md */
-
-:root {
-  /* Generated Color Tokens */
-  --color-primary: #00ed64;
-  --color-primary-deep: #00b545;
-  --color-primary-pressed: #008c34;
-  --color-on-primary: #001e2b;
-  --color-brand-green: #00ed64;
-  --color-brand-green-dark: #00684a;
-  --color-brand-green-mid: #00a35c;
-  --color-brand-green-soft: #c3f0d2;
-  --color-brand-teal-deep: #001e2b;
-  --color-brand-teal: #003d4f;
-  --color-brand-teal-mid: #00684a;
-  --color-accent-purple: #7b3ff2;
-  --color-accent-orange: #fa6e39;
-  --color-accent-pink: #f06bb8;
-  --color-accent-blue: #3d4f9f;
-  --color-semantic-warning-bg: #fff8e0;
-  --color-semantic-warning-text: #946f3f;
-  --color-canvas: #ffffff;
-  --color-canvas-dark: #001e2b;
-  --color-surface: #f9fbfa;
-  --color-surface-soft: #f4f7f6;
-  --color-surface-feature: #e3fcef;
-  --color-hairline: #e1e5e8;
-  --color-hairline-soft: #eceff1;
-  --color-hairline-strong: #c1ccd6;
-  --color-hairline-dark: #1c2d38;
-  --color-ink: #001e2b;
-  --color-charcoal: #1c2d38;
-  --color-slate: #3d4f5b;
-  --color-steel: #5c6c7a;
-  --color-stone: #7c8c9a;
-  --color-muted: #a8b3bc;
-  --color-on-dark: #ffffff;
-  --color-on-dark-muted: #a8b3bc;
+  --text-primary-dark: #ffffff;    /* On-Dark: 100% contrast on dark canvas */
+  --text-secondary-dark: #e1e5e8;  /* Hairline: high-contrast secondary text on dark */
+  --text-muted-dark: #c1ccd6;      /* Hairline-Strong: readable captions &amp; headers on dark */
+  --text-subtle-dark: #a8b3bc;     /* On-Dark Muted: secondary metadata on dark */
 
   /* Spacing Scale */
   --spacing-xxs: 4px;
@@ -508,6 +111,7 @@ html, body {
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
   background-color: #f0f2f5;
+  color: var(--color-ink);
 }
 
 .book-document {
@@ -541,32 +145,41 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  position: relative;
 }
 
-/* Dual-Mode Themes */
+/* Dual-Mode Themes with High Contrast Semantic Text */
 .page.theme-light {
   background-color: var(--color-canvas);
-  color: var(--color-ink);
+  color: var(--text-primary);
   --theme-bg: var(--color-canvas);
-  --theme-text: var(--color-ink);
+  --theme-text: var(--text-primary);
+  --theme-text-secondary: var(--text-secondary);
+  --theme-text-muted: var(--text-muted);
+  --theme-text-subtle: var(--text-subtle);
   --theme-card-bg: var(--color-surface);
   --theme-border: var(--color-hairline);
-  --theme-muted: var(--color-muted);
+  --theme-border-strong: var(--color-hairline-strong);
   --theme-accent: var(--color-brand-green-dark);
+  --theme-accent-soft: var(--color-surface-feature);
 }
 
 .page.theme-dark {
   background-color: var(--color-canvas-dark);
-  color: var(--color-on-dark);
+  color: var(--text-primary-dark);
   --theme-bg: var(--color-canvas-dark);
-  --theme-text: var(--color-on-dark);
+  --theme-text: var(--text-primary-dark);
+  --theme-text-secondary: var(--text-secondary-dark);
+  --theme-text-muted: var(--text-muted-dark);
+  --theme-text-subtle: var(--text-subtle-dark);
   --theme-card-bg: var(--color-brand-teal);
   --theme-border: var(--color-hairline-dark);
-  --theme-muted: var(--color-on-dark-muted);
+  --theme-border-strong: #2a4050;
   --theme-accent: var(--color-brand-green);
+  --theme-accent-soft: rgba(0, 237, 100, 0.12);
 }
 
-/* Header &amp; Footer Chrome */
+/* Header &amp; Footer Chrome (High-Contrast, Clean Layout) */
 .page-header {
   display: flex;
   justify-content: space-between;
@@ -575,9 +188,20 @@ html, body {
   font-weight: 600;
   letter-spacing: 1px;
   text-transform: uppercase;
-  color: var(--theme-muted);
-  margin-bottom: var(--spacing-xl);
+  color: var(--theme-text-muted);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--theme-border);
+  margin-bottom: var(--spacing-lg);
   flex-shrink: 0;
+}
+
+.page-header .header-chapter {
+  color: var(--theme-text-secondary);
+  font-weight: 600;
+}
+
+.page-header .header-topic {
+  color: var(--theme-text-muted);
 }
 
 .page-content {
@@ -585,6 +209,7 @@ html, body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  gap: var(--spacing-md);
 }
 
 .page-footer {
@@ -592,11 +217,33 @@ html, body {
   justify-content: space-between;
   align-items: center;
   font-size: 11px;
-  color: var(--theme-muted);
+  color: var(--theme-text-muted);
   margin-top: auto;
   padding-top: var(--spacing-sm);
   border-top: 1px solid var(--theme-border);
   flex-shrink: 0;
+}
+
+.page-footer .footer-title {
+  color: var(--theme-text-secondary);
+  font-weight: 500;
+}
+
+.page-footer .footer-page-num {
+  color: var(--theme-text);
+  font-weight: 700;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--theme-border);
+}
+
+/* Hide header/footer on Chapter Opener and Cover Pages */
+.page.layout-chapter_opener .page-header,
+.page.layout-chapter_opener .page-footer,
+.page.layout-cover .page-header,
+.page.layout-cover .page-footer {
+  display: none !important;
 }
 
 /* Typography Print Rules &amp; Orphan/Widow Protection */
@@ -607,168 +254,577 @@ h1, h2, h3, h4, h5 {
   page-break-after: avoid;
 }
 
+h1 { font-size: 32px; line-height: 1.20; font-weight: 600; }
+h2 { font-size: 24px; line-height: 1.25; font-weight: 600; }
+h3 { font-size: 18px; line-height: 1.30; font-weight: 600; }
+h4 { font-size: 15px; line-height: 1.35; font-weight: 600; }
+h5 { font-size: 13px; line-height: 1.40; font-weight: 600; }
+
 p {
   orphans: 3;
   widows: 3;
-  margin-bottom: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+  color: var(--theme-text-secondary);
+  line-height: 1.6;
 }
 
-pre, code, table, .card-box {
+pre, code, table, .component-code-block, .component-terminal-window, .component-table-container, .component-chart-container, .component-callout, .card-box {
   break-inside: avoid;
   page-break-inside: avoid;
 }
 
 /* ==========================================================================
-   Controlled Layouts (14 Editorial Layouts + Structural)
+   Chapter Opener: Fully Centered, Minimal, High Hierarchy
    ========================================================================== */
-
-/* 1. Chapter Opener (Strictly Minimal) */
 .layout-chapter_opener .page-safe-content {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.layout-chapter_opener .page-content {
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: center !important;
+  align-items: center !important;
+  text-align: center !important;
+  flex: 1;
+  width: 100%;
+}
+
+.layout-chapter_opener .chapter-opener-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  max-width: 540px;
+  margin: auto;
+}
+
+.layout-chapter_opener .chapter-icon {
+  margin-bottom: var(--spacing-xxl);
+  display: flex;
   justify-content: center;
   align-items: center;
-  text-align: center;
-}
-.layout-chapter_opener .chapter-num {
-  font-size: 14px;
-  font-weight: 600;
-  letter-spacing: 2px;
-  text-transform: uppercase;
-  color: var(--theme-accent);
-  margin-bottom: var(--spacing-md);
-}
-.layout-chapter_opener .chapter-title {
-  font-family: var(--font-display);
-  font-size: 40px;
-  font-weight: 500;
-  line-height: 1.20;
-  margin-bottom: var(--spacing-xl);
-}
-.layout-chapter_opener .chapter-icon {
-  margin-top: var(--spacing-sm);
 }
 
-/* 2. Editorial Layout */
-.layout-editorial .content-headline {
-  font-family: var(--font-display);
-  font-size: 26px;
-  font-weight: 500;
-  margin-bottom: var(--spacing-lg);
-  color: var(--theme-text);
+.layout-chapter_opener .chapter-icon svg {
+  width: 64px;
+  height: 64px;
+  stroke-width: 1.75;
 }
-.layout-editorial .content-body {
+
+.layout-chapter_opener .chapter-num {
   font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--theme-accent);
+  margin-bottom: var(--spacing-lg);
+}
+
+.layout-chapter_opener .chapter-title {
+  font-family: var(--font-display);
+  font-size: clamp(34px, 5vw, 44px);
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  color: var(--theme-text);
+  margin: 0;
+  word-break: break-word;
+}
+
+/* ==========================================================================
+   Structured Technical Components
+   ========================================================================== */
+
+/* 1. Code Block with Syntax Highlighting */
+.component-code-figure {
+  width: 100%;
+  margin: var(--spacing-xs) 0;
+}
+
+.component-code-block {
+  background-color: var(--color-canvas-dark);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-hairline-dark);
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 30, 43, 0.15);
+}
+
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background-color: #001721;
+  border-bottom: 1px solid var(--color-hairline-dark);
+  font-family: var(--font-code);
+  font-size: 11px;
+}
+
+.code-filename {
+  color: var(--text-muted-dark);
+  font-weight: 500;
+}
+
+.code-lang-badge {
+  color: var(--color-brand-green);
+  font-weight: 700;
+  letter-spacing: 1px;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.code-pre {
+  padding: 14px 16px;
+  font-family: var(--font-code);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-primary-dark);
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 480px;
+}
+
+.code-caption {
+  font-size: 11px;
+  color: var(--theme-text-muted);
+  margin-top: 6px;
+  font-style: italic;
+  text-align: right;
+}
+
+/* Syntax Highlighting Tokens */
+.hl-k, .hl-kd, .hl-kp, .hl-kr { color: #00ed64; font-weight: 600; } /* Keywords */
+.hl-s, .hl-s1, .hl-s2, .hl-sa, .hl-sb, .hl-sc { color: #c3f0d2; } /* Strings */
+.hl-c, .hl-c1, .hl-ch, .hl-cm, .hl-cp, .hl-cpf, .hl-cs { color: #7c8c9a; font-style: italic; } /* Comments */
+.hl-nf, .hl-fm, .hl-na { color: #7b3ff2; font-weight: 600; } /* Functions */
+.hl-nc, .hl-nn, .hl-ne { color: #fa6e39; font-weight: 600; } /* Classes */
+.hl-nb, .hl-bp { color: #3d4f9f; } /* Builtins */
+.hl-mi, .hl-mf, .hl-mh, .hl-mo, .hl-mb { color: #fa6e39; } /* Numbers */
+.hl-o, .hl-ow { color: #00a35c; } /* Operators */
+.hl-p { color: #e1e5e8; } /* Punctuation */
+
+/* 2. Terminal Block */
+.component-terminal-window {
+  background-color: #00121a;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-hairline-dark);
+  overflow: hidden;
+  box-shadow: 0 6px 16px rgba(0, 30, 43, 0.2);
+  margin: var(--spacing-xs) 0;
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: #000c12;
+  border-bottom: 1px solid var(--color-hairline-dark);
+  font-family: var(--font-code);
+  font-size: 11px;
+}
+
+.terminal-dots {
+  display: flex;
+  gap: 6px;
+}
+
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+.dot-red { background-color: #ff5f56; }
+.dot-yellow { background-color: #ffbd2e; }
+.dot-green { background-color: #27c93f; }
+
+.terminal-title {
+  color: var(--text-muted-dark);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.terminal-shell {
+  color: var(--color-brand-green);
+  font-weight: 700;
+  font-size: 10px;
+}
+
+.terminal-body {
+  padding: 14px 16px;
+  font-family: var(--font-code);
+  font-size: 12px;
   line-height: 1.6;
 }
 
-/* 3. Split Explainer */
+.terminal-line {
+  margin-bottom: 4px;
+  word-break: break-all;
+}
+
+.terminal-line.is-command {
+  display: flex;
+  gap: 8px;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.terminal-prompt {
+  color: var(--color-brand-green);
+  user-select: none;
+}
+
+.terminal-cmd {
+  color: #ffffff;
+}
+
+.terminal-line.is-stdout {
+  color: #c1ccd6;
+}
+
+.terminal-line.is-error {
+  color: #fa6e39;
+  font-weight: 500;
+}
+
+.terminal-line.is-warning {
+  color: #ffbd2e;
+}
+
+.terminal-line.is-success {
+  color: #00ed64;
+  font-weight: 500;
+}
+
+.terminal-line.is-comment {
+  color: #7c8c9a;
+  font-style: italic;
+}
+
+/* 3. High-Contrast Table */
+.component-table-container {
+  width: 100%;
+  overflow-x: auto;
+  margin: var(--spacing-xs) 0;
+}
+
+.component-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  border: 1px solid var(--theme-border-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background-color: var(--theme-card-bg);
+}
+
+.table-caption {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--theme-text);
+  margin-bottom: 8px;
+  text-align: left;
+}
+
+.component-table th {
+  background-color: var(--theme-border);
+  color: var(--theme-text);
+  font-weight: 700;
+  padding: 10px 14px;
+  border-bottom: 2px solid var(--theme-border-strong);
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.component-table td {
+  padding: 10px 14px;
+  color: var(--theme-text-secondary);
+  border-bottom: 1px solid var(--theme-border);
+  line-height: 1.45;
+}
+
+.component-table tr:last-child td {
+  border-bottom: none;
+}
+
+.component-table tr:nth-child(even) td {
+  background-color: rgba(0, 30, 43, 0.02);
+}
+
+.page.theme-dark .component-table tr:nth-child(even) td {
+  background-color: rgba(255, 255, 255, 0.03);
+}
+
+/* 4. Clickable Source Links &amp; Reference Cards */
+.component-source-card {
+  background-color: var(--theme-card-bg);
+  border: 1px solid var(--theme-border-strong);
+  border-radius: var(--radius-lg);
+  padding: 14px 18px;
+  margin: var(--spacing-xs) 0;
+}
+
+.source-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--theme-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+}
+
+.source-title a {
+  color: var(--theme-text);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.source-title a:hover {
+  color: var(--theme-accent);
+  text-decoration: underline;
+}
+
+.source-link-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--theme-border);
+  font-size: 11.5px;
+}
+
+.source-domain {
+  color: var(--theme-text-muted);
+}
+
+.source-url-btn {
+  color: var(--theme-accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.component-source-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background-color: var(--theme-border);
+  color: var(--theme-text);
+  text-decoration: none;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.component-source-inline:hover {
+  background-color: var(--theme-border-strong);
+}
+
+/* 5. Callouts */
+.component-callout {
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  border: 1px solid var(--theme-border-strong);
+  border-left: 5px solid var(--theme-accent);
+  background-color: var(--theme-card-bg);
+  margin: var(--spacing-xs) 0;
+}
+
+.callout-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.callout-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--theme-text);
+}
+
+.callout-content p {
+  font-size: 13px;
+  color: var(--theme-text-secondary);
+  margin-bottom: 0;
+}
+
+.callout-important { border-left-color: #fa6e39; }
+.callout-warning { border-left-color: #ffbd2e; background-color: var(--color-semantic-warning-bg); }
+.callout-warning .callout-title, .callout-warning p { color: var(--color-semantic-warning-text); }
+.callout-tip { border-left-color: #00ed64; }
+.callout-definition { border-left-color: #7b3ff2; }
+
+/* 6. Vector Charts */
+.component-chart-container {
+  background-color: var(--theme-card-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-lg);
+  padding: 16px 20px;
+  margin: var(--spacing-xs) 0;
+}
+
+.chart-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--theme-text);
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.chart-svg-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.chart-svg {
+  width: 100%;
+  max-height: 240px;
+}
+
+.chart-axis-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--theme-text-muted);
+  text-transform: uppercase;
+  text-align: center;
+}
+
+/* 7. Diagrams */
+.component-diagram-figure {
+  margin: var(--spacing-xs) 0;
+}
+
+.diagram-frame {
+  background-color: var(--theme-card-bg);
+  border: 1px solid var(--theme-border-strong);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.mermaid-container {
+  width: 100%;
+  text-align: center;
+}
+
+.diagram-caption {
+  font-size: 11px;
+  color: var(--theme-text-muted);
+  margin-top: 6px;
+  text-align: center;
+}
+
+/* 8. Quotes and Statistics */
+.component-quote blockquote {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-style: italic;
+  line-height: 1.45;
+  border-left: 4px solid var(--theme-accent);
+  padding-left: var(--spacing-lg);
+  color: var(--theme-text);
+  margin: var(--spacing-md) 0 8px 0;
+}
+
+.quote-author {
+  display: block;
+  font-size: 12px;
+  color: var(--theme-text-muted);
+  padding-left: calc(var(--spacing-lg) + 4px);
+  font-style: normal;
+}
+
+.component-statistic {
+  text-align: center;
+  padding: var(--spacing-lg);
+  background-color: var(--theme-card-bg);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--theme-border);
+  margin: var(--spacing-xs) 0;
+}
+
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 56px;
+  font-weight: 700;
+  color: var(--color-brand-green);
+  line-height: 1.1;
+  margin-bottom: 6px;
+}
+
+.stat-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--theme-text);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.stat-description {
+  font-size: 12.5px;
+  color: var(--theme-text-secondary);
+  margin-top: 8px;
+  max-width: 460px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ==========================================================================
+   Controlled Layouts (14 Editorial Layouts)
+   ========================================================================== */
+.layout-editorial .content-headline {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: var(--spacing-md);
+  color: var(--theme-text);
+}
+
 .layout-split_explainer .page-content {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--spacing-xl);
 }
 
-/* 4. Large Number / Metric */
-.layout-large_number .stat-highlight {
-  font-family: var(--font-display);
-  font-size: 64px;
-  font-weight: 600;
-  color: var(--color-brand-green);
-  line-height: 1.1;
-  margin-bottom: var(--spacing-md);
-}
-
-/* 5. Quote Layout */
-.layout-quote blockquote {
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-style: italic;
-  line-height: 1.4;
-  border-left: 4px solid var(--theme-accent);
-  padding-left: var(--spacing-xl);
-  margin: var(--spacing-xxl) 0;
-}
-
-/* 6. Timeline Layout */
-.layout-timeline .timeline-container {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-lg);
-  border-left: 2px solid var(--theme-border);
-  padding-left: var(--spacing-xl);
-}
-
-/* 7. Comparison Layout */
 .layout-comparison .comparison-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--spacing-lg);
 }
 
-/* 8. Diagram Focus */
-.layout-diagram_focus .diagram-frame {
-  background-color: var(--theme-card-bg);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
-  border: 1px solid var(--theme-border);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 280px;
-}
-
-/* 9. Code Focus */
-.layout-code_focus pre {
-  background-color: var(--color-canvas-dark);
-  color: var(--color-on-dark);
-  font-family: var(--font-code);
-  font-size: 13px;
-  line-height: 1.5;
-  padding: var(--spacing-lg);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--color-hairline-dark);
-  overflow-x: auto;
-  max-height: 520px;
-}
-
-/* 10. Concept Grid */
 .layout-concept_grid .grid-container {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: var(--spacing-md);
 }
 
-/* 11. Research Highlight */
 .layout-research_highlight .highlight-card {
-  background-color: var(--color-surface-feature);
+  background-color: var(--theme-card-bg);
   border: 2px solid var(--color-brand-green);
   border-radius: var(--radius-lg);
   padding: var(--spacing-xl);
-}
-
-/* 12. Definition */
-.layout-definition dt {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--theme-accent);
-}
-
-/* 13. Full Bleed Statement */
-.layout-full_bleed_statement .page-safe-content {
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-}
-.layout-full_bleed_statement h1 {
-  font-size: 38px;
-  font-weight: 500;
-}
-
-/* 14. Summary */
-.layout-summary .summary-box {
-  background-color: var(--theme-card-bg);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-xl);
-  border: 1px solid var(--theme-border);
 }
 
 /* Structural: Cover Layout */
@@ -785,14 +841,50 @@ pre, code, table, .card-box {
   text-align: center;
 }
 .layout-cover .cover-title {
-  font-size: 48px;
-  font-weight: 600;
+  font-size: 46px;
+  font-weight: 700;
   color: var(--color-brand-green);
   margin-bottom: var(--spacing-md);
 }
 .layout-cover .cover-subtitle {
-  font-size: 20px;
-  color: var(--color-on-dark-muted);
+  font-size: 18px;
+  color: var(--text-secondary-dark);
+}
+
+/* ==========================================================================
+   Print-Specific CSS Rules
+   ========================================================================== */
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    animation: none !important;
+    transition: none !important;
+  }
+
+  html, body {
+    width: 210mm !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: transparent !important;
+  }
+
+  .page {
+    width: 210mm !important;
+    height: 297mm !important;
+    min-height: 297mm !important;
+    max-height: 297mm !important;
+    margin: 0 !important;
+    page-break-after: always !important;
+    break-after: page !important;
+    overflow: hidden !important;
+  }
+
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
 }
 
   </style>
@@ -803,7 +895,7 @@ pre, code, table, .card-box {
       
       <header class="page-header">
         <span class="header-chapter">Chapter 5: Production Best Practices &amp; Case Studies</span>
-        <span class="header-topic">How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search</span>
+        <span class="header-topic">The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage</span>
       </header>
       
 
@@ -814,12 +906,16 @@ pre, code, table, .card-box {
           
           
           
-            
-        <div class="layout-editorial">
-          <p class="content-body">The architecture of modern software systems demands rigorous separation of concerns, fault tolerance, and predictable latency characteristics. When evaluating system invariants, engineers must balance consistency guarantees against availability under network partitions. By leveraging modern consensus protocols and asynchronous non-blocking I/O primitives, contemporary architectures achieve unprecedented scale without compromising data safety.</p>
-          <ul style="margin-top: 16px; padding-left: 20px;">
-            <li style="margin-bottom: 6px;">Consistency Guarantees</li><li style="margin-bottom: 6px;">Fault Tolerance</li><li style="margin-bottom: 6px;">Partition Tolerance</li>
-          </ul>
+            <p class="content-body">The architecture of modern software systems demands rigorous separation of concerns, fault tolerance, and predictable latency characteristics. When evaluating system invariants, engineers must balance consistency guarantees against availability under network partitions. By leveraging modern consensus protocols and asynchronous non-blocking I/O primitives, contemporary architectures achieve scale without compromising data safety.</p>
+
+        <div class="component-callout callout-note theme-dark">
+          <div class="callout-header">
+            <span class="callout-icon"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00ed64" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-info" data-token-color="PRIMARY"><circle cx="12" cy="12" r="10"/></svg></span>
+            <strong class="callout-title">System Principle</strong>
+          </div>
+          <div class="callout-content">
+            <p>Deterministic state transitions ensure reproducibility across replicas regardless of message arrival interleaving.</p>
+          </div>
         </div>
         
           
@@ -828,21 +924,7 @@ pre, code, table, .card-box {
 
       
       <footer class="page-footer">
-        <span class="footer-title">How Modern Databases Work: Storage Engines, Distributed Consensus, And Vector Search</span>
-        <span class="footer-page-num">39</span>
-      </footer>
-      
-    </div>
-  </div>
-</body>
-</html>
-          
-        
-      </main>
-
-      
-      <footer class="page-footer">
-        <span class="footer-title">How Modern Databases Work: Storage Engines, Distributed Consensus, And Vector Search</span>
+        <span class="footer-title">The Engineering Behind Modern Databases: B-Trees, Wal, Mvcc And Distributed Storage</span>
         <span class="footer-page-num">39</span>
       </footer>
       

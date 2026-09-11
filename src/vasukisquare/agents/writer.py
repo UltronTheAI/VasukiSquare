@@ -4,6 +4,19 @@ import logging
 from typing import List, Optional
 from vasukisquare.config import Settings, get_settings
 from vasukisquare.book.layout import LayoutType, VisualAnchorType
+from vasukisquare.book.components import (
+    CalloutBlock,
+    ChartBlock,
+    CodeBlock,
+    DiagramBlock,
+    HeadingBlock,
+    QuoteBlock,
+    SourceBlock,
+    StatisticBlock,
+    TableBlock,
+    TerminalBlock,
+    TextBlock,
+)
 from vasukisquare.book.models import (
     BookPlan,
     Page,
@@ -59,7 +72,7 @@ class PageWriterAgent:
 
         # 2. Generate structured content for content or backmatter pages
         citations = self._select_citations(corpus)
-        content, html_content = self._generate_page_content(planned_page, book_plan, citations)
+        content = self._generate_page_content(planned_page, book_plan, citations)
 
         return Page(
             id=generate_id(),
@@ -74,7 +87,7 @@ class PageWriterAgent:
             content=content,
             style=PageStyle(theme=planned_page.theme),
             sources=citations,
-            html=html_content,
+            html="",
             validation={"status": "valid"},
         )
 
@@ -83,7 +96,7 @@ class PageWriterAgent:
         if not corpus or not corpus.documents:
             return []
         citations = []
-        for doc in corpus.documents[:2]:
+        for doc in corpus.documents[:3]:
             citations.append(
                 SourceCitation(
                     url=doc.url,
@@ -99,79 +112,136 @@ class PageWriterAgent:
         p: PlannedPage,
         plan: BookPlan,
         citations: List[SourceCitation],
-    ) -> tuple[PageContent, str]:
-        """Produce structured content payload and layout-specific HTML."""
+    ) -> PageContent:
+        """Produce structured content blocks tailored to the planned page layout."""
         headline = p.brief or f"{p.chapter_title or 'Section'} Exploration"
 
         if p.layout == LayoutType.CODE_FOCUS.value or p.visual_anchor == VisualAnchorType.CODE:
             code_sample = (
-                "class RaftNode:\n"
-                "    def __init__(self, node_id: str, peers: list[str]):\n"
-                "        self.node_id = node_id\n"
-                "        self.peers = peers\n"
-                "        self.current_term = 0\n"
-                "        self.voted_for = None\n"
-                "        self.log = []\n"
-                "        self.commit_index = 0\n\n"
-                "    async def start_election(self):\n"
-                "        self.current_term += 1\n"
-                "        self.voted_for = self.node_id\n"
-                "        votes = 1\n"
-                "        for peer in self.peers:\n"
-                "            if await self.request_vote(peer):\n"
-                "                votes += 1\n"
-                "        if votes > len(self.peers) // 2:\n"
-                "            self.become_leader()"
+                "pub struct RaftNode {\n"
+                "    pub node_id: String,\n"
+                "    pub current_term: u64,\n"
+                "    pub voted_for: Option<String>,\n"
+                "    pub log: Vec<LogEntry>,\n"
+                "    pub commit_index: usize,\n"
+                "}\n\n"
+                "impl RaftNode {\n"
+                "    pub async fn start_election(&mut self) -> Result<bool, ElectionError> {\n"
+                "        self.current_term += 1;\n"
+                "        self.voted_for = Some(self.node_id.clone());\n"
+                "        let votes = self.broadcast_request_votes().await?;\n"
+                "        Ok(votes > self.peers.len() / 2)\n"
+                "    }\n"
+                "}"
             )
-            content = PageContent(
-                headline=headline,
-                body="The following implementation outlines the state transition logic for distributed consensus.",
-                code_snippets=[{"language": "python", "code": code_sample}],
-                key_points=["Term Increment", "Quorum Verification", "Log Integrity"],
-            )
-            html = f"""
-            <div class="layout-code_focus">
-              <p>{content.body}</p>
-              <pre><code class="language-python">{code_sample}</code></pre>
-            </div>
-            """
-            return content, html
+            blocks = [
+                TextBlock(
+                    text="The consensus engine coordinates state replication across clustered nodes via atomic term transitions."
+                ),
+                CodeBlock(
+                    language="rust",
+                    filename="consensus/raft.rs",
+                    code=code_sample,
+                    caption="Listing 1.1: Raft election logic and term advancement.",
+                ),
+                CalloutBlock(
+                    variant="tip",
+                    title="Implementation Detail",
+                    content="Always persist voted_for and current_term to non-volatile WAL storage prior to acknowledging RPC vote requests.",
+                ),
+            ]
+            return PageContent(headline=headline, blocks=blocks)
 
         elif p.layout == LayoutType.COMPARISON.value or p.visual_anchor == VisualAnchorType.COMPARISON:
-            content = PageContent(
-                headline=headline,
-                body="Comparative analysis of architectural trade-offs across storage engine engines.",
-                key_points=["Throughput vs Latency", "Write Amplification", "Memory Overhead"],
-            )
-            html = """
-            <div class="layout-comparison">
-              <div class="comparison-grid">
-                <div class="card-box" style="padding: 16px; border: 1px solid var(--theme-border); border-radius: 8px;">
-                  <h3 style="color: var(--theme-accent); margin-bottom: 8px;">B+ Tree Indices</h3>
-                  <p>Optimized for random read operations with predictable O(log N) lookup latency and point lookups.</p>
-                </div>
-                <div class="card-box" style="padding: 16px; border: 1px solid var(--theme-border); border-radius: 8px;">
-                  <h3 style="color: var(--theme-accent); margin-bottom: 8px;">LSM Tree Indices</h3>
-                  <p>Optimized for sequential append-only writes with batched memtable flushes and background compaction.</p>
-                </div>
-              </div>
-            </div>
-            """
-            return content, html
+            columns = ["Characteristic", "B+ Tree Index", "LSM-Tree Storage Engine"]
+            rows = [
+                ["Write Latency", "In-place page update; random disk I/O", "Sequential append to MemTable / WAL"],
+                ["Read Latency", "Predictable O(log N) point lookup", "May check MemTable, Bloom filters & SSTables"],
+                ["Write Amplification", "High due to full 4KB/8KB page writes", "Batched writes; periodic compaction overhead"],
+                ["Memory Footprint", "Moderate internal node cache", "Requires Bloom filter and index blocks per SSTable"],
+            ]
+            blocks = [
+                TextBlock(text="Trade-off matrix evaluating storage architectures under high-throughput workloads:"),
+                TableBlock(
+                    caption="Table 1.1: Architectural trade-offs between B+ Trees and LSM Trees.",
+                    columns=columns,
+                    rows=rows,
+                ),
+            ]
+            return PageContent(headline=headline, blocks=blocks)
 
         elif p.layout == LayoutType.LARGE_NUMBER.value:
-            content = PageContent(
-                headline=headline,
-                body="Real-world benchmarks demonstrating linear throughput scaling across 64-node clusters.",
+            blocks = [
+                StatisticBlock(
+                    value="1.24M",
+                    label="Operations Per Second",
+                    description="Sustained write throughput benchmarked across a 64-node distributed NVMe cluster.",
+                ),
+                ChartBlock(
+                    chart_type="bar",
+                    title="Write Throughput Scaling by Batch Size",
+                    labels=["1", "10", "100", "500", "1000"],
+                    series=[{"name": "Ops/Sec", "values": [12000, 68000, 420000, 890000, 1240000]}],
+                    x_label="Batch Size (Items)",
+                    y_label="Throughput (Ops/sec)",
+                ),
+            ]
+            return PageContent(headline=headline, blocks=blocks)
+
+        elif p.layout == LayoutType.DIAGRAM_FOCUS.value or p.visual_anchor == VisualAnchorType.DIAGRAM:
+            mermaid_code = (
+                "graph TD\n"
+                "  Client[Client Write] -->|1. Write| WAL[(Write-Ahead Log)]\n"
+                "  Client -->|2. Insert| MemTable[In-Memory MemTable]\n"
+                "  MemTable -->|3. Flush Threshold| Immutable[Immutable MemTable]\n"
+                "  Immutable -->|4. Background Flush| L0[Level 0 SSTable]\n"
+                "  L0 -->|5. Compaction| L1[Level 1 SSTables]"
             )
-            html = """
-            <div class="layout-large_number">
-              <div class="stat-highlight">1.2M+</div>
-              <p style="font-size: 16px; font-weight: 500;">Operations Per Second</p>
-              <p>Achieved sub-5ms p99 latency across distributed raft state machines under sustained write pressure.</p>
-            </div>
-            """
-            return content, html
+            blocks = [
+                TextBlock(text="The write path ensures zero data loss by recording mutations to disk before acknowledging client requests."),
+                DiagramBlock(code=mermaid_code, caption="Figure 1.1: LSM-Tree Ingestion & Compaction Pipeline"),
+            ]
+            return PageContent(headline=headline, blocks=blocks)
+
+        elif p.layout == LayoutType.RESEARCH_HIGHLIGHT.value:
+            blocks = [
+                CalloutBlock(
+                    variant="important",
+                    title="Primary Finding",
+                    content="Linearizable reads under network partitions require quorum verification before committing read state.",
+                ),
+            ]
+            for cit in citations[:2]:
+                blocks.append(
+                    SourceBlock(
+                        title=cit.title or "Distributed Consensus Specification",
+                        publisher="IEEE / ACM Research",
+                        url=cit.url,
+                        accessed_at="2026-09-11",
+                        mode="card",
+                    )
+                )
+            return PageContent(headline=headline, blocks=blocks)
+
+        elif p.layout == LayoutType.DEFINITION.value:
+            blocks = [
+                CalloutBlock(
+                    variant="definition",
+                    title="Write-Ahead Logging (WAL)",
+                    content="A durability protocol where state alterations are appended sequentially to persistent storage before in-memory structures or page caches are modified.",
+                ),
+                TerminalBlock(
+                    title="Storage Daemon",
+                    shell="bash",
+                    lines=[
+                        "$ ./vasukid --config ./node-1.toml",
+                        "[info] Initializing WAL subsystem at /var/lib/data/wal.log",
+                        "[info] Replaying 42 uncommitted log segments...",
+                        "[success] Recovery complete in 18ms. Listening on 0.0.0.0:27018",
+                    ],
+                ),
+            ]
+            return PageContent(headline=headline, blocks=blocks)
 
         elif p.page_type == LayoutType.COPYRIGHT.value:
             body = (
@@ -180,64 +250,68 @@ class PageWriterAgent:
                 "No part of this publication may be reproduced or distributed without explicit attribution.\n"
                 "Typeset in Inter and Plus Jakarta Sans. Document formatted to physical A4."
             )
-            content = PageContent(headline="Copyright & Publishing Notice", body=body)
-            html = f"<div class=\"copyright-box\"><p style=\"font-size: 12px; line-height: 1.6; color: var(--theme-muted);\">{body.replace(chr(10), '<br/>')}</p></div>"
-            return content, html
+            return PageContent(headline="Copyright & Publishing Notice", body=body)
 
         elif p.page_type == LayoutType.TOC.value:
             toc_lines = []
             for ch in plan.chapters:
                 toc_lines.append(f"Chapter {ch.chapter_number}: {ch.title}")
-            content = PageContent(headline="Table of Contents", key_points=toc_lines)
-            items_html = "".join([f"<li style=\"margin-bottom: 10px; font-size: 14px;\">{line}</li>" for line in toc_lines])
-            html = f"<ul style=\"list-style: none; padding: 0;\">{items_html}</ul>"
-            return content, html
+            return PageContent(headline="Table of Contents", key_points=toc_lines)
 
         elif p.page_type == LayoutType.REFERENCES.value:
-            ref_items = []
+            blocks = []
             for cit in citations:
-                ref_items.append(f"<li><strong>{cit.title or 'Source'}:</strong> <span style=\"font-size: 12px;\">{cit.url}</span></li>")
-            if not ref_items:
-                ref_items.append("<li>VasukiSquare AI Research Archive. (2026). Technical Reference Corpus.</li>")
-            content = PageContent(headline="References & Primary Sources")
-            html = f"<ol style=\"padding-left: 20px; line-height: 1.8;\">{''.join(ref_items)}</ol>"
-            return content, html
+                blocks.append(
+                    SourceBlock(
+                        title=cit.title or "Primary Engineering Specification",
+                        publisher="Research Corpus",
+                        url=cit.url,
+                        mode="card",
+                    )
+                )
+            if not blocks:
+                blocks.append(
+                    SourceBlock(
+                        title="VasukiSquare AI Research Archive",
+                        publisher="VasukiSquare",
+                        url="https://vasukisquare.ai/research",
+                        mode="card",
+                    )
+                )
+            return PageContent(headline="References & Primary Sources", blocks=blocks)
 
         elif p.page_type == LayoutType.THANK_YOU.value:
-            content = PageContent(
-                headline="Thank You for Reading",
-                body="Generated with architectural precision by VasukiSquare.",
-            )
-            html = """
-            <div style="text-align: center; margin-top: 40px;">
-              <h1 style="font-size: 32px; color: var(--color-brand-green); margin-bottom: 16px;">Thank You for Reading</h1>
-              <p style="font-size: 16px; color: #a8b3bc; max-width: 500px; margin: 0 auto;">
-                This book was researched from primary engineering sources, structured by an editorial planner, and rendered strictly to A4 design system tokens.
-              </p>
-            </div>
-            """
-            return content, html
+            blocks = [
+                TextBlock(
+                    text="This ebook was synthesized, researched from primary engineering sources, and rendered deterministically to physical A4 print guidelines by VasukiSquare."
+                ),
+                CalloutBlock(
+                    variant="tip",
+                    title="VasukiSquare Architecture",
+                    content="Engineered for precision technical publishing with pure Python, Pydantic schemas, and deterministic HTML/CSS rendering.",
+                ),
+            ]
+            return PageContent(headline="Thank You for Reading", blocks=blocks)
 
-        # Default Editorial layout
+        # Default Editorial layout with prose and structured note
         body_text = (
             f"The architecture of modern software systems demands rigorous separation of concerns, "
             f"fault tolerance, and predictable latency characteristics. When evaluating system invariants, "
             f"engineers must balance consistency guarantees against availability under network partitions. "
             f"By leveraging modern consensus protocols and asynchronous non-blocking I/O primitives, "
-            f"contemporary architectures achieve unprecedented scale without compromising data safety."
+            f"contemporary architectures achieve scale without compromising data safety."
         )
-        content = PageContent(
+        blocks = [
+            TextBlock(text=body_text),
+            CalloutBlock(
+                variant="note",
+                title="System Principle",
+                content="Deterministic state transitions ensure reproducibility across replicas regardless of message arrival interleaving.",
+            ),
+        ]
+        return PageContent(
             headline=headline,
             body=body_text,
+            blocks=blocks,
             key_points=["Consistency Guarantees", "Fault Tolerance", "Partition Tolerance"],
         )
-        html = f"""
-        <div class="layout-editorial">
-          <p class="content-body">{body_text}</p>
-          <ul style="margin-top: 16px; padding-left: 20px;">
-            {''.join([f'<li style="margin-bottom: 6px;">{kp}</li>' for kp in content.key_points])}
-          </ul>
-        </div>
-        """
-        return content, html
-

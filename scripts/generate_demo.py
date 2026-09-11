@@ -20,7 +20,7 @@ async def run_demo():
     output_dir = Path("./output/demo")
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    demo_topic = "How Modern Databases Work: Storage Engines, Distributed Consensus, and Vector Search"
+    demo_topic = "The Engineering Behind Modern Databases: B-Trees, WAL, MVCC and Distributed Storage"
 
     print("\n" + "=" * 60)
     print(" Running VasukiSquare End-to-End Demo Generation")

@@ -57,6 +57,18 @@ class ColorToken(str, Enum):
     ON_DARK = "#ffffff"
     ON_DARK_MUTED = "#a8b3bc"
 
+    # Semantic Text Tokens (Light Theme)
+    TEXT_PRIMARY = "#001e2b"       # Ink - 100% contrast on light canvas
+    TEXT_SECONDARY = "#3d4f5b"     # Slate - High-contrast secondary text
+    TEXT_MUTED = "#5c6c7a"         # Steel - Readable captions and running headers
+    TEXT_SUBTLE = "#7c8c9a"        # Stone - Subtle metadata / borders
+
+    # Semantic Text Tokens (Dark Theme)
+    TEXT_PRIMARY_DARK = "#ffffff"  # On-Dark - 100% contrast on dark canvas
+    TEXT_SECONDARY_DARK = "#e1e5e8"# Hairline - High-contrast secondary text on dark
+    TEXT_MUTED_DARK = "#c1ccd6"    # Hairline-Strong - Readable captions & headers on dark
+    TEXT_SUBTLE_DARK = "#a8b3bc"   # On-Dark Muted - Subtle metadata on dark
+
 
 VALID_COLOR_VALUES: Set[str] = {c.value.lower() for c in ColorToken}
 
