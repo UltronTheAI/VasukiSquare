@@ -1,8 +1,11 @@
-"""Base interface for external research and data extraction tools."""
+"""Base interface and resiliency utilities for external research tools."""
 
+import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, Dict, Generic, TypeVar
+from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
 from pydantic import BaseModel
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+from vasukisquare.research.models import SourceDocument
 
 InputSchema = TypeVar("InputSchema", bound=BaseModel)
 OutputSchema = TypeVar("OutputSchema")
@@ -11,12 +14,28 @@ OutputSchema = TypeVar("OutputSchema")
 class BaseTool(ABC, Generic[InputSchema, OutputSchema]):
     """Abstract interface for external tools ensuring consistent execution and error handling."""
 
-    def __init__(self, name: str, description: str):
+    def __init__(self, name: str, description: str, timeout_seconds: float = 15.0):
         self.name = name
         self.description = description
+        self.timeout_seconds = timeout_seconds
 
     @abstractmethod
-    async def execute(self, params: InputSchema) -> OutputSchema:
-        """Execute the tool with validated structured input."""
+    async def _run(self, params: InputSchema) -> OutputSchema:
+        """Internal execution method implemented by subclasses."""
         pass
 
+    async def execute(self, params: InputSchema) -> OutputSchema:
+        """Execute the tool with timeout and exception containment."""
+        try:
+            return await asyncio.wait_for(self._run(params), timeout=self.timeout_seconds)
+        except asyncio.TimeoutError as e:
+            raise TimeoutError(f"Tool '{self.name}' timed out after {self.timeout_seconds}s") from e
+
+
+class SearchProvider(ABC):
+    """Abstract search provider interface allowing pluggable search backends."""
+
+    @abstractmethod
+    async def search(self, query: str, max_results: int = 5) -> List[SourceDocument]:
+        """Perform search and return uniform SourceDocuments."""
+        pass
