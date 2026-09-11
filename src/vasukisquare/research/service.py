@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import List, Optional
+from typing import Any, List, Optional
 from vasukisquare.config import Settings, get_settings
 from vasukisquare.research.models import (
     ResearchCorpus,
@@ -68,13 +68,14 @@ class ResearchService:
 
         self.wikipedia_tool = wikipedia_tool or WikipediaTool()
 
-    async def execute_query(self, query_text: str, target_types: List[SourceType]) -> List[SourceDocument]:
+    async def execute_query(self, query_text: str, target_types: Optional[List[Any]] = None) -> List[SourceDocument]:
         """Execute a single query across appropriate tools."""
         collected: List[SourceDocument] = []
         tasks = []
+        types_list = target_types or ["web"]
 
         # Wikipedia orientation
-        if SourceType.WIKIPEDIA in target_types:
+        if any("wiki" in str(t).lower() for t in types_list):
             self.metrics.record_wikipedia_call(1)
             tasks.append(self.wikipedia_tool.execute(WikipediaParams(query=query_text, max_results=2)))
 
@@ -159,7 +160,11 @@ class ResearchService:
                 )
 
         # 8. Extract key findings / summary highlights
-        key_findings = [f"{d.title} ({d.domain}): {d.summary[:150]}" for d in final_docs[:6] if d.title]
+        key_findings = [
+            f"{d.title} ({d.domain}): {(d.summary or d.extracted_text or '')[:150]}"
+            for d in final_docs[:6]
+            if d.title
+        ]
 
         return ResearchCorpus(
             topic=topic,

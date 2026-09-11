@@ -272,22 +272,31 @@ class EbookGenerationPipeline:
                 cover_entity = await cover_service.generate_and_persist_cover(
                     book_id=book_entity.id,
                     plan=state.cover_plan,
-                    save_raster=save_raster_cover,
-                    output_path=out_dir / "cover.png" if save_raster_cover else None,
+                    save_raster_image=save_raster_cover,
                 )
                 state.cover = cover_entity
             except Exception as e:
                 logger.warning(f"Database persistence skipped or failed (non-blocking): {e}")
+                state.errors.append(f"MongoDB: {e}")
 
         # Stage 7: Final HTML Assembly & PDF Rendering
         logger.info("Stage 7/7: Assembling Final Book HTML and Exporting PDF...")
-        state.assembled_html = self.html_renderer.assemble_book_document(
-            state.pages,
-            state.book_plan.title,
+        state.assembled_html = self.html_renderer.render_book(
+            pages=state.pages,
+            book_title=state.book_plan.title,
+            book_topic=topic,
+            running_title=state.book_plan.running_title,
+            auto_repair=False,
         )
         book_html_path = out_dir / "book.html"
         book_html_path.write_text(state.assembled_html, encoding="utf-8")
         state.artifacts["book_html"] = str(book_html_path)
+
+        # Write standalone cover artwork HTML
+        cover_html_path = out_dir / "cover.html"
+        cover_html = self.cover_renderer.render_source_artwork(state.cover_plan)
+        cover_html_path.write_text(cover_html, encoding="utf-8")
+        state.artifacts["cover_html"] = str(cover_html_path)
 
         if generate_pdf:
             pdf_path = out_dir / "book.pdf"

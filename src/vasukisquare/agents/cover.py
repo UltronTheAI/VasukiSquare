@@ -24,12 +24,12 @@ class CoverPlannerAgent:
         audience: str = "Engineers and Architects",
     ) -> CoverPlan:
         """Create a tailored CoverPlan using Groq/LangChain with offline deterministic fallback."""
-        if not self.settings.groq_api_key:
+        if self.settings.vasukisquare_mock_mode or not self.settings.groq_api_key:
             return self._heuristic_cover_plan(title, subtitle, category, tone, audience)
 
         try:
             from langchain_groq import ChatGroq
-            from langchain_core.prompts import ChatPromptTemplate
+            from langchain_core.messages import HumanMessage, SystemMessage
 
             llm = ChatGroq(
                 api_key=self.settings.groq_api_key,
@@ -44,23 +44,14 @@ class CoverPlannerAgent:
                 "palette_theme (brand_dark, deep_teal, accent_purple, accent_orange), and hero_icon (Lucide icon name). "
                 "Ensure colors strictly map to DESIGN.md tokens."
             )
+            user_prompt = f"Title: {title}\nSubtitle: {subtitle or ''}\nCategory: {category}\nTone: {tone}\nAudience: {audience}"
 
-            prompt_template = ChatPromptTemplate.from_messages([
-                ("system", system_prompt),
-                (
-                    "human",
-                    "Title: {title}\nSubtitle: {subtitle}\nCategory: {category}\nTone: {tone}\nAudience: {audience}",
-                ),
-            ])
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt),
+            ]
 
-            chain = prompt_template | structured_llm
-            result = await chain.ainvoke({
-                "title": title,
-                "subtitle": subtitle or "",
-                "category": category,
-                "tone": tone,
-                "audience": audience,
-            })
+            result = await structured_llm.ainvoke(messages)
             if isinstance(result, CoverPlan):
                 return result
             return self._heuristic_cover_plan(title, subtitle, category, tone, audience)

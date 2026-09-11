@@ -122,7 +122,7 @@ class ResearchQuery(BaseModel):
 
     query: str
     perspective: str
-    target_source_types: List[SourceType] = Field(default_factory=lambda: [SourceType.WEB])
+    target_source_types: List[str] = Field(default_factory=lambda: ["web", "documentation"])
     priority: int = 1
 
 

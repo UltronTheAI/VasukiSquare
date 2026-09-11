@@ -5,7 +5,7 @@ import logging
 import time
 from typing import Any, Dict, Optional, Type, TypeVar
 from pydantic import BaseModel
-from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_groq import ChatGroq
 
 from vasukisquare.config import Settings, get_settings
@@ -62,20 +62,20 @@ class LLMClient:
         model_name = self.settings.groq_model
         last_exception: Optional[Exception] = None
 
-        prompt_template = ChatPromptTemplate.from_messages([
-            ("system", system_prompt),
-            ("human", user_prompt),
-        ])
+        # Use direct message objects to avoid template parsing errors with arbitrary braces
+        messages = [
+            SystemMessage(content=system_prompt),
+            HumanMessage(content=user_prompt),
+        ]
 
         for attempt in range(1, max_retries + 1):
             start_time = time.time()
             try:
                 llm = self.get_chat_model(temperature=temperature)
                 structured_llm = llm.with_structured_output(schema)
-                chain = prompt_template | structured_llm
 
                 logger.debug(f"[LLM:START] provider=groq model={model_name} stage={stage} attempt={attempt}/{max_retries}")
-                result = await chain.ainvoke({})
+                result = await structured_llm.ainvoke(messages)
 
                 duration = time.time() - start_time
 
