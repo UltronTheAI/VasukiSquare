@@ -63,9 +63,12 @@ class Settings(BaseSettings):
     temp_render_dir: str = Field(default="./.tmp", alias="TEMP_RENDER_DIR")
     chromium_headless: bool = Field(default=True, alias="CHROMIUM_HEADLESS")
 
-    # Cover dimensions
+    # Cover dimensions & Design Variation
     cover_width: int = Field(default=1600, alias="COVER_WIDTH")
     cover_height: int = Field(default=2560, alias="COVER_HEIGHT")
+    cover_temperature: float = Field(default=0.8, alias="COVER_TEMPERATURE")
+    cover_variation_enabled: bool = Field(default=True, alias="COVER_VARIATION_ENABLED")
+    cover_max_retries: int = Field(default=1, alias="COVER_MAX_RETRIES")
 
     @property
     def has_web_search_provider(self) -> bool:

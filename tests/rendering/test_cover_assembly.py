@@ -196,3 +196,59 @@ def test_final_page_count_includes_cover(sample_book_pages):
     page_container_count = book_html.count("class=\"page ")
     assert page_container_count == len(sample_book_pages)
     assert page_container_count == 5
+
+
+def test_all_composition_styles_render_cleanly():
+    """3. Verify CoverRenderer supports and renders all composition families cleanly."""
+    renderer = CoverRenderer()
+    styles = [
+        "asymmetric_left",
+        "centered_editorial",
+        "framed_technical",
+        "dense_blueprint",
+        "large_typography",
+        "bottom_weighted",
+        "vertical_split",
+        "typography_only",
+        "icon_led",
+        "abstract_lines",
+        "diagonal_accent",
+        "geometric_grid",
+    ]
+
+    for s in styles:
+        plan = CoverPlan(
+            title="Modern Key-Value Storage Architecture",
+            subtitle="Storage Engines, Compaction, and Query Execution",
+            category="Database Systems",
+            composition_style=s,
+            accent_color="#00ed64",
+            background_color="#001e2b",
+            hero_icon="database" if s != "typography_only" else None,
+            icon_strategy="none" if s == "typography_only" else "hero_top",
+            decorative_geometry="database_nodes",
+        )
+        page = renderer.render_a4_cover_page(plan, book_id="test-book")
+        assert page.page_number == 1
+        assert page.page_type == LayoutType.COVER.value
+        assert len(page.html) > 100
+        assert "cover-hero" in page.html
+        assert "Modern Key-Value Storage Architecture" in page.html
+
+
+def test_long_title_dynamic_typography_scaling():
+    """4. Verify long titles dynamically scale font size to avoid overflow."""
+    renderer = CoverRenderer()
+    long_title = "LioranDB for Noobs: From Zero Knowledge to Building Real Production Cloud Applications with LioranDB and Modern Microservices"
+    plan = CoverPlan(
+        title=long_title,
+        subtitle="A Comprehensive Guide",
+        category="Distributed Systems",
+        composition_style="asymmetric_left",
+        accent_color="#00ed64",
+        background_color="#001e2b",
+    )
+    page = renderer.render_a4_cover_page(plan, book_id="test-book")
+    assert "font-size: 26px" in page.html or "font-size: 30px" in page.html
+    assert "word-break: break-word" in page.html
+

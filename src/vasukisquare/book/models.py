@@ -21,33 +21,106 @@ def slugify(text: str) -> str:
     return re.sub(r"[-\s]+", "-", slug)
 
 
-class CoverPlan(BaseModel):
+class CoverDesignPlan(BaseModel):
     """Specification for AI-directed custom cover generation adhering to DESIGN.md tokens."""
 
-    title: str
+    concept_name: str = Field(
+        default="Technical Blueprint",
+        description="Short descriptive concept name (e.g., 'Cybernetic Blueprint', 'Minimalist Monolith', 'Data Mesh')",
+    )
+    composition_style: str = Field(
+        default="asymmetric_left",
+        description="Composition family: centered_editorial, asymmetric_left, bottom_weighted, top_heavy_minimal, large_typography, vertical_split, framed_technical, geometric_grid, diagonal_accent, icon_led, typography_only, split_panel, sparse_luxury, dense_blueprint, numeric_motif, abstract_lines",
+    )
+    background_style: str = Field(
+        default="solid_dark",
+        description="Background style: solid_dark, subtle_grid, layered_mesh, radial_glow, geometric_matrix, minimal_slate, split_tone",
+    )
+    title_alignment: str = Field(
+        default="left",
+        description="Title text alignment: left, center, right",
+    )
+    title_position: str = Field(
+        default="middle",
+        description="Vertical placement of title block: top, upper_third, middle, lower_third, bottom",
+    )
+    subtitle_position: str = Field(
+        default="below_title",
+        description="Subtitle placement: below_title, bottom_left, bottom_center, side_column, header_adjacent, none",
+    )
+    typography_style: str = Field(
+        default="modern_technical",
+        description="Typography style: bold_sans, modern_technical, editorial_display, compact_heavy, ultra_light_spaced",
+    )
+    accent_elements: List[str] = Field(
+        default_factory=lambda: ["vertical_accent_bar"],
+        description="Accent decorations: vertical_accent_bar, horizontal_rule, corner_brackets, tag_pill, subtle_badge, dot_grid, none",
+    )
+    icon_strategy: str = Field(
+        default="hero_top",
+        description="Icon placement strategy: hero_top, integrated_badge, watermarked_background, bottom_corner, inline_prefix, none",
+    )
+    hero_icon: Optional[str] = Field(
+        default="sparkles",
+        description="Lucide icon identifier if icon_strategy != 'none', e.g. sparkles, database, code, layers, cpu, shield-check, terminal, zap, compass",
+    )
+    border_strategy: str = Field(
+        default="none",
+        description="Border strategy: full_frame, left_accent_stripe, top_bottom_rules, technical_corner_brackets, none",
+    )
+    spacing_strategy: str = Field(
+        default="balanced_editorial",
+        description="Spacing strategy: expansive_negative_space, compact_technical, balanced_editorial, split_zone",
+    )
+    visual_density: str = Field(
+        default="moderate",
+        description="Visual density: sparse, moderate, dense",
+    )
+    contrast_mode: str = Field(
+        default="high_contrast_dark",
+        description="Contrast mode: high_contrast_dark, deep_teal_minimal, dark_slate_accent",
+    )
+    decorative_geometry: str = Field(
+        default="database_nodes",
+        description="Geometric motif: database_nodes, circuit_grid, structural_rings, abstract_matrix, angular_lines, code_terminal_frame, none",
+    )
+    rationale: str = Field(
+        default="Art-directed composition aligned with technical depth and audience.",
+        description="Design rationale for this composition",
+    )
+    palette_theme: str = Field(
+        default="brand_dark",
+        description="Theme palette: brand_dark, deep_teal, accent_purple, accent_orange, accent_blue",
+    )
+    accent_color: str = Field(default=ColorToken.BRAND_GREEN.value)
+    background_color: str = Field(default=ColorToken.BRAND_TEAL_DEEP.value)
+    title: str = ""
     subtitle: Optional[str] = None
     category: str = Field(default="Software Engineering", description="Domain classification")
     tone: str = Field(default="authoritative", description="Editorial tone")
     audience: str = Field(default="Engineers and Architects", description="Target readership")
-    palette_theme: str = Field(
-        default="brand_dark",
-        description="Theme palette: brand_dark, deep_teal, accent_purple, accent_orange, modern_light",
-    )
-    layout_style: str = Field(
-        default="minimal_geometric",
-        description="Visual composition: minimal_geometric, orbital_rings, tech_matrix, abstract_mesh, layered_bands",
-    )
-    hero_icon: str = Field(default="sparkles", description="Lucide icon identifier")
-    accent_color: str = Field(default=ColorToken.BRAND_GREEN.value)
-    background_color: str = Field(default=ColorToken.BRAND_TEAL_DEEP.value)
     author: str = Field(default="VasukiSquare AI")
-    geometry_seed: int = Field(default=42)
+    cover_seed: int = Field(default=42)
+
+    @property
+    def layout_style(self) -> str:
+        """Backward compatibility alias for layout_style."""
+        return self.composition_style
+
+    @property
+    def geometry_seed(self) -> int:
+        """Backward compatibility alias for geometry_seed."""
+        return self.cover_seed
 
     @model_validator(mode="after")
-    def validate_token_colors(self) -> "CoverPlan":
+    def validate_token_colors(self) -> "CoverDesignPlan":
         validate_color_token(self.accent_color)
         validate_color_token(self.background_color)
         return self
+
+
+# Backward-compatible alias
+CoverPlan = CoverDesignPlan
 
 
 class BookIntent(BaseModel):

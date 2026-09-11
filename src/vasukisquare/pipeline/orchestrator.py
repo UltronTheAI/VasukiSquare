@@ -4,7 +4,7 @@ import asyncio
 import json
 import logging
 from pathlib import Path
-from typing import Optional
+from typing import List, Optional, Union
 from vasukisquare.config import Settings, get_settings
 from vasukisquare.book.layout import LayoutType
 from vasukisquare.book.components import TocBlock, TocEntry, SourceBlock
@@ -49,7 +49,7 @@ class EbookGenerationPipeline:
         self.db_manager = db_manager or DatabaseManager(self.settings)
         self.research_service = research_service or ResearchService(self.settings, metrics=self.metrics)
         self.editorial_agent = editorial_agent or EditorialPlannerAgent(self.settings, llm_client=self.llm_client, metrics=self.metrics)
-        self.cover_agent = cover_agent or CoverPlannerAgent(self.settings)
+        self.cover_agent = cover_agent or CoverPlannerAgent(self.settings, llm_client=self.llm_client, metrics=self.metrics)
         self.writer_agent = writer_agent or PageWriterAgent(self.settings, llm_client=self.llm_client, metrics=self.metrics)
         self.html_renderer = html_renderer or HtmlPageRenderer()
         self.pdf_renderer = pdf_renderer or PdfRenderer(self.settings, self.html_renderer)
@@ -60,52 +60,44 @@ class EbookGenerationPipeline:
     async def run(
         self,
         topic: str,
-        target_pages: int = 60,
-        output_dir: Optional[Path] = None,
+        target_pages: Optional[int] = None,
+        output_dir: Optional[Union[str, Path]] = None,
         generate_pdf: bool = True,
-        save_raster_cover: bool = True,
+        save_raster_cover: bool = False,
         persist_db: bool = True,
     ) -> GenerationState:
-        """Execute the complete generation pipeline for a book topic."""
-        # 0. Validate production environment configuration before starting
-        self.settings.validate_production_environment()
-        self.llm_client.log_startup_banner()
+        """Execute the full 7-stage pipeline synchronously or asynchronously."""
+        if target_pages is None:
+            target_pages = self.settings.default_target_pages
 
-        self.metrics.topic = topic
-        self.metrics.target_pages = target_pages
-        self.metrics.mock_mode = self.settings.vasukisquare_mock_mode
-
-        state = GenerationState(topic=topic, target_pages=target_pages)
         out_dir = Path(output_dir or self.settings.pdf_output_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         pages_dir = out_dir / "pages"
         pages_dir.mkdir(parents=True, exist_ok=True)
 
-        logger.info(f"Starting VasukiSquare Generation Pipeline for topic: '{topic}'")
-        logger.info(
-            f"Active Search Provider: {self.settings.active_search_provider_name} | "
-            f"Active LLM Provider: {self.llm_client.active_provider.upper()} | "
-            f"Model: {self.llm_client.active_model}"
-        )
+        state = GenerationState(topic=topic)
+        self.metrics.topic = topic
+        self.metrics.target_pages = target_pages
 
-        # Stage 1: Intent Analysis
+        logger.info(f"Starting VasukiSquare Generation Pipeline for topic: '{topic}'")
+        logger.info(f"Active Search Provider: {self.settings.active_search_provider_name} | Active LLM: {self.llm_client.active_provider} ({self.llm_client.active_model})")
+
+        # Stage 1: Intent Inference
         logger.info("Stage 1/7: Inferring Book Intent...")
         state.intent = await self.editorial_agent.infer_intent(topic)
 
         # Stage 2: Deep Research
-        logger.info("Stage 2/7: Executing Multi-Perspective Research...")
+        logger.info("Stage 2/7: Executing Research Pipeline...")
         state.research_corpus = await self.research_service.research_topic(topic)
         research_json_path = out_dir / "research.json"
         research_json_path.write_text(state.research_corpus.model_dump_json(indent=2), encoding="utf-8")
         state.artifacts["research_json"] = str(research_json_path)
 
-        # Save planned research queries debug artifact
         queries_json_path = out_dir / "research_queries.json"
-        queries_data = {
-            "topic": topic,
-            "queries": state.research_corpus.queries_executed,
-            "key_findings": state.research_corpus.key_findings,
-        }
+        queries_data = [
+            {"query": q.query, "perspective": q.perspective, "intent": q.intent}
+            for q in getattr(state.research_corpus, "queries", [])
+        ]
         queries_json_path.write_text(json.dumps(queries_data, indent=2), encoding="utf-8")
         state.artifacts["research_queries_json"] = str(queries_json_path)
 
@@ -129,9 +121,14 @@ class EbookGenerationPipeline:
             category=state.intent.book_type.replace("_", " ").title(),
             tone=state.intent.tone,
             audience=state.intent.target_audience,
+            technical_depth=state.intent.technical_depth,
         )
         if not state.cover_plan:
             raise RuntimeError("Book cover is missing or failed to render.")
+
+        cover_json_path = out_dir / "cover_plan.json"
+        cover_json_path.write_text(state.cover_plan.model_dump_json(indent=2), encoding="utf-8")
+        state.artifacts["cover_plan_json"] = str(cover_json_path)
 
         a4_cover_page = self.cover_renderer.render_a4_cover_page(
             state.cover_plan,
