@@ -17,15 +17,30 @@ SOURCE_TYPE_WEIGHTS = {
 
 # High authority domains
 AUTHORITY_DOMAIN_PATTERNS = [
-    "arxiv.org",
-    "github.com",
+    "docs.python.org",
+    "python.org",
+    "peps.python.org",
+    "doc.rust-lang.org",
+    "rust-lang.org",
+    "go.dev",
+    "golang.org",
+    "developer.mozilla.org",
     "w3.org",
     "ietf.org",
-    "developer.mozilla.org",
-    "docs.python.org",
+    "arxiv.org",
+    "github.com",
     "mongodb.com/docs",
+    "docs.docker.com",
+    "kubernetes.io/docs",
     ".edu",
     ".gov",
+]
+
+# SEO / Consulting / Marketing domains that should not dictate outline or rank top
+LOW_AUTHORITY_PATTERNS = [
+    "uvik.net",
+    "software.uvik",
+    "clickbait",
 ]
 
 

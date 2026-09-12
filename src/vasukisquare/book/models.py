@@ -283,6 +283,34 @@ class PlannedChapter(BaseModel):
         return self.page_budget
 
 
+class PagePurpose(BaseModel):
+    """Explicit purpose and pedagogical contract for an individual content page."""
+
+    page_type: str = Field(default="concept", description="Archetype: concept, code_tutorial, terminal_tutorial, exercise, debugging, comparison, mini_project")
+    learning_goal: str = Field(default="", description="Specific outcome or takeaway for the reader")
+    concepts: List[str] = Field(default_factory=list, description="Core concepts taught on this page")
+    required_components: List[str] = Field(default_factory=list, description="Eligible block components (e.g. ['explanation', 'code', 'output', 'exercise'])")
+    forbidden_components: List[str] = Field(default_factory=list, description="Explicitly forbidden blocks (e.g. ['step'] on concept pages)")
+    is_hands_on: bool = Field(default=False, description="Whether this page requires runnable code/commands")
+
+
+class RequirementCoverageItem(BaseModel):
+    """Individual item in the requirement coverage matrix."""
+
+    requirement: str
+    planned: bool = True
+    chapter_number: Optional[int] = None
+    page_numbers: List[int] = Field(default_factory=list)
+
+
+class RequirementCoverageMatrix(BaseModel):
+    """Validates that all user-requested topics and elements are planned prior to generation."""
+
+    items: List[RequirementCoverageItem] = Field(default_factory=list)
+    is_complete: bool = True
+    missing_requirements: List[str] = Field(default_factory=list)
+
+
 class PlannedPage(BaseModel):
     """Individual pre-allocated page specification in the book plan."""
 
@@ -295,6 +323,7 @@ class PlannedPage(BaseModel):
     icon: Optional[str] = None
     visual_anchor: Optional[VisualAnchorType] = None
     brief: str = ""
+    page_purpose: Optional[PagePurpose] = None
 
 
 class BookPlan(BaseModel):

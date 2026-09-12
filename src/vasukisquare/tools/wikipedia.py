@@ -55,23 +55,27 @@ class WikipediaTool(BaseTool[WikipediaParams, List[SourceDocument]]):
         results = data.get("query", {}).get("search", [])
         documents: List[SourceDocument] = []
 
+        from vasukisquare.research.sanitization import clean_source_title, sanitize_source_text
+
         for item in results:
-            title = item.get("title", "")
+            raw_title = item.get("title", "")
             page_id = item.get("pageid", "")
-            snippet = item.get("snippet", "").replace('<span class="searchmatch">', "").replace("</span>", "")
-            clean_title = title.replace(" ", "_")
+            raw_snippet = item.get("snippet", "").replace('<span class="searchmatch">', "").replace("</span>", "")
+            snippet = sanitize_source_text(raw_snippet)
+            clean_title = raw_title.replace(" ", "_")
             article_url = f"https://en.wikipedia.org/wiki/{clean_title}"
+            display_title = clean_source_title(raw_title)
 
             documents.append(
                 SourceDocument(
                     url=article_url,
-                    title=f"{title} - Wikipedia",
+                    title=f"{display_title} - Wikipedia",
                     publisher="Wikipedia",
                     domain="en.wikipedia.org",
                     source_type=SourceType.WIKIPEDIA,
                     extracted_text=snippet,
                     summary=snippet,
-                    reliability_score=0.50,
+                    reliability_score=0.45,
                     metadata={"page_id": page_id},
                 )
             )

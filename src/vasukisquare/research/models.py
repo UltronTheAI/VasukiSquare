@@ -153,13 +153,15 @@ class ResearchDossier(BaseModel):
     summary: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    def deduplicate_sources(self) -> None:
-        """Deduplicate sources by normalized URL."""
-        seen_urls: set[str] = set()
-        unique_sources: List[Source] = []
-        for src in self.sources:
-            norm = normalize_url(src.url)
-            if norm not in seen_urls:
-                seen_urls.add(norm)
-                unique_sources.append(src)
-        self.sources = unique_sources
+
+class ResearchBundle(BaseModel):
+    """Structured evidence package provided to the writer without raw scraped garbage."""
+
+    facts: List[str] = Field(default_factory=list, description="Verified factual statements")
+    definitions: List[Dict[str, str]] = Field(default_factory=list, description="Term definitions (term -> definition)")
+    verified_commands: List[str] = Field(default_factory=list, description="Verified shell/CLI commands")
+    verified_code_examples: List[Dict[str, str]] = Field(default_factory=list, description="Verified syntax-checked code examples")
+    expected_outputs: List[Dict[str, str]] = Field(default_factory=list, description="Expected stdout for code examples")
+    concepts: List[str] = Field(default_factory=list, description="Core concepts covered")
+    source_refs: List[Dict[str, str]] = Field(default_factory=list, description="Clean authoritative source references")
+    warnings: List[str] = Field(default_factory=list, description="Common pitfalls and warnings")

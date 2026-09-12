@@ -5,13 +5,21 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
 from vasukisquare.config import Settings, get_settings
-from vasukisquare.book.layout import LayoutType, VisualAnchorType
+from vasukisquare.book.layout import (
+    LayoutType,
+    VisualAnchorType,
+    TechnicalPageSpec,
+    TechnicalPageType,
+    PAGE_TYPE_SPECS,
+    is_component_eligible,
+)
 from vasukisquare.book.components import (
     AcknowledgementBlock,
     CalloutBlock,
     ChartBlock,
     ChecklistBlock,
     CodeBlock,
+    CommonMistakeBlock,
     ComparisonBlock,
     ContentBlock,
     CopyrightBlock,
@@ -19,6 +27,7 @@ from vasukisquare.book.components import (
     DiagramBlock,
     ExerciseBlock,
     HeadingBlock,
+    OutputBlock,
     QuoteBlock,
     SourceBlock,
     StatisticBlock,
@@ -35,13 +44,13 @@ from vasukisquare.book.models import (
     BookPlan,
     Page,
     PageContent,
+    PagePurpose,
     PageStyle,
     PlannedPage,
     SourceCitation,
     generate_id,
 )
 from vasukisquare.research.models import ResearchCorpus
-from vasukisquare.book.layout import TechnicalPageSpec, TechnicalPageType, PAGE_TYPE_SPECS
 from vasukisquare.agents.content_validator import (
     validate_page_content,
     count_page_words,
@@ -51,16 +60,14 @@ from vasukisquare.agents.content_validator import (
     detect_topic_drift,
 )
 from vasukisquare.agents.technical_content import classify_topic, extract_chapter_research
+from vasukisquare.llm.client import LLMClient, GroqGenerationError
+from vasukisquare.llm.metrics import BookGenerationMetrics
 
 logger = logging.getLogger(__name__)
 
 
-from vasukisquare.llm.client import LLMClient, GroqGenerationError
-from vasukisquare.llm.metrics import BookGenerationMetrics
-
-
 class SmallModelHeadlineLead(BaseModel):
-    """Minimal schema for small models (0.5B-3B) generating headline and lead explanation."""
+    """Minimal schema for small models generating headline and lead explanation."""
 
     headline: str = Field(description="Direct, non-repetitive headline for this specific page (do not repeat the book title)")
     explanation: str = Field(description="Substantive 80 to 120 word technical explanation explaining the concept using provided facts")
@@ -81,12 +88,11 @@ class SmallModelTroubleshooting(BaseModel):
     callout_variant: str = Field(default="tip", description="tip, warning, note, or important")
 
 
-class SmallModelStepsOrExercise(BaseModel):
-    """Minimal schema for small models generating structured procedural instructions."""
+class SmallModelExercise(BaseModel):
+    """Minimal schema for small models generating a targeted beginner exercise or challenge."""
 
-    title: str = Field(description="Actionable procedure or exercise title e.g. Step-by-Step Configuration")
-    steps: List[str] = Field(description="3 clear, sequential practical instructions")
-
+    title: str = Field(description="Exercise title e.g. Hands-On Challenge")
+    instructions: List[str] = Field(description="2 to 3 concise actionable instructions for the reader to try")
 
 
 class LLMGeneratedPage(BaseModel):
@@ -102,10 +108,10 @@ class LLMGeneratedPage(BaseModel):
     terminal_command: Optional[str] = Field(default=None, description="CLI setup, execution, or verification command")
     terminal_title: Optional[str] = Field(default=None, description="Terminal window title bar label")
     code_snippet: Optional[str] = Field(default=None, description="Complete, syntactically correct, runnable code snippet")
-    code_filename: Optional[str] = Field(default=None, description="Code filename e.g. main.py, lioran.ts, config.json")
+    code_filename: Optional[str] = Field(default=None, description="Code filename e.g. main.py, config.py")
     code_caption: Optional[str] = Field(default=None, description="Descriptive caption for the code snippet")
-    code_language: Optional[str] = Field(default=None, description="Programming language identifier e.g. python, typescript, bash, sql")
-    diagram_mermaid: Optional[str] = Field(default=None, description="Valid Mermaid flowchart or diagram syntax (e.g. graph TD\n A-->B)")
+    code_language: Optional[str] = Field(default=None, description="Programming language identifier e.g. python, bash, sql")
+    diagram_mermaid: Optional[str] = Field(default=None, description="Valid Mermaid flowchart or diagram syntax (e.g. graph TD\\n A-->B)")
     diagram_caption: Optional[str] = Field(default=None, description="Caption for the architecture diagram")
     table_caption: Optional[str] = Field(default=None, description="Caption for comparison or reference table")
     table_columns: List[str] = Field(default_factory=list, description="Column headers for table")
@@ -129,7 +135,7 @@ def repair_underfilled_page(
     verified_code_snippets: Optional[List[str]] = None,
     topic: Optional[str] = None,
 ) -> Any:
-    """Repair an underfilled page by injecting missing components in priority order until target utilization (70%-90%) is achieved without overflow (> 95%)."""
+    """Repair an underfilled page strictly adhering to component eligibility and pedagogical validity."""
     from vasukisquare.renderer.overflow import estimate_page_utilization
 
     is_page_obj = isinstance(page_content, Page)
@@ -139,122 +145,123 @@ def repair_underfilled_page(
     if topic and primary_subject == "technical topic":
         primary_subject = topic
 
-    tech_pkg = primary_subject.split()[0].lower().replace(":", "")
+    is_python = "python" in primary_subject.lower()
     headline = content_obj.headline or primary_subject
     blocks = list(content_obj.blocks)
     if not blocks and getattr(content_obj, "body", None):
         blocks.append(TextBlock(text=content_obj.body))
 
-    # Priority Repair 1: Spec Compliance (Required Code / Terminal / Table)
     has_code = any(getattr(b, "type", "") == "code" for b in blocks)
     has_terminal = any(getattr(b, "type", "") == "terminal" for b in blocks)
     has_table = any(getattr(b, "type", "") == "table" for b in blocks)
     has_callout = any(getattr(b, "type", "") in ("callout", "tip", "note", "warning", "important") for b in blocks)
+    has_output = any(getattr(b, "type", "") == "output" for b in blocks)
 
+    # 1. Enforce Required Code
     if spec.requires_code and not has_code:
+        if is_python:
+            code_str = (
+                f"# Practical demonstration of {headline}\n"
+                f"def demonstrate_concept():\n"
+                f"    print('Running demonstration...')\n"
+                f"    data = [1, 2, 3, 4, 5]\n"
+                f"    result = sum(data)\n"
+                f"    return result\n\n"
+                f"print('Computed result:', demonstrate_concept())"
+            )
+        else:
+            code_str = (
+                f"// Implementation for {headline}\n"
+                f"function executeTask() {{\n"
+                f"    return 'Task executed successfully';\n"
+                f"}}\n"
+                f"console.log(executeTask());"
+            )
         blocks.append(
             CodeBlock(
-                language="python",
-                filename=f"{tech_pkg}_handler.py",
-                code=f"# Verified {headline} Implementation\nimport {tech_pkg}\n\nclient = {tech_pkg}.Client()\nprint(client.status())",
+                language="python" if is_python else "javascript",
+                filename="example.py" if is_python else "example.js",
+                code=code_str,
                 caption=f"Listing: {headline} Implementation",
                 line_numbers=True,
             )
         )
         has_code = True
 
+    # 2. Enforce Required Terminal
     if spec.requires_terminal and not has_terminal:
+        cmd = "python3 -m unittest test_module.py" if is_python else f"{primary_subject.split()[0].lower()} --version"
         blocks.append(
             TerminalBlock(
                 title=f"Terminal: {headline}",
                 shell="bash",
                 lines=[
-                    TerminalLine(kind="command", text=f"{tech_pkg} --version"),
-                    TerminalLine(kind="output", text=f"{tech_pkg} v2.4.0 (production build)"),
+                    TerminalLine(kind="command", text=cmd),
+                    TerminalLine(kind="output", text="Execution verified successfully."),
                 ],
             )
         )
         has_terminal = True
 
-    if spec.requires_table and not has_table:
-        blocks.append(
-            TableBlock(
-                caption=f"Table: {headline} Core Parameters",
-                columns=["Configuration Key", "Default Value", "Description"],
-                rows=[
-                    ["`host`", "`127.0.0.1`", "Binding network interface address"],
-                    ["`port`", "`8080`", "Default client communication port"],
-                    ["`max_connections`", "`1024`", "Worker pool concurrency limit"],
-                ],
-            )
-        )
-        has_table = True
-
-    if not has_callout:
+    # 3. Enforce Callout
+    if not has_callout and is_component_eligible("callout", spec.page_type):
         blocks.append(
             CalloutBlock(
-                title="Operational Best Practice",
-                content=f"Always test {headline} under simulated production workloads to ensure deterministic behavior.",
+                title="Practical Best Practice",
+                content=f"When working with {headline}, keep your implementations modular and test each component with isolated inputs.",
                 variant="tip",
             )
         )
-        has_callout = True
 
-    # Progressive Filling Loop: Check utilization and add next useful component until ratio >= 0.70
+    # 4. Progressive Filling Loop
     util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
 
-    # Repair step: Add step-by-step procedure if still underfilled
-    if util.estimated_ratio < 0.70 and not any(getattr(b, "type", "") == "step" for b in blocks):
+    # Add Output block if code is present but no output block
+    if util.estimated_ratio < 0.70 and has_code and not has_output and is_component_eligible("output", spec.page_type):
         candidate_blocks = list(blocks) + [
-            StepBlock(
-                title=f"Procedure: Executing {headline}",
-                steps=[
-                    {"step_number": 1, "title": "Initialization", "description": f"Initialize the {tech_pkg} execution context and load configuration."},
-                    {"step_number": 2, "title": "Validation", "description": "Verify connection endpoints and authentication credentials."},
-                    {"step_number": 3, "title": "Verification", "description": "Inspect response status codes and confirm telemetry output."},
-                ],
+            OutputBlock(
+                title="Expected Console Output",
+                content="Computed result: 15",
+            )
+        ]
+        if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
+            blocks = candidate_blocks
+            has_output = True
+            util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
+
+    # Add Common Mistake if debugging/eligible
+    if util.estimated_ratio < 0.70 and is_component_eligible("mistake", spec.page_type) and not any(getattr(b, "type", "") == "mistake" for b in blocks):
+        candidate_blocks = list(blocks) + [
+            CommonMistakeBlock(
+                title="Common Beginner Mistake",
+                wrong_code="total = '10' + 5  # TypeError: can only concatenate str to str",
+                correct_code="total = int('10') + 5  # Correct: explicit type cast to integer",
+                explanation="In Python, strings and integers cannot be added directly without explicit type conversion.",
             )
         ]
         if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
             blocks = candidate_blocks
             util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
 
-    # Repair step: Add comparison table or parameter breakdown if still underfilled
-    if util.estimated_ratio < 0.70 and not any(getattr(b, "type", "") in ("table", "comparison") for b in blocks):
-        candidate_blocks = list(blocks) + [
-            TableBlock(
-                caption=f"Table: {headline} Execution Modes",
-                columns=["Execution Mode", "Latency Profile", "Recommended Use Case"],
-                rows=[
-                    ["Synchronous", "Low overhead (< 5ms)", "Single-threaded command execution"],
-                    ["Asynchronous", "High throughput", "Concurrent pipeline ingestion"],
-                ],
-            )
-        ]
-        if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
-            blocks = candidate_blocks
-            util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
-
-    # Repair step: Add secondary explanation if still underfilled
+    # Add Secondary explanation if underfilled
     if util.estimated_ratio < 0.70:
         if verified_facts:
-            additional_text = f"Key principle: {verified_facts[0]}. In production environments, proper isolation and validation ensure long-term stability and high execution throughput."
+            additional_text = f"Key principle: {verified_facts[0]}. In structured software development, understanding these foundational mechanics ensures predictable execution and simplifies debugging."
         else:
-            additional_text = f"When implementing {headline}, maintain strict separation between state mutation and query lifecycles. This guarantees consistent execution and prevents concurrency contention."
+            additional_text = f"When applying {headline}, maintaining clarity and following standard idioms ensures your code is readable, maintainable, and robust against unexpected inputs."
         candidate_blocks = list(blocks) + [TextBlock(text=additional_text)]
         if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
             blocks = candidate_blocks
             util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
 
-    # Repair step: Add key takeaways checklist if still underfilled
-    if util.estimated_ratio < 0.70 and not any(getattr(b, "type", "") == "checklist" for b in blocks):
+    # Add Exercise if eligible
+    if util.estimated_ratio < 0.70 and is_component_eligible("exercise", spec.page_type) and not any(getattr(b, "type", "") == "exercise" for b in blocks):
         candidate_blocks = list(blocks) + [
-            ChecklistBlock(
-                title=f"Implementation Checklist for {headline}",
-                items=[
-                    f"Ensure deterministic execution and validation across all {tech_pkg} operations.",
-                    "Verify memory allocation and concurrency boundaries before deployment.",
-                    "Log operational metrics and monitor latency profiles continuously.",
+            ExerciseBlock(
+                title=f"Practice Challenge: {headline}",
+                instructions=[
+                    f"Write a short function that applies {headline} to process a list of 3 items.",
+                    "Verify the output by printing the result to the console.",
                 ],
             )
         ]
@@ -318,14 +325,12 @@ class PageWriterAgent:
         citations = self._select_citations(corpus)
 
         # 3. Generate structured content
-        # For special structural pages (imprint, copyright, toc, references, ack, thank_you)
         if planned_page.page_type in (
             "imprint", "title", LayoutType.COPYRIGHT.value, LayoutType.TOC.value,
             LayoutType.REFERENCES.value, LayoutType.ACKNOWLEDGEMENT.value, LayoutType.THANK_YOU.value
         ):
             content = self._generate_structural_page_content(planned_page, book_plan, citations)
         else:
-            # Content page: LLM in production mode, heuristic in mock mode
             content = await self._generate_content_page(planned_page, book_plan, citations, corpus)
 
         return Page(
@@ -373,7 +378,7 @@ class PageWriterAgent:
             self.metrics.record_fallback_page()
             return self._heuristic_write_page(p, plan, citations)
 
-        # 1. If small model mode is active (0.5B-3B models), use decomposed deterministic generation
+        # Small model decomposed generation
         if self.settings.is_small_model_active:
             try:
                 small_content = await self._small_model_write_page(p, plan, citations, corpus)
@@ -383,7 +388,7 @@ class PageWriterAgent:
             except Exception as e:
                 logger.warning(f"Small model decomposed write failed for Page {p.page_number}: {e}")
 
-        # 2. Standard Groq LLM Generation
+        # Standard Groq LLM Generation
         try:
             llm_content = await self._llm_write_page(p, plan, corpus)
             if llm_content:
@@ -404,14 +409,13 @@ class PageWriterAgent:
         citations: List[SourceCitation],
         corpus: Optional[ResearchCorpus] = None,
     ) -> Optional[PageContent]:
-        """Decomposed, multi-step generation pipeline tailored for small LLMs (e.g. 0.5B/1B models)."""
+        """Decomposed, multi-step generation pipeline tailored for small LLMs."""
         from vasukisquare.renderer.overflow import estimate_page_utilization
 
         primary_subject = plan.intent.domain_topic or plan.title
         primary_lang = plan.intent.primary_programming_language or "python"
-        is_beginner = "zero knowledge" in plan.title.lower() or plan.intent.technical_depth == "introductory"
+        is_beginner = "beginner" in plan.title.lower() or plan.intent.technical_depth == "introductory"
 
-        # 1. Resolve Chapter Bundle and Spec
         page_type_enum = TechnicalPageType.CONCEPT
         try:
             page_type_enum = TechnicalPageType(p.page_type)
@@ -419,7 +423,6 @@ class PageWriterAgent:
             pass
         spec = PAGE_TYPE_SPECS.get(page_type_enum, PAGE_TYPE_SPECS[TechnicalPageType.CONCEPT])
 
-        # Prepare facts from corpus
         facts = []
         if corpus and hasattr(corpus, "facts"):
             for f in corpus.facts[:6]:
@@ -428,9 +431,9 @@ class PageWriterAgent:
             for doc in corpus.documents[:4]:
                 if doc.summary:
                     facts.append(doc.summary)
-        facts_text = "\n".join([f"- {f}" for f in facts]) if facts else f"- {primary_subject} architecture and configuration."
+        facts_text = "\n".join([f"- {f}" for f in facts]) if facts else f"- {primary_subject} syntax and practical programming patterns."
 
-        # Step 1: Prompt for Heading & Lead Explanation (Small Schema Call 1)
+        # Step 1: Prompt for Heading & Lead Explanation
         sys_prompt_1 = (
             f"You are a technical book author explaining '{p.brief}' for a book titled '{plan.title}'.\n"
             f"Rules:\n"
@@ -453,62 +456,57 @@ class PageWriterAgent:
         lead_explanation = res_lead.explanation if (res_lead and res_lead.explanation) else f"Understanding {p.brief} is essential for mastering {primary_subject}."
 
         blocks: List[Any] = [TextBlock(text=lead_explanation)]
-        tech_pkg = (plan.intent.primary_programming_language or primary_subject.split()[0]).lower().replace(":", "")
 
-        # Step 2: Inject Primary Code or Terminal Block from Research
+        # Step 2: Code or Terminal Block from Research / Spec
+        is_python = "python" in primary_subject.lower() or primary_lang == "python"
+
         if spec.requires_terminal or any(w in p.brief.lower() for w in ["install", "terminal", "cli", "setup"]):
-            cmd = f"pip install {tech_pkg} || npm install {tech_pkg}" if "install" in p.brief.lower() else f"{tech_pkg} --help"
+            cmd = "python3 --version\npython3 main.py" if is_python else f"{primary_subject.split()[0].lower()} --help"
             blocks.append(
                 TerminalBlock(
                     title=f"Terminal: {p.brief}",
                     shell="bash",
                     lines=[
-                        TerminalLine(kind="command", text=cmd),
-                        TerminalLine(kind="output", text="Execution completed successfully."),
+                        TerminalLine(kind="command", text=cmd.split("\n")[0]),
+                        TerminalLine(kind="output", text="Python 3.12.0"),
                     ],
                 )
             )
 
-        if spec.requires_code or any(w in p.brief.lower() for w in ["code", "crud", "config"]) or p.layout == LayoutType.CODE_FOCUS.value:
-            if "crud" in p.brief.lower():
+        if spec.requires_code or any(w in p.brief.lower() for w in ["code", "function", "variable", "loop", "syntax"]) or p.layout == LayoutType.CODE_FOCUS.value:
+            if is_python:
                 code_sample = (
-                    f"# CRUD Lifecycle in {primary_subject}\n"
-                    f"record = client.create(table='items', data={{'name': 'Sample', 'active': True}})\n"
-                    f"item = client.read(table='items', id=record['id'])\n"
-                    f"client.update(table='items', id=record['id'], data={{'name': 'Updated Sample'}})\n"
-                    f"client.delete(table='items', id=record['id'])"
-                )
-            elif "config" in p.brief.lower():
-                code_sample = (
-                    f"// Configuration Settings\n"
-                    f"{{\n"
-                    f'  "engine": "{tech_pkg}",\n'
-                    f'  "port": 8080,\n'
-                    f'  "timeout_ms": 5000,\n'
-                    f'  "log_level": "info"\n'
-                    f"}}"
+                    f"# Example implementation of {p.brief}\n"
+                    f"def calculate_total(items: list[int]) -> int:\n"
+                    f"    return sum(items)\n\n"
+                    f"scores = [10, 20, 30]\n"
+                    f"total = calculate_total(scores)\n"
+                    f"print(f'Calculated total: {{total}}')"
                 )
             else:
                 code_sample = (
-                    f"import {tech_pkg}\n\n"
-                    f"def initialize_client():\n"
-                    f"    client = {tech_pkg}.Client()\n"
-                    f"    return client\n\n"
-                    f"if __name__ == '__main__':\n"
-                    f"    client = initialize_client()\n"
-                    f"    print('Client initialized:', client)"
+                    f"// Example: {p.brief}\n"
+                    f"const calculate = (items) => items.reduce((a, b) => a + b, 0);\n"
+                    f"console.log('Result:', calculate([10, 20, 30]));"
                 )
             blocks.append(
                 CodeBlock(
                     language=primary_lang if primary_lang != "text" else "python",
-                    filename=f"{p.brief.lower().replace(' ', '_')}.py",
+                    filename=f"{p.brief.lower().replace(' ', '_')[:20]}.py",
                     code=code_sample,
                     caption=f"Listing {p.chapter_number}.{p.page_number % 5 + 1}: {p.brief} Implementation",
                     line_numbers=True,
                 )
             )
+            # Add Expected Output Block
+            blocks.append(
+                OutputBlock(
+                    title="Console Output",
+                    content="Calculated total: 60",
+                )
+            )
 
-        # Step 3: Check Utilization and add Secondary Explanation if underfilled (Small Schema Call 2)
+        # Step 3: Check Utilization and add Secondary Explanation if underfilled
         current_page = PageContent(headline=headline, blocks=blocks)
         util = estimate_page_utilization(current_page)
 
@@ -529,14 +527,12 @@ class PageWriterAgent:
                 if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
                     blocks = candidate_blocks
 
-        # Step 4: Prompt for Troubleshooting Tip / Callout (Small Schema Call 3)
+        # Step 4: Prompt for Callout Tip
         current_page = PageContent(headline=headline, blocks=blocks)
         util = estimate_page_utilization(current_page)
 
         if util.estimated_ratio < 0.75:
-            sys_prompt_3 = (
-                f"Provide a 1-2 sentence practical tip or common pitfall for '{p.brief}' in '{primary_subject}'."
-            )
+            sys_prompt_3 = f"Provide a 1-2 sentence practical tip or common pitfall for '{p.brief}' in '{primary_subject}'."
             res_tip = await self.llm_client.invoke_structured(
                 schema=SmallModelTroubleshooting,
                 system_prompt=sys_prompt_3,
@@ -545,37 +541,34 @@ class PageWriterAgent:
                 temperature=0.2,
             )
             tip_title = res_tip.callout_title if (res_tip and res_tip.callout_title) else "Practical Tip"
-            tip_text = res_tip.callout_text if (res_tip and res_tip.callout_text) else f"Always verify configuration parameters before deploying {p.brief}."
+            tip_text = res_tip.callout_text if (res_tip and res_tip.callout_text) else f"Always verify inputs and validate boundary conditions when working with {p.brief}."
             tip_variant = res_tip.callout_variant if (res_tip and res_tip.callout_variant in ("tip", "note", "important", "warning", "definition")) else "tip"
             
             candidate_blocks = list(blocks) + [CalloutBlock(title=tip_title, content=tip_text, variant=tip_variant)]
             if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
                 blocks = candidate_blocks
 
-        # Step 5: Prompt for Steps / Exercise if still underfilled (Small Schema Call 4)
+        # Step 5: Exercise if still underfilled
         current_page = PageContent(headline=headline, blocks=blocks)
         util = estimate_page_utilization(current_page)
 
-        if util.estimated_ratio < 0.70:
-            sys_prompt_4 = (
-                f"Write 3 sequential step-by-step instructions for executing '{p.brief}'."
-            )
-            res_steps = await self.llm_client.invoke_structured(
-                schema=SmallModelStepsOrExercise,
+        if util.estimated_ratio < 0.70 and is_component_eligible("exercise", spec.page_type):
+            sys_prompt_4 = f"Write a 2-step hands-on coding exercise for '{p.brief}'."
+            res_ex = await self.llm_client.invoke_structured(
+                schema=SmallModelExercise,
                 system_prompt=sys_prompt_4,
                 user_prompt=f"Topic: {p.brief}",
-                stage=f"small_steps_ch{p.chapter_number}_p{p.page_number}",
+                stage=f"small_ex_ch{p.chapter_number}_p{p.page_number}",
                 temperature=0.2,
             )
-            if res_steps and res_steps.steps:
-                step_items = [{"step_number": i + 1, "title": f"Step {i+1}", "description": s} for i, s in enumerate(res_steps.steps)]
-                candidate_blocks = list(blocks) + [StepBlock(title=res_steps.title or f"Procedure: {p.brief}", steps=step_items)]
+            if res_ex and res_ex.instructions:
+                candidate_blocks = list(blocks) + [ExerciseBlock(title=res_ex.title or f"Try It Yourself: {p.brief}", instructions=res_ex.instructions)]
                 if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
                     blocks = candidate_blocks
 
         page_content = PageContent(headline=headline, blocks=blocks)
 
-        # Step 6: Deterministic Underfilled Repair and Spec Compliance
+        # Final repair
         page_content = repair_underfilled_page(
             page_content=page_content,
             spec=spec,
@@ -595,7 +588,6 @@ class PageWriterAgent:
         """Use Groq LLM to write a high quality, topic-aligned page strictly grounded in research."""
         primary_lang = plan.intent.primary_programming_language or "text"
 
-        # Build research dossier context chunks relevant to the chapter/section
         dossier_chunks = []
         if corpus and corpus.documents:
             for idx, doc in enumerate(corpus.documents[:6], start=1):
@@ -618,10 +610,9 @@ class PageWriterAgent:
             f"CRITICAL AUTHORING INSTRUCTIONS:\n"
             f"1. Ground all technical details, APIs, code samples, commands, and concepts directly in the Research Dossier below.\n"
             f"2. Never use generic placeholder sentences. Every sentence must teach concrete details about {plan.title}.\n"
-            f"3. Write clear, engaging explanations with code snippets, diagrams, or comparison tables matching the visual anchor.\n"
-            f"4. If generating code, provide clean, runnable, syntactically valid {primary_lang} code.\n"
-            f"5. Include an actionable CalloutBox (tip, best practice, or common pitfall).\n"
-            f"6. Populate cited_source_urls with the URLs from the dossier actually used."
+            f"3. If generating code, provide clean, runnable, syntactically valid {primary_lang} code.\n"
+            f"4. Include an actionable CalloutBox (tip, best practice, or common pitfall).\n"
+            f"5. Populate cited_source_urls with the URLs from the dossier actually used."
         )
 
         user_prompt = (
@@ -645,7 +636,7 @@ class PageWriterAgent:
         # 1. Lead Paragraph
         blocks.append(TextBlock(text=res.lead_paragraph))
 
-        # 2. Terminal Block (if command present and valid)
+        # 2. Terminal Block
         if res.terminal_command and validate_terminal_command(res.terminal_command):
             blocks.append(
                 TerminalBlock(
@@ -658,7 +649,7 @@ class PageWriterAgent:
                 )
             )
 
-        # 3. Visual Anchor Blocks (Code, Table, Diagram, Quote, Comparison, Steps)
+        # 3. Visual Anchor Blocks
         anchor = p.visual_anchor or VisualAnchorType.TEXT
 
         if res.code_snippet and validate_code_block(res.code_snippet, res.code_language or primary_lang) and (anchor == VisualAnchorType.CODE or p.layout == LayoutType.CODE_FOCUS.value or "code" in (p.brief or "").lower()):
@@ -693,15 +684,6 @@ class PageWriterAgent:
                 )
             )
 
-        if res.hands_on_steps:
-            steps_data = [{"step_number": i + 1, "title": f"Step {i+1}", "description": s} for i, s in enumerate(res.hands_on_steps)]
-            blocks.append(
-                StepBlock(
-                    title=f"Procedure: {p.brief}",
-                    steps=steps_data,
-                )
-            )
-
         if res.diagram_mermaid and (anchor == VisualAnchorType.DIAGRAM or p.layout == LayoutType.DIAGRAM_FOCUS.value):
             blocks.append(
                 DiagramBlock(
@@ -732,7 +714,6 @@ class PageWriterAgent:
         if res.secondary_paragraph:
             blocks.append(TextBlock(text=res.secondary_paragraph))
 
-        # Record sources used in metrics
         if res.cited_source_urls:
             self.metrics.research.sources_used = max(
                 self.metrics.research.sources_used,
@@ -741,7 +722,6 @@ class PageWriterAgent:
 
         page_content = PageContent(headline=res.headline, blocks=blocks)
         return page_content
-
 
     def _generate_structural_page_content(
         self,
@@ -783,14 +763,13 @@ class PageWriterAgent:
             )
 
         elif p_type == LayoutType.TOC.value:
-            # Table of Contents placeholder; will be resolved dynamically during 2-pass assembly
             entries = []
             for ch in plan.chapters:
                 entries.append(
                     TocEntry(
                         chapter_number=ch.chapter_number,
                         title=ch.title,
-                        page_number=ch.chapter_number * 5,  # initial estimate
+                        page_number=ch.chapter_number * 5,
                         icon=ch.icon,
                     )
                 )
@@ -800,7 +779,6 @@ class PageWriterAgent:
             )
 
         elif p_type == LayoutType.ACKNOWLEDGEMENT.value:
-            # Topic-aware acknowledgement
             is_python = "python" in plan.title.lower() or (plan.intent.primary_programming_language == "python")
             if is_python:
                 lead = "Recognizing the visionary creators, open-source maintainers, and community educators behind the Python ecosystem."
@@ -893,7 +871,7 @@ class PageWriterAgent:
         brief_lower = (p.brief or "").lower()
 
         # --- Chapter 1: Introduction & Environment ---
-        if "interpreter" in brief_lower or "how the interpreter works" in brief_lower:
+        if "interpreter" in brief_lower or "how the interpreter works" in brief_lower or "how programs work" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
@@ -919,7 +897,7 @@ class PageWriterAgent:
                 ],
             )
 
-        elif "hello world" in brief_lower or "first script" in brief_lower or "installation, tooling" in brief_lower:
+        elif "hello world" in brief_lower or "first script" in brief_lower or "installation" in brief_lower or "tooling" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
@@ -933,21 +911,24 @@ class PageWriterAgent:
                         filename="hello_world.py",
                         code=(
                             "# Welcome to Python 3!\n"
-                            "user_name = input('Enter your name: ')\n"
-                            "print(f'Hello, {user_name}! Welcome to the world of programming.')\n\n"
-                            "# Basic computation\n"
+                            "user_name = 'Learner'\n"
+                            "print(f'Hello, {user_name}! Welcome to Python programming.')\n\n"
                             "hours = 40\n"
                             "rate = 25.50\n"
                             "total_pay = hours * rate\n"
                             "print(f'Weekly calculation: ${total_pay:,.2f}')"
                         ),
-                        caption="Listing 1.1: Basic user input, variable assignment, and f-string output.",
+                        caption="Listing 1.1: Variable assignment, math, and f-string output.",
                         line_numbers=True,
+                    ),
+                    OutputBlock(
+                        title="Terminal Output",
+                        content="Hello, Learner! Welcome to Python programming.\nWeekly calculation: $1,020.00",
                     ),
                     CalloutBlock(
                         variant="tip",
                         title="Pythonic Tip",
-                        content="Always use Python 3.8+ formatted string literals (`f'{expression}'`) for clean and fast string formatting.",
+                        content="Always use Python formatted string literals (`f'{expression}'`) for clean and fast string formatting.",
                         icon="lightbulb",
                     ),
                 ],
@@ -962,18 +943,17 @@ class PageWriterAgent:
                         "Typing `python` in your terminal launches the interactive prompt (`>>>`), allowing instant evaluation of expressions, "
                         "inspection of object types, and testing of built-in functions without creating temporary files."
                     ),
-                    CodeBlock(
-                        language="python",
-                        filename="repl_session.py",
-                        code=(
-                            ">>> 2 ** 8  # Exponentiation\n"
-                            "256\n"
-                            ">>> type(3.14159)\n"
-                            "<class 'float'>\n"
-                            ">>> help(str.strip)  # Interactive docstring lookup"
-                        ),
-                        caption="Listing 1.2: Exploring Python interactively via the terminal REPL.",
-                        line_numbers=False,
+                    TerminalBlock(
+                        title="Interactive Terminal REPL",
+                        shell="bash",
+                        lines=[
+                            TerminalLine(kind="command", text="python3"),
+                            TerminalLine(kind="output", text="Python 3.12.0 (main)\nType \"help\", \"copyright\", \"credits\" or \"license\" for more information."),
+                            TerminalLine(kind="command", text=">>> 2 ** 8"),
+                            TerminalLine(kind="output", text="256"),
+                            TerminalLine(kind="command", text=">>> type(3.14159)"),
+                            TerminalLine(kind="output", text="<class 'float'>"),
+                        ],
                     ),
                     CalloutBlock(
                         variant="note",
@@ -992,6 +972,12 @@ class PageWriterAgent:
                         text="Python prioritizes clean readability through semantic whitespace. Unlike languages that use curly braces `{}` "
                         "or `begin`/`end` keywords, Python uses indentation (standardized to 4 spaces) to demarcate code blocks. "
                         "Understanding syntax rules early prevents common beginner stumbling blocks like `IndentationError` and `SyntaxError`."
+                    ),
+                    CommonMistakeBlock(
+                        title="Common Beginner Syntax Errors",
+                        wrong_code="def calculate_total(a, b)\n    return a + b",
+                        correct_code="def calculate_total(a, b):\n    return a + b",
+                        explanation="Missing colon `:` at the end of `def`, `if`, or `for` headers causes a `SyntaxError: expected ':'`.",
                     ),
                     TableBlock(
                         caption="Table 1.1: Common Beginner Python Errors and Solutions.",
@@ -1016,6 +1002,22 @@ class PageWriterAgent:
                         "floating-point numbers (`float`), strings (`str`), and booleans (`bool`). Type conversion functions (`int()`, `str()`, `float()`) "
                         "enable explicit type casting between compatible formats."
                     ),
+                    CodeBlock(
+                        language="python",
+                        filename="type_conversions.py",
+                        code=(
+                            "raw_input = '150'\n"
+                            "quantity = int(raw_input)\n"
+                            "tax_rate = 0.08\n"
+                            "total = quantity * (1 + tax_rate)\n"
+                            "print(f'Final cost: ${total:.2f} (type: {type(total).__name__})')"
+                        ),
+                        caption="Listing 2.1: Type casting from string to integer and float arithmetic.",
+                    ),
+                    OutputBlock(
+                        title="Output",
+                        content="Final cost: $162.00 (type: float)",
+                    ),
                     TableBlock(
                         caption="Table 2.1: Python Core Primitive Data Types.",
                         columns=["Data Type", "Syntax Example", "Mutability", "Common Purpose"],
@@ -1025,24 +1027,11 @@ class PageWriterAgent:
                             ["**String** (`str`)", "`title = 'Python'`", "Immutable", "Textual data, Unicode characters"],
                             ["**Boolean** (`bool`)", "`is_valid = True`", "Immutable", "Conditional flags, binary logic"],
                         ],
-                        source_note="Official Python Language Reference (docs.python.org/3/reference/datamodel.html)",
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="type_conversions.py",
-                        code=(
-                            "raw_input = '150'\n"
-                            "quantity = int(raw_input)\n"
-                            "tax_rate = 0.08\n"
-                            "total = quantity * (1 + tax_rate)\n"
-                            "print(f'Final cost: {total:.2f} (type: {type(total).__name__})')"
-                        ),
-                        caption="Listing 2.1: Type casting from string to integer and float arithmetic.",
                     ),
                 ],
             )
 
-        elif "string manipulation" in brief_lower or "formatted output" in brief_lower:
+        elif "string manipulation" in brief_lower or "formatted output" in brief_lower or "f-strings" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
@@ -1065,65 +1054,47 @@ class PageWriterAgent:
                         caption="Listing 2.2: Essential string manipulation methods in Python.",
                         line_numbers=True,
                     ),
-                    CalloutBlock(
-                        variant="tip",
-                        title="String Immutability",
-                        content="Because strings are immutable, methods like `.replace()` or `.strip()` return new string instances without modifying the original string.",
-                        icon="info",
+                    OutputBlock(
+                        title="Console Output",
+                        content="Getting Started With Python\nCatalog: apple & banana & cherry & orange",
                     ),
                 ],
             )
 
-        elif "numeric calculations" in brief_lower or "math operations" in brief_lower:
+        # --- Chapter 3: User Input, Output & Conditions ---
+        elif "input()" in brief_lower or "casting types" in brief_lower or "user input" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
                     TextBlock(
-                        text="Python provides full numerical computing support with standard operators: addition (`+`), subtraction (`-`), "
-                        "multiplication (`*`), true division (`/`), floor division (`//`), modulus (`%`), and exponentiation (`**`). "
-                        "The standard `math` library extends capabilities with trigonometry, logarithms, and rounding functions."
+                        text="Interactive programs accept data from the user using the built-in `input()` function. "
+                        "Because `input()` always returns a string (`str`), numerical input must be explicitly converted using `int()` or `float()`."
                     ),
                     CodeBlock(
                         language="python",
-                        filename="math_operations.py",
+                        filename="user_input_demo.py",
                         code=(
-                            "import math\n\n"
-                            "radius = 5.0\n"
-                            "area = math.pi * (radius ** 2)\n"
-                            "hypotenuse = math.hypot(3, 4)  # 5.0\n"
-                            "print(f'Circle Area: {area:.3f}, Hypotenuse: {hypotenuse}')"
+                            "# Capturing user input and casting type\n"
+                            "age_str = '22'  # Simulating input('Enter your age: ')\n"
+                            "age = int(age_str)\n"
+                            "if age >= 18:\n"
+                            "    print(f'Eligible to vote: True (Age {age})')\n"
+                            "else:\n"
+                            "    print(f'Eligible to vote: False (Years remaining: {18 - age})')"
                         ),
-                        caption="Listing 2.3: Numerical math operations and built-in constants.",
+                        caption="Listing 3.1: Converting string input to integer for logical checks.",
                         line_numbers=True,
+                    ),
+                    CommonMistakeBlock(
+                        title="Missing Type Casting with input()",
+                        wrong_code="age = input('Enter age: ')\nnext_year = age + 1  # TypeError: can only concatenate str to str",
+                        correct_code="age = int(input('Enter age: '))\nnext_year = age + 1  # Correct: cast str to int before math",
+                        explanation="`input()` returns string data. Trying to add an integer to a string raises `TypeError`.",
                     ),
                 ],
             )
 
-        elif "boolean logic" in brief_lower or "comparison operators" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Boolean expressions evaluate to either `True` or `False`. Python evaluates truthiness using short-circuit logical operators "
-                        "(`and`, `or`, `not`). Empty containers (`[]`, `{}`), zero (`0`, `0.0`), and `None` evaluate to `False` in boolean contexts."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="boolean_logic.py",
-                        code=(
-                            "is_authenticated = True\n"
-                            "role = 'admin'\n"
-                            "has_access = is_authenticated and (role in ('admin', 'superuser'))\n"
-                            "print(f'Access authorized: {has_access}')"
-                        ),
-                        caption="Listing 2.4: Boolean logic and membership testing.",
-                        line_numbers=True,
-                    ),
-                ],
-            )
-
-        # --- Chapter 3: Control Flow ---
-        elif "conditional logic" in brief_lower or "boolean expressions" in brief_lower or "if-else" in brief_lower:
+        elif "branching" in brief_lower or "if, elif" in brief_lower or "conditional" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
@@ -1136,662 +1107,326 @@ class PageWriterAgent:
                         language="python",
                         filename="conditionals.py",
                         code=(
-                            "user_age = 20\n"
-                            "has_membership = True\n\n"
-                            "if user_age >= 18 and has_membership:\n"
-                            "    access_level = 'Full Member Access'\n"
-                            "elif user_age >= 18 and not has_membership:\n"
-                            "    access_level = 'Guest Access (Registration Required)'\n"
+                            "score = 85\n"
+                            "if score >= 90:\n"
+                            "    grade = 'A'\n"
+                            "elif score >= 80:\n"
+                            "    grade = 'B'\n"
+                            "elif score >= 70:\n"
+                            "    grade = 'C'\n"
                             "else:\n"
-                            "    access_level = 'Youth Access'\n\n"
-                            "print(f'Access Granted: {access_level}')"
+                            "    grade = 'Needs Improvement'\n\n"
+                            "print(f'Student Score: {score} -> Grade: {grade}')"
                         ),
-                        caption="Listing 3.1: Multi-condition branching using logical and comparison operators.",
+                        caption="Listing 3.2: Multi-condition branching using if, elif, and else.",
                         line_numbers=True,
                     ),
-                    CalloutBlock(
-                        variant="note",
-                        title="Indentation Rules",
-                        content="Python uses 4-space indentation to designate code blocks. Consistent indentation is strictly enforced by the interpreter.",
-                        icon="shield-check",
+                    OutputBlock(
+                        title="Console Output",
+                        content="Student Score: 85 -> Grade: B",
                     ),
                 ],
             )
 
-        elif "looping patterns" in brief_lower or "iteration idioms" in brief_lower:
+        # --- Chapter 4: Loops & Iteration ---
+        elif "for loop" in brief_lower or "range()" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
                     TextBlock(
-                        text="Iteration structures allow repetitive execution over collections or numeric ranges. "
-                        "The `for` loop iterates over iterable sequences, while `while` loops continue execution as long as a condition remains true. "
-                        "The `range()` generator efficiently produces integer sequences without allocating large memory buffers."
+                        text="The `for` loop in Python iterates over any iterable collection or sequence. "
+                        "The built-in `range(start, stop, step)` function generates numbers lazily without allocating large lists in memory."
                     ),
                     CodeBlock(
                         language="python",
-                        filename="loops_demo.py",
+                        filename="for_loops.py",
                         code=(
-                            "# Iterating over a sequence\n"
-                            "servers = ['web-01', 'web-02', 'db-01', 'cache-01']\n"
-                            "for idx, server in enumerate(servers, start=1):\n"
-                            "    print(f'Checking status of node {idx}: {server}')"
+                            "# Iterating with range\n"
+                            "for i in range(1, 6):\n"
+                            "    print(f'Count: {i}, Square: {i**2}')\n\n"
+                            "# Iterating over a collection with enumerate\n"
+                            "languages = ['Python', 'Rust', 'Go']\n"
+                            "for rank, lang in enumerate(languages, start=1):\n"
+                            "    print(f'#{rank}: {lang}')"
                         ),
-                        caption="Listing 3.2: For loops with enumerate() for indexed iteration.",
+                        caption="Listing 4.1: For loops with range() and enumerate().",
                         line_numbers=True,
                     ),
-                    CalloutBlock(
-                        variant="tip",
-                        title="Enumerate Helper",
-                        content="Use `enumerate(iterable)` whenever you need both the index and the item during a loop instead of managing a manual counter variable.",
-                        icon="lightbulb",
+                    OutputBlock(
+                        title="Output",
+                        content="Count: 1, Square: 1\nCount: 2, Square: 4\nCount: 3, Square: 9\nCount: 4, Square: 16\nCount: 5, Square: 25\n#1: Python\n#2: Rust\n#3: Go",
                     ),
                 ],
             )
 
-        elif "while loops" in brief_lower or "sentinel" in brief_lower:
+        elif "while loop" in brief_lower or "loop control" in brief_lower or "break, continue" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
                     TextBlock(
-                        text="While loops execute continuously until their controlling boolean condition evaluates to `False`. "
-                        "Sentinel values allow dynamic loop termination based on interactive user commands or stream termination signals."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="while_sentinel.py",
-                        code=(
-                            "attempts = 0\n"
-                            "max_attempts = 3\n"
-                            "success = False\n\n"
-                            "while attempts < max_attempts and not success:\n"
-                            "    attempts += 1\n"
-                            "    print(f'Connection attempt {attempts} of {max_attempts}...')\n"
-                            "    if attempts == 2:  # simulate success\n"
-                            "        success = True\n"
-                            "print('Connected successfully!' if success else 'Connection failed.')"
-                        ),
-                        caption="Listing 3.3: Sentinel-controlled while loop with retry limits.",
-                        line_numbers=True,
-                    ),
-                ],
-            )
-
-        elif "break, continue" in brief_lower or "loop control" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Loop execution can be fine-tuned using `break` (immediate termination), `continue` (skip to next iteration), "
-                        "and `else` clauses on loops (executes only if the loop completed without encountering a `break`)."
+                        text="`while` loops repeat code as long as a condition evaluates to `True`. "
+                        "Loop control statements `break` (exit loop immediately) and `continue` (skip remaining code in current iteration) "
+                        "allow fine-grained iteration control."
                     ),
                     CodeBlock(
                         language="python",
                         filename="loop_control.py",
                         code=(
-                            "target = 'target_value'\n"
-                            "items = ['item_a', 'item_b', 'target_value', 'item_c']\n\n"
-                            "for item in items:\n"
-                            "    if item.startswith('item_a'):\n"
-                            "        continue  # skip item_a\n"
-                            "    if item == target:\n"
-                            "        print(f'Found target: {item}')\n"
-                            "        break\n"
-                            "else:\n"
-                            "    print('Target not found in collection.')"
+                            "numbers = [1, 2, -3, 4, 0, 5]\n"
+                            "total = 0\n"
+                            "for n in numbers:\n"
+                            "    if n < 0:\n"
+                            "        continue  # Skip negative numbers\n"
+                            "    if n == 0:\n"
+                            "        break     # Terminate loop at zero\n"
+                            "    total += n\n"
+                            "print(f'Total positive sum before zero: {total}')"
                         ),
-                        caption="Listing 3.4: Using break, continue, and the for...else idiom.",
+                        caption="Listing 4.2: Using continue to skip and break to exit early.",
                         line_numbers=True,
+                    ),
+                    OutputBlock(
+                        title="Console Output",
+                        content="Total positive sum before zero: 7",
                     ),
                 ],
             )
 
-        # --- Chapter 4: Functions & Modularity ---
-        elif "function syntax" in brief_lower or "return values" in brief_lower:
+        # --- Chapter 5: Functions & Scope ---
+        elif "functions" in brief_lower or "parameters & return" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
                     TextBlock(
                         text="Functions organize code into reusable, modular building blocks. Functions are defined using the `def` keyword, "
-                        "support default arguments and keyword parameters, and return calculated results via `return`. "
-                        "Python enforces LEGB scope resolution (Local, Enclosing, Global, Built-in)."
+                        "support default arguments and keyword parameters, and return calculated results via `return`."
                     ),
                     CodeBlock(
                         language="python",
-                        filename="functions.py",
+                        filename="functions_demo.py",
                         code=(
-                            "from typing import List, Optional\n\n"
-                            "def calculate_statistics(numbers: List[float], round_digits: int = 2) -> dict:\n"
-                            '    """Compute average, minimum, and maximum for a list of numbers."""\n'
-                            "    if not numbers:\n"
-                            "        return {'avg': 0.0, 'min': 0.0, 'max': 0.0}\n"
-                            "    avg_val = sum(numbers) / len(numbers)\n"
-                            "    return {\n"
-                            "        'avg': round(avg_val, round_digits),\n"
-                            "        'min': min(numbers),\n"
-                            "        'max': max(numbers),\n"
-                            "    }\n\n"
-                            "stats = calculate_statistics([12.5, 45.0, 68.2, 91.4])\n"
-                            "print(f'Batch metrics: {stats}')"
+                            "def calculate_total(price: float, tax_rate: float = 0.05, discount: float = 0.0) -> float:\n"
+                            '    """Calculate final price after discount and sales tax."""\n'
+                            "    discounted = price * (1.0 - discount)\n"
+                            "    final_price = discounted * (1.0 + tax_rate)\n"
+                            "    return round(final_price, 2)\n\n"
+                            "print('Standard:', calculate_total(100.0))\n"
+                            "print('Discounted:', calculate_total(100.0, discount=0.10))"
                         ),
-                        caption="Listing 4.1: Defining functions with type hints, default parameters, and docstrings.",
+                        caption="Listing 5.1: Function definition with default parameters and return values.",
                         line_numbers=True,
                     ),
-                    CalloutBlock(
-                        variant="tip",
-                        title="Single Responsibility",
-                        content="Each function should perform a single well-defined task with predictable return types to make unit testing straightforward.",
-                        icon="check-circle",
+                    OutputBlock(
+                        title="Console Output",
+                        content="Standard: 105.0\nDiscounted: 94.5",
                     ),
                 ],
             )
 
-        elif "scope resolution" in brief_lower or "module organization" in brief_lower:
+        # --- Chapter 6: Data Structures ---
+        elif "lists" in brief_lower or "tuples" in brief_lower or "collections" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
                     TextBlock(
-                        text="Python determines variable access using the LEGB rule (Local, Enclosing, Global, Built-in). "
-                        "Variables declared inside a function exist only within that local scope, protecting global state from unintended side effects."
+                        text="Python features versatile built-in container types: mutable lists (`[...]`), immutable tuples (`(...)`), "
+                        "key-value dictionaries (`{...}`), and unique sets (`set()`)."
                     ),
-                    DiagramBlock(
+                    CodeBlock(
+                        language="python",
+                        filename="collections_demo.py",
                         code=(
-                            "graph TD\n"
-                            "  L[Local: Inside current function] --> E[Enclosing: Inside enclosing functions]\n"
-                            "  E --> G[Global: Module-level variables]\n"
-                            "  G --> B[Built-in: Python built-in namespace]"
+                            "# Lists, Dictionaries, and Sets\n"
+                            "users = ['Alice', 'Bob', 'Charlie']\n"
+                            "users.append('Diana')\n\n"
+                            "scores = {'Alice': 95, 'Bob': 88}\n"
+                            "scores['Charlie'] = 92\n\n"
+                            "tags = {'python', 'beginner', 'python'}  # Duplicates removed\n"
+                            "print('Users:', users)\n"
+                            "print('Top Score:', scores['Alice'])\n"
+                            "print('Unique Tags:', tags)"
                         ),
-                        caption="Figure 4.1: Python LEGB Scope Lookup Hierarchy.",
+                        caption="Listing 6.1: Core Python data structures in action.",
+                        line_numbers=True,
+                    ),
+                    OutputBlock(
+                        title="Output",
+                        content="Users: ['Alice', 'Bob', 'Charlie', 'Diana']\nTop Score: 95\nUnique Tags: {'python', 'beginner'}",
                     ),
                 ],
             )
 
-        elif "keyword arguments" in brief_lower or "arbitrary args" in brief_lower or "defaults" in brief_lower:
+        # --- Chapter 7: File I/O & Exceptions ---
+        elif "error handling" in brief_lower or "exceptions" in brief_lower or "files" in brief_lower or "try, except" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
                     TextBlock(
-                        text="Python functions offer versatile parameter passing. Positional arguments, keyword arguments (`key=val`), "
-                        "variable positional arguments (`*args`), and variable keyword arguments (`**kwargs`) enable highly adaptable interfaces."
+                        text="Defensive programming requires handling runtime errors gracefully using `try...except` blocks "
+                        "and ensuring system resources like open files are always safely closed with `with` context managers."
                     ),
                     CodeBlock(
                         language="python",
-                        filename="flexible_args.py",
+                        filename="files_and_exceptions.py",
                         code=(
-                            "def configure_service(name: str, host: str = 'localhost', port: int = 8080, **options):\n"
-                            "    print(f'Configuring {name} on {host}:{port}')\n"
-                            "    for k, v in options.items():\n"
-                            "        print(f'  - Option {k}: {v}')\n\n"
-                            "configure_service('API Gateway', port=443, ssl=True, timeout=30)"
+                            "from pathlib import Path\n\n"
+                            "data_file = Path('example.txt')\n"
+                            "# Safe write using context manager\n"
+                            "with open(data_file, 'w', encoding='utf-8') as f:\n"
+                            "    f.write('Hello, Python File I/O!')\n\n"
+                            "# Safe read with try-except\n"
+                            "try:\n"
+                            "    with open(data_file, 'r', encoding='utf-8') as f:\n"
+                            "        content = f.read()\n"
+                            "    print('Read file successfully:', content)\n"
+                            "except FileNotFoundError as err:\n"
+                            "    print(f'Error reading file: {err}')"
                         ),
-                        caption="Listing 4.2: Using default parameters and **kwargs for flexible configuration.",
+                        caption="Listing 7.1: File operations with context managers and error handling.",
                         line_numbers=True,
+                    ),
+                    OutputBlock(
+                        title="Console Output",
+                        content="Read file successfully: Hello, Python File I/O!",
                     ),
                 ],
             )
 
-        elif "docstrings" in brief_lower or "type hints" in brief_lower or "pure functions" in brief_lower:
+        # --- Chapter 8: OOP Fundamentals ---
+        elif "object-oriented" in brief_lower or "classes" in brief_lower or "oop" in brief_lower or "methods" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
                     TextBlock(
-                        text="Type hints (`PEP 484`) and docstrings (`PEP 257`) turn code into self-documenting architectures. "
-                        "Static type checkers like `mypy` verify type consistency ahead of runtime, eliminating whole classes of bugs."
+                        text="Object-Oriented Programming (OOP) groups state (attributes) and behavior (methods) into reusable blueprints called classes. "
+                        "The `__init__` method initializes newly created class instances."
                     ),
                     CodeBlock(
                         language="python",
-                        filename="type_hints_demo.py",
+                        filename="oop_basics.py",
                         code=(
-                            "from typing import Callable\n\n"
-                            "def transform_items(data: list[int], op: Callable[[int], int]) -> list[int]:\n"
-                            '    """Apply a unary mathematical operation to all elements in a list."""\n'
-                            "    return [op(x) for x in data]\n\n"
-                            "squared = transform_items([1, 2, 3, 4], lambda x: x ** 2)\n"
-                            "print(f'Squared values: {squared}')"
+                            "class BankAccount:\n"
+                            "    def __init__(self, owner: str, balance: float = 0.0):\n"
+                            "        self.owner = owner\n"
+                            "        self.balance = balance\n\n"
+                            "    def deposit(self, amount: float) -> float:\n"
+                            "        if amount > 0:\n"
+                            "            self.balance += amount\n"
+                            "        return self.balance\n\n"
+                            "account = BankAccount('Alice', 100.0)\n"
+                            "new_balance = account.deposit(50.0)\n"
+                            "print(f'{account.owner} Balance: ${new_balance:.2f}')"
                         ),
-                        caption="Listing 4.3: Type annotations with Callable signatures.",
+                        caption="Listing 8.1: Class definition with constructor and instance method.",
                         line_numbers=True,
+                    ),
+                    OutputBlock(
+                        title="Console Output",
+                        content="Alice Balance: $150.00",
                     ),
                 ],
             )
 
-        # --- Chapter 5: Data Structures ---
-        elif "lists, tuples" in brief_lower or "slicing operations" in brief_lower or "slicing" in brief_lower:
+        # --- Chapter 9: Capstone Mini-Project ---
+        elif "capstone" in brief_lower or "mini-project" in brief_lower or "project" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
                     TextBlock(
-                        text="Lists and tuples are ordered collections. Lists (`[...]`) are mutable, allowing elements to be added, removed, or modified. "
-                        "Tuples (`(...)`) are immutable, making them ideal for fixed records and dictionary keys. "
-                        "Python's slice notation `[start:stop:step]` provides expressive sub-sequence extraction."
+                        text="We combine variables, functions, collections, file I/O, and OOP into a complete, runnable CLI Task Tracker application. "
+                        "The project demonstrates how individual concepts integrate into a practical tool."
                     ),
                     CodeBlock(
                         language="python",
-                        filename="lists_and_tuples.py",
+                        filename="task_tracker.py",
                         code=(
-                            "# List Operations\n"
-                            "log_entries = ['200 OK', '404 Not Found', '500 Server Error', '200 OK']\n"
-                            "log_entries.append('301 Redirect')\n\n"
-                            "# Slicing: [start:stop:step]\n"
-                            "recent_logs = log_entries[-3:]  # last 3 items\n"
-                            "reversed_logs = log_entries[::-1]  # reverse list\n\n"
-                            "# Tuple Unpacking\n"
-                            "point_3d = (10, 20, 30)\n"
-                            "x, y, z = point_3d\n"
-                            "print(f'Extracted coordinates: X={x}, Y={y}, Z={z}')"
+                            "class Task:\n"
+                            "    def __init__(self, task_id: int, title: str):\n"
+                            "        self.task_id = task_id\n"
+                            "        self.title = title\n"
+                            "        self.completed = False\n\n"
+                            "class TaskManager:\n"
+                            "    def __init__(self):\n"
+                            "        self.tasks: list[Task] = []\n\n"
+                            "    def add_task(self, title: str) -> Task:\n"
+                            "        task = Task(len(self.tasks) + 1, title)\n"
+                            "        self.tasks.append(task)\n"
+                            "        return task\n\n"
+                            "manager = TaskManager()\n"
+                            "manager.add_task('Install Python 3.12')\n"
+                            "manager.add_task('Complete Chapter Exercises')\n"
+                            "for t in manager.tasks:\n"
+                            "    print(f'[{t.task_id}] {t.title} (Done: {t.completed})')"
                         ),
-                        caption="Listing 5.1: List mutability, slicing syntax, and tuple unpacking.",
+                        caption="Listing 9.1: Complete Runnable Capstone CLI Task Tracker.",
                         line_numbers=True,
+                    ),
+                    OutputBlock(
+                        title="Console Output",
+                        content="[1] Install Python 3.12 (Done: False)\n[2] Complete Chapter Exercises (Done: False)",
+                    ),
+                ],
+            )
+
+        # --- Chapter 10: Standard Library & Next Steps ---
+        elif "standard library" in brief_lower or "packages" in brief_lower or "pip" in brief_lower or "next steps" in brief_lower:
+            return PageContent(
+                headline=headline,
+                blocks=[
+                    TextBlock(
+                        text="Python's 'batteries included' philosophy means an extraordinary array of built-in modules is available out of the box. "
+                        "Modules like `math`, `random`, `datetime`, and `pathlib` accelerate development, while `pip` and virtual environments "
+                        "give access to the broader open-source ecosystem."
                     ),
                     TableBlock(
-                        caption="Table 5.1: Python Slicing Syntax Reference.",
-                        columns=["Syntax Pattern", "Example", "Result", "Description"],
+                        caption="Table 10.1: Essential Python Standard Library Modules.",
+                        columns=["Module", "Primary Use Case", "Common Functions"],
                         rows=[
-                            ["`seq[start:stop]`", "`[0, 1, 2, 3][1:3]`", "`[1, 2]`", "Extract elements from index 1 up to (excluding) 3"],
-                            ["`seq[:stop]`", "`[0, 1, 2, 3][:2]`", "`[0, 1]`", "Extract from beginning up to index 2"],
-                            ["`seq[-n:]`", "`[0, 1, 2, 3][-2:]`", "`[2, 3]`", "Extract the last n elements"],
-                            ["`seq[::-1]`", "`[0, 1, 2, 3][::-1]`", "`[3, 2, 1, 0]`", "Reverse the entire sequence using negative step"],
+                            ["`pathlib`", "Object-oriented filesystem paths", "`Path.cwd()`, `Path.exists()`, `read_text()`"],
+                            ["`datetime`", "Dates, times, and formatting", "`datetime.now()`, `strftime()`"],
+                            ["`random`", "Random sampling and numbers", "`random.randint()`, `random.choice()`"],
+                            ["`json`", "Data serialization and parsing", "`json.dump()`, `json.load()`"],
                         ],
-                    ),
-                ],
-            )
-
-        elif "dictionaries, sets" in brief_lower or "hash lookups" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Dictionaries (`{key: value}`) represent associative mappings implemented via hash tables, providing $O(1)$ average-time lookups. "
-                        "Sets (`set()`) maintain unique, unordered elements and support mathematical set operations such as unions, intersections, and differences."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="dicts_and_sets.py",
-                        code=(
-                            "# Dictionary Key-Value Lookups\n"
-                            "user_db = {\n"
-                            "    'u101': {'name': 'Alice', 'role': 'Admin'},\n"
-                            "    'u102': {'name': 'Bob', 'role': 'Developer'},\n"
-                            "}\n"
-                            "alice_role = user_db.get('u101', {}).get('role', 'Guest')\n\n"
-                            "# Set Deduplication and Set Algebra\n"
-                            "raw_tags = ['python', 'web', 'python', 'cloud', 'web']\n"
-                            "unique_tags = set(raw_tags)  # {'python', 'web', 'cloud'}\n"
-                            "required_tags = {'python', 'database'}\n"
-                            "missing_skills = required_tags - unique_tags  # {'database'}\n"
-                            "print(f'Missing skills to learn: {missing_skills}')"
-                        ),
-                        caption="Listing 5.2: Dictionary `.get()` safety and set difference algebra.",
-                        line_numbers=True,
                     ),
                     CalloutBlock(
                         variant="tip",
-                        title="Dictionary Safety",
-                        content="Always use `.get(key, default)` when reading dictionary keys that might not exist to prevent unhandled `KeyError` crashes.",
+                        title="Virtual Environments",
+                        content="Always use `python -m venv .venv` to isolate project dependencies before installing packages with `pip`.",
                         icon="shield-check",
                     ),
                 ],
             )
 
-        elif "comprehensions" in brief_lower or "transformation pipelines" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="List, dictionary, and set comprehensions provide declarative syntax for filtering and transforming collections. "
-                        "Comprehensions are faster and more idiomatic than traditional imperative `for` loops with `.append()` calls."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="comprehensions.py",
-                        code=(
-                            "numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n\n"
-                            "# Filter even numbers and compute square\n"
-                            "even_squares = [x ** 2 for x in numbers if x % 2 == 0]\n\n"
-                            "# Dict comprehension\n"
-                            "word_lengths = {word: len(word) for word in ['python', 'code', 'build']}\n"
-                            "print(f'Even squares: {even_squares}')\n"
-                            "print(f'Lengths: {word_lengths}')"
-                        ),
-                        caption="Listing 5.3: Concise transformations using list and dict comprehensions.",
-                        line_numbers=True,
-                    ),
-                ],
-            )
-
-        elif "selection guide" in brief_lower or "complexity" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Choosing the optimal data structure depends on access patterns, ordering requirements, and computational complexity. "
-                        "Understanding Big-O asymptotic bounds prevents performance bottlenecks."
-                    ),
-                    TableBlock(
-                        caption="Table 5.2: Python Data Structure Time Complexity Comparison.",
-                        columns=["Data Structure", "Access", "Search", "Insertion", "Deletion"],
-                        rows=[
-                            ["**List** (`list`)", "$O(1)$", "$O(n)$", "$O(1)$ amortized (append)", "$O(n)$"],
-                            ["**Tuple** (`tuple`)", "$O(1)$", "$O(n)$", "N/A (Immutable)", "N/A (Immutable)"],
-                            ["**Dictionary** (`dict`)", "N/A", "$O(1)$ average", "$O(1)$ average", "$O(1)$ average"],
-                            ["**Set** (`set`)", "N/A", "$O(1)$ average", "$O(1)$ average", "$O(1)$ average"],
-                        ],
-                    ),
-                ],
-            )
-
-        # --- Chapter 6: File & Error Handling ---
-        elif "working with files" in brief_lower or "context managers" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Defensive programming requires handling unexpected I/O failures and runtime errors gracefully. "
-                        "The `with` statement (context manager) guarantees file descriptors and system resources are safely released upon completion."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="file_io.py",
-                        code=(
-                            "from pathlib import Path\n\n"
-                            "report_path = Path('daily_summary.txt')\n"
-                            "with open(report_path, 'w', encoding='utf-8') as f:\n"
-                            "    f.write('--- DAILY EXECUTION REPORT ---\\n')\n"
-                            "    f.write('Tasks completed: 42\\n')\n"
-                            "print(f'Report written to {report_path}')"
-                        ),
-                        caption="Listing 6.1: Writing to files using context managers and explicit UTF-8 encoding.",
-                        line_numbers=True,
-                    ),
-                ],
-            )
-
-        elif "try/except" in brief_lower or "exception handling" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Structured exception handling catches runtime faults without crashing your program. "
-                        "The `try...except...else...finally` block isolates failure points and provides safe recovery paths."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="exception_handling.py",
-                        code=(
-                            "def safe_divide(a: float, b: float) -> float:\n"
-                            "    try:\n"
-                            "        return a / b\n"
-                            "    except ZeroDivisionError:\n"
-                            "        print('Warning: Division by zero encountered. Returning 0.0.')\n"
-                            "        return 0.0\n"
-                            "    finally:\n"
-                            "        print('Division operation executed.')"
-                        ),
-                        caption="Listing 6.2: Intercepting ZeroDivisionError with try/except/finally.",
-                        line_numbers=True,
-                    ),
-                ],
-            )
-
-        elif "json & csv" in brief_lower or "structured formats" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Modern applications interchange data using JSON and CSV. Python's built-in `json` and `csv` modules "
-                        "parse structured files directly into native Python lists and dictionaries."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="json_csv_parser.py",
-                        code=(
-                            "import json\n"
-                            "from pathlib import Path\n\n"
-                            "config_file = Path('settings.json')\n"
-                            "data = {'app_name': 'VasukiRunner', 'version': '1.0.0', 'debug': False}\n\n"
-                            "with open(config_file, 'w', encoding='utf-8') as f:\n"
-                            "    json.dump(data, f, indent=4)\n\n"
-                            "with open(config_file, 'r', encoding='utf-8') as f:\n"
-                            "    loaded = json.load(f)\n"
-                            "print(f'Loaded App: {loaded[\"app_name\"]} (v{loaded[\"version\"]})')"
-                        ),
-                        caption="Listing 6.3: Serializing and deserializing JSON configurations.",
-                        line_numbers=True,
-                    ),
-                ],
-            )
-
-        elif "defensive programming" in brief_lower or "custom exception" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Creating custom exception classes inheriting from `Exception` enables precise error reporting within domain models."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="custom_exceptions.py",
-                        code=(
-                            "class ValidationError(Exception):\n"
-                            '    """Raised when an input fails domain validation."""\n'
-                            "    pass\n\n"
-                            "def register_user(email: str):\n"
-                            "    if '@' not in email:\n"
-                            "        raise ValidationError(f'Invalid email address: {email}')\n"
-                            "    print(f'Registered user {email}')"
-                        ),
-                        caption="Listing 6.4: Custom exception definitions and raising errors.",
-                        line_numbers=True,
-                    ),
-                ],
-            )
-
-        # --- Chapter 7: Real-World CLI Application ---
-        elif "architecture of a complete" in brief_lower or "cli application" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Putting foundations into practice, we design a modular Command-Line Interface (CLI) application. "
-                        "The application cleanly separates data modeling, persistence, and interactive user command handling."
-                    ),
-                    DiagramBlock(
-                        code=(
-                            "graph TD\n"
-                            "  UI[Interactive Terminal Loop] --> Controller[Command Controller]\n"
-                            "  Controller --> Model[Task Model & Business Logic]\n"
-                            "  Model --> Storage[JSON File Storage Engine]"
-                        ),
-                        caption="Figure 7.1: Architectural layers of the CLI Task Manager.",
-                    ),
-                ],
-            )
-
-        elif "task model" in brief_lower or "storage implementation" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="The task model defines the core domain entities and encapsulates serialization logic for JSON persistence."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="task_model.py",
-                        code=(
-                            "from dataclasses import dataclass, asdict\n"
-                            "import json\n"
-                            "from pathlib import Path\n\n"
-                            "@dataclass\n"
-                            "class Task:\n"
-                            "    id: int\n"
-                            "    title: str\n"
-                            "    completed: bool = False\n\n"
-                            "def save_tasks(tasks: list[Task], filepath: Path):\n"
-                            "    with open(filepath, 'w', encoding='utf-8') as f:\n"
-                            "        json.dump([asdict(t) for t in tasks], f, indent=2)"
-                        ),
-                        caption="Listing 7.1: Dataclass definition and JSON persistence helpers.",
-                        line_numbers=True,
-                    ),
-                ],
-            )
-
-        elif "command loop" in brief_lower or "user experience" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="The command loop provides an interactive menu, reading commands from `input()`, validating arguments, and printing formatted feedback."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="command_loop.py",
-                        code=(
-                            "def run_menu():\n"
-                            "    print('\\n=== TASK MANAGER CLI ===')\n"
-                            "    print('1. List Tasks  2. Add Task  3. Complete Task  4. Exit')\n"
-                            "    choice = input('Select an option (1-4): ').strip()\n"
-                            "    return choice"
-                        ),
-                        caption="Listing 7.2: Interactive menu prompt.",
-                        line_numbers=True,
-                    ),
-                ],
-            )
-
-        elif "end-to-end implementation" in brief_lower or "testing" in brief_lower or ch_num == 7:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="We assemble all components into a complete, executable Python script ready for daily developer productivity."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="main_app.py",
-                        code=(
-                            "import sys\n\n"
-                            "def main():\n"
-                            "    print('✓ VasukiSquare Task Tracker initialized successfully.')\n\n"
-                            "if __name__ == '__main__':\n"
-                            "    main()"
-                        ),
-                        caption="Listing 7.3: Application entry point and startup guard.",
-                        line_numbers=True,
-                    ),
-                ],
-            )
-
-        # --- Chapter 8: Ecosystem & Best Practices ---
-        elif "standard library power tools" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Python's 'batteries included' philosophy means an extraordinary array of built-in modules is available without installing third-party packages. "
-                        "Standard library modules like `pathlib`, `datetime`, and `collections` accelerate development while adhering to PEP 8 standards."
-                    ),
-                    TableBlock(
-                        caption="Table 8.1: Essential Python Standard Library Power Tools.",
-                        columns=["Module", "Primary Capabilities", "Example Functions / Classes"],
-                        rows=[
-                            ["`pathlib`", "Object-oriented filesystem path manipulation", "`Path.cwd()`, `Path.exists()`, `path.read_text()`"],
-                            ["`datetime`", "Date, time, timezone, and duration calculations", "`datetime.now()`, `timedelta(days=7)`"],
-                            ["`collections`", "High-performance specialized container datatypes", "`defaultdict`, `Counter`, `namedtuple`"],
-                            ["`math` / `random`", "Mathematical operations and random number sampling", "`math.sqrt()`, `random.choice()`"],
-                        ],
-                        source_note="Python 3 Standard Library Documentation (docs.python.org/3/library/)",
-                    ),
-                ],
-            )
-
-        elif "virtual environments, pep 8" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Virtual environments isolate project dependencies, preventing version conflicts. "
-                        "PEP 8 provides the official style guide for Python code, standardizing naming conventions, imports, and whitespace."
-                    ),
-                    CodeBlock(
-                        language="bash",
-                        filename="terminal_setup.sh",
-                        code=(
-                            "# Create and activate a clean virtual environment\n"
-                            "python -m venv .venv\n"
-                            "source .venv/bin/activate  # On Windows: .venv\\Scripts\\activate\n"
-                            "pip install ruff pytest"
-                        ),
-                        caption="Listing 8.1: Creating a virtual environment and installing tools.",
-                        line_numbers=True,
-                    ),
-                    QuoteBlock(
-                        quote="Readability counts. Simple is better than complex. Explicit is better than implicit.",
-                        author="Tim Peters",
-                        affiliation="The Zen of Python (PEP 20)",
-                    ),
-                ],
-            )
-
-        elif "pyproject.toml" in brief_lower or "package management" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Modern Python packaging uses `pyproject.toml` (PEP 518/621) as the single source of truth for dependencies, build settings, and project metadata."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="pyproject.toml",
-                        code=(
-                            "[project]\n"
-                            "name = 'my_first_python_app'\n"
-                            "version = '0.1.0'\n"
-                            "description = 'A practical CLI application'\n"
-                            "dependencies = [\n"
-                            "    'rich>=13.0.0',\n"
-                            "]"
-                        ),
-                        caption="Listing 8.2: Standard pyproject.toml configuration.",
-                        line_numbers=True,
-                    ),
-                ],
-            )
-
-        elif "roadmap" in brief_lower or "beginner to professional" in brief_lower or ch_num == 8:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="As you advance from beginner to proficient Python engineer, expand into asynchronous programming (`asyncio`), "
-                        "web frameworks (`FastAPI`, `Django`), and data engineering (`Polars`, `NumPy`)."
-                    ),
-                    TimelineBlock(
-                        events=[
-                            ("Month 1", "Foundations", "Core syntax, data structures, and CLI scripting."),
-                            ("Month 2", "Software Engineering", "Unit testing, virtual environments, and package management."),
-                            ("Month 3+", "Specialization", "Web backend APIs, data engineering, or automated tooling."),
-                        ]
-                    ),
-                ],
-            )
-
-        # Fallback for general Python page with dynamic content
+        # Fallback for any other Python section
         return PageContent(
             headline=headline,
             blocks=[
                 TextBlock(
-                    text=f"Developing expertise in **{p.brief or p.chapter_title}** requires combining theoretical understanding with active coding practice. "
-                    f"In Python, writing clean, readable code is achieved by leveraging clear variable names, comprehensive docstrings, and standard library idioms. "
-                    f"Experimenting with code in small increments allows you to verify behavior immediately and build confidence in your software."
+                    text=f"Mastering **{p.brief or p.chapter_title}** builds confidence in your Python engineering abilities. "
+                    f"By applying structured syntax, verified typing, and idiomatic coding practices, you write programs that are clean, reliable, and easy to maintain."
+                ),
+                CodeBlock(
+                    language="python",
+                    filename="practice_example.py",
+                    code=(
+                        f"# Working example for {headline}\n"
+                        f"def execute_practice() -> str:\n"
+                        f"    message = 'Concept verified successfully.'\n"
+                        f"    return message\n\n"
+                        f"print(execute_practice())"
+                    ),
+                    caption=f"Listing: {headline} Practice Implementation",
+                    line_numbers=True,
+                ),
+                OutputBlock(
+                    title="Console Output",
+                    content="Concept verified successfully.",
                 ),
                 CalloutBlock(
                     variant="tip",
-                    title="Hands-On Exercise",
-                    content=f"Try writing a 10-line Python script that applies the concepts of {p.brief or p.chapter_title} to solve a real-world task.",
+                    title="Hands-On Challenge",
+                    content=f"Try writing a small script that applies {headline} to solve a real task in your daily workflow.",
                     icon="code",
-                ),
-                TextBlock(
-                    text="As you continue building programs, keep your functions modular and consult the official Python documentation at docs.python.org for detailed API references."
                 ),
             ],
         )
@@ -1803,25 +1438,23 @@ class PageWriterAgent:
         headline: str,
         citations: List[SourceCitation],
     ) -> PageContent:
-        """Produce mock-mode technical editorial content blocks tailored to the section topic."""
-        ch_num = p.chapter_number or 1
+        """Produce mock-mode non-technical editorial content blocks."""
         brief = p.brief or p.chapter_title or plan.title
-        primary_lang = plan.intent.primary_programming_language or "python"
 
         blocks = [
             TextBlock(
-                text=f"Understanding **{brief}** provides essential engineering fundamentals for {plan.title}. "
-                f"In this section, we examine practical patterns, configuration workflows, and implementation strategies "
+                text=f"Understanding **{brief}** provides essential fundamentals for {plan.title}. "
+                f"In this section, we examine practical patterns, frameworks, and actionable strategies "
                 f"tailored for {plan.intent.target_audience.lower()}."
             ),
             CalloutBlock(
                 variant="tip",
                 title="Implementation Note",
-                content=f"When applying {brief}, ensure comprehensive logging and robust input validation to streamline operational debugging.",
+                content=f"When applying {brief}, establish small daily habits and track measurable indicators to ensure sustainable progress.",
                 icon="lightbulb",
             ),
             TextBlock(
-                text=f"By integrating {brief} into your core application workflows, you establish predictable and maintainable system behaviors."
+                text=f"By integrating {brief} into your routine, you establish consistent progress toward your long-term goals."
             ),
         ]
         return PageContent(headline=headline, blocks=blocks)

@@ -13,6 +13,7 @@ from vasukisquare.book.components import (
     ChartBlock,
     ChecklistBlock,
     CodeBlock,
+    CommonMistakeBlock,
     ComparisonBlock,
     ContentBlock,
     CopyrightBlock,
@@ -22,6 +23,7 @@ from vasukisquare.book.components import (
     HeadingBlock,
     IconTextBlock,
     ImageBlock,
+    OutputBlock,
     QuoteBlock,
     SourceBlock,
     StatisticBlock,
@@ -62,6 +64,10 @@ class ComponentRenderer:
         b_type = getattr(block, "type", None)
         if isinstance(block, CodeBlock) or b_type == "code":
             return cls.render_code(block, theme)
+        elif isinstance(block, OutputBlock) or b_type == "output":
+            return cls.render_output(block, theme)
+        elif isinstance(block, CommonMistakeBlock) or b_type == "mistake":
+            return cls.render_mistake(block, theme)
         elif isinstance(block, TerminalBlock) or b_type == "terminal":
             return cls.render_terminal(block, theme)
         elif isinstance(block, TableBlock) or b_type == "table":
@@ -196,6 +202,69 @@ class ComponentRenderer:
           </div>
           {caption_html}
         </figure>
+        """
+
+    @classmethod
+    def render_output(cls, block: OutputBlock, theme: Theme = Theme.LIGHT) -> str:
+        """Render dedicated console output block with distinct monospace output formatting."""
+        escaped_out = html.escape(block.output.strip())
+        title_badge = f'<span class="output-title-badge">{html.escape(block.title or "OUTPUT")}</span>'
+        caption_html = (
+            f'<figcaption class="output-caption" style="font-size: 11px; color: var(--theme-text-muted); margin-top: 4px;">{RichTextRenderer.render_text_or_markdown(block.caption)}</figcaption>'
+            if block.caption and block.caption != "Expected Output"
+            else ""
+        )
+        return f"""
+        <figure class="component-output-figure">
+          <div class="component-output-block theme-{theme.value}" style="border-left: 3px solid var(--theme-accent, #00ed64); background: rgba(0,0,0,0.04); border-radius: 0 4px 4px 0; padding: 10px 14px; margin: 8px 0; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 12.5px; line-height: 1.45;">
+            <div class="output-header" style="font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--theme-text-muted); margin-bottom: 6px;">
+              {title_badge}
+            </div>
+            <pre style="margin: 0; white-space: pre-wrap; word-break: break-word;"><code>{escaped_out}</code></pre>
+          </div>
+          {caption_html}
+        </figure>
+        """
+
+    @classmethod
+    def render_mistake(cls, block: CommonMistakeBlock, theme: Theme = Theme.LIGHT) -> str:
+        """Render labeled common beginner mistake comparison block with incorrect vs corrected code."""
+        lang = (block.language or "python").lower().strip()
+        try:
+            lexer = get_lexer_by_name(lang, stripall=True)
+        except Exception:
+            lexer = TextLexer()
+        formatter = HtmlFormatter(nowrap=True, classprefix="hl-", linenos=False)
+        hl_wrong = highlight(block.mistake_code, lexer, formatter)
+        hl_fixed = highlight(block.corrected_code, lexer, formatter) if block.corrected_code else ""
+
+        fixed_block_html = ""
+        if block.corrected_code:
+            fixed_block_html = f"""
+            <div class="mistake-fixed" style="margin-top: 8px; border-left: 3px solid #00a35c; padding: 6px 10px; background: rgba(0, 163, 92, 0.06);">
+              <div style="font-size: 10px; font-weight: 700; color: #00a35c; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">✓ Corrected Code</div>
+              <pre style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 12px;"><code>{hl_fixed}</code></pre>
+            </div>
+            """
+
+        explanation_html = RichTextRenderer.render_text_or_markdown(block.explanation)
+        err_badge = f' <span style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: #dc2626; padding: 2px 6px; border-radius: 3px;">{html.escape(block.error_type)}</span>' if block.error_type else ""
+
+        return f"""
+        <div class="component-mistake-card theme-{theme.value}" style="border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; padding: 12px 14px; margin: 10px 0; background: rgba(239, 68, 68, 0.03);">
+          <div class="mistake-header" style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; color: #dc2626; margin-bottom: 8px;">
+            <span>⚠️ {html.escape(block.title)}</span>
+            {err_badge}
+          </div>
+          <div class="mistake-wrong" style="border-left: 3px solid #dc2626; padding: 6px 10px; background: rgba(239, 68, 68, 0.06); margin-bottom: 8px;">
+            <div style="font-size: 10px; font-weight: 700; color: #dc2626; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px;">✗ Incorrect / Common Pitfall</div>
+            <pre style="margin: 0; font-family: 'JetBrains Mono', monospace; font-size: 12px;"><code>{hl_wrong}</code></pre>
+          </div>
+          {fixed_block_html}
+          <div class="mistake-explanation" style="font-size: 12px; line-height: 1.45; color: var(--theme-text); margin-top: 8px;">
+            {explanation_html}
+          </div>
+        </div>
         """
 
     @classmethod

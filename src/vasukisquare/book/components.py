@@ -360,6 +360,27 @@ class ExerciseBlock(BaseModel):
     hints: Optional[List[str]] = Field(default=None, description="Helpful hints")
 
 
+class OutputBlock(BaseModel):
+    """Dedicated expected standard output console block."""
+
+    type: Literal["output"] = "output"
+    output: str = Field(description="Exact expected standard output text")
+    caption: Optional[str] = Field(default="Expected Output", description="Caption or description")
+    title: Optional[str] = Field(default=None, description="Optional title header")
+
+
+class CommonMistakeBlock(BaseModel):
+    """Educational common beginner mistake vs corrected code block."""
+
+    type: Literal["mistake"] = "mistake"
+    title: str = Field(default="Common Beginner Mistake", description="Title of the mistake")
+    mistake_code: str = Field(description="Incorrect code snippet illustrating the mistake")
+    corrected_code: Optional[str] = Field(default=None, description="Corrected executable code snippet")
+    explanation: str = Field(description="Explanation of why the error occurs and how to avoid it")
+    error_type: Optional[str] = Field(default=None, description="Name of exception or error (e.g. SyntaxError, NameError)")
+    language: str = Field(default="python", description="Programming language")
+
+
 # Aliases for unified card models
 IconCard = CalloutBlock
 InfoCard = CalloutBlock
@@ -372,6 +393,8 @@ QuoteCard = QuoteBlock
 # Union type for all content blocks
 ContentBlock = Union[
     CodeBlock,
+    OutputBlock,
+    CommonMistakeBlock,
     TerminalBlock,
     TableBlock,
     SourceBlock,

@@ -78,7 +78,7 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
     ),
     TechnicalPageType.CODE_TUTORIAL: TechnicalPageSpec(
         page_type=TechnicalPageType.CODE_TUTORIAL,
-        required_components=["heading", "text", "code", "callout"],
+        required_components=["heading", "text", "code", "output", "callout"],
         requires_code=True,
         suggested_layout="code_focus",
     ),
@@ -91,13 +91,13 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
     ),
     TechnicalPageType.CRUD_EXAMPLE: TechnicalPageSpec(
         page_type=TechnicalPageType.CRUD_EXAMPLE,
-        required_components=["heading", "text", "code", "callout"],
+        required_components=["heading", "text", "code", "output", "callout"],
         requires_code=True,
         suggested_layout="code_focus",
     ),
     TechnicalPageType.COMPARISON: TechnicalPageSpec(
         page_type=TechnicalPageType.COMPARISON,
-        required_components=["heading", "text", "table", "callout"],
+        required_components=["heading", "text", "table", "comparison", "callout"],
         requires_table=True,
         suggested_layout="comparison",
     ),
@@ -108,18 +108,18 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
     ),
     TechnicalPageType.DEBUGGING: TechnicalPageSpec(
         page_type=TechnicalPageType.DEBUGGING,
-        required_components=["heading", "text", "terminal", "callout"],
-        requires_terminal=True,
+        required_components=["heading", "text", "mistake", "code", "callout"],
+        requires_code=True,
         suggested_layout="editorial",
     ),
     TechnicalPageType.EXERCISE: TechnicalPageSpec(
         page_type=TechnicalPageType.EXERCISE,
-        required_components=["heading", "text", "step", "callout"],
+        required_components=["heading", "text", "exercise", "callout"],
         suggested_layout="editorial",
     ),
     TechnicalPageType.MINI_PROJECT: TechnicalPageSpec(
         page_type=TechnicalPageType.MINI_PROJECT,
-        required_components=["heading", "text", "code", "callout"],
+        required_components=["heading", "text", "code", "output", "callout"],
         requires_code=True,
         suggested_layout="code_focus",
     ),
@@ -131,16 +131,41 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
     ),
     TechnicalPageType.BENCHMARK: TechnicalPageSpec(
         page_type=TechnicalPageType.BENCHMARK,
-        required_components=["heading", "text", "table", "callout"],
+        required_components=["heading", "text", "table", "chart", "callout"],
         requires_table=True,
         suggested_layout="comparison",
     ),
     TechnicalPageType.SUMMARY: TechnicalPageSpec(
         page_type=TechnicalPageType.SUMMARY,
-        required_components=["heading", "text", "callout"],
+        required_components=["heading", "text", "checklist", "callout"],
         suggested_layout="summary",
     ),
 }
+
+# Strict Component Eligibility Map: Defines which content block types are allowed per page type
+COMPONENT_ELIGIBILITY: Dict[TechnicalPageType, List[str]] = {
+    TechnicalPageType.CONCEPT: ["heading", "text", "definition", "diagram", "comparison", "callout", "code", "output"],
+    TechnicalPageType.INSTALLATION: ["heading", "text", "terminal", "output", "step", "callout", "troubleshooting"],
+    TechnicalPageType.CONFIGURATION: ["heading", "text", "code", "table", "callout"],
+    TechnicalPageType.TERMINAL_TUTORIAL: ["heading", "text", "terminal", "output", "step", "callout"],
+    TechnicalPageType.CODE_TUTORIAL: ["heading", "text", "code", "output", "callout", "exercise"],
+    TechnicalPageType.API_REFERENCE: ["heading", "text", "table", "code", "definition", "callout"],
+    TechnicalPageType.CRUD_EXAMPLE: ["heading", "text", "code", "output", "callout"],
+    TechnicalPageType.COMPARISON: ["heading", "text", "table", "comparison", "callout", "code"],
+    TechnicalPageType.ARCHITECTURE: ["heading", "text", "diagram", "callout", "code"],
+    TechnicalPageType.DEBUGGING: ["heading", "text", "mistake", "code", "terminal", "callout"],
+    TechnicalPageType.EXERCISE: ["heading", "text", "exercise", "code", "callout"],
+    TechnicalPageType.MINI_PROJECT: ["heading", "text", "code", "output", "terminal", "exercise", "callout"],
+    TechnicalPageType.DEPLOYMENT: ["heading", "text", "terminal", "step", "callout"],
+    TechnicalPageType.BENCHMARK: ["heading", "text", "table", "chart", "comparison", "callout"],
+    TechnicalPageType.SUMMARY: ["heading", "text", "checklist", "callout", "timeline"],
+}
+
+
+def is_component_eligible(component_type: str, page_type: TechnicalPageType) -> bool:
+    """Verify if a block component is eligible to appear on the specified page type."""
+    eligible = COMPONENT_ELIGIBILITY.get(page_type, ["heading", "text", "callout"])
+    return component_type in eligible
 
 
 class PageComplexity(str, Enum):

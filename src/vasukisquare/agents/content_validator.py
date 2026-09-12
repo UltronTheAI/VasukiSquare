@@ -84,6 +84,21 @@ GENERIC_BOILERPLATE_PATTERNS = [
 ]
 
 
+import ast
+
+MEDIAWIKI_ARTIFACT_PATTERNS = [
+    r"\{\{cite\b",
+    r"\{\{citation\b",
+    r"\[\[(?:file|image):",
+    r"&lt;ref\b",
+    r"&lt;/ref&gt;",
+    r"&amp;lt;ref",
+    r"jump to content",
+    r"jump to navigation",
+    r"retrieved on \d{4}",
+]
+
+
 def validate_terminal_command(command: str) -> bool:
     """Validate that command contains real shell/CLI commands and not conversational prose."""
     if not command or not command.strip():
@@ -133,7 +148,7 @@ def validate_terminal_command(command: str) -> bool:
 
 
 def validate_code_block(code: str, language: str = "python") -> bool:
-    """Validate that code contains actual source code and not English prose."""
+    """Validate that code contains actual source code and not English prose, with AST verification for Python."""
     if not code or not code.strip():
         return False
 
@@ -144,6 +159,21 @@ def validate_code_block(code: str, language: str = "python") -> bool:
     for prefix in PROSE_PREFIXES:
         if clean_lower.startswith(prefix) and not any(k in clean for k in ["def ", "class ", "import ", "const ", "{", "print("]):
             return False
+
+    lang_lower = (language or "python").lower()
+    if lang_lower in ("python", "py"):
+        lines_no_repl = []
+        for line in clean.split("\n"):
+            if line.startswith(">>> ") or line.startswith("... "):
+                lines_no_repl.append(line[4:])
+            else:
+                lines_no_repl.append(line)
+        code_to_parse = "\n".join(lines_no_repl)
+        try:
+            ast.parse(code_to_parse)
+            return True
+        except SyntaxError:
+            pass
 
     matches = 0
     for pat in CODE_SYNTAX_PATTERNS:
@@ -161,7 +191,7 @@ def validate_code_block(code: str, language: str = "python") -> bool:
 
 
 def detect_topic_drift(text: str, primary_subject: str, is_beginner: bool = False) -> List[str]:
-    """Detect topic drift such as hallucinated zero-knowledge cryptography or repeated boilerplate."""
+    """Detect topic drift such as hallucinated zero-knowledge cryptography, uncleaned scraper junk, or repeated boilerplate."""
     issues = []
     if not text:
         return issues
@@ -176,6 +206,16 @@ def detect_topic_drift(text: str, primary_subject: str, is_beginner: bool = Fals
             if term in text_lower:
                 issues.append(f"Detected topic drift: Hallucinated zero-knowledge cryptography concept '{term}' for unrelated subject '{primary_subject}' (Title 'From Zero Knowledge' denotes beginner level, not ZK cryptography).")
                 break
+
+    # Check for uncleaned scraper/MediaWiki markup
+    for pat in MEDIAWIKI_ARTIFACT_PATTERNS:
+        if re.search(pat, text_lower):
+            issues.append(f"Detected uncleaned MediaWiki/scraper artifact matching '{pat}' in page text.")
+
+    # Check for AWS account creation or off-topic cloud setup in local beginner python
+    if "python" in subject_lower and is_beginner:
+        if "aws management console" in text_lower or "create an aws account" in text_lower:
+            issues.append("Detected off-topic cloud infrastructure procedure (AWS account setup) in Python beginner guide.")
 
     for pat in GENERIC_BOILERPLATE_PATTERNS:
         if re.search(pat, text, re.IGNORECASE):

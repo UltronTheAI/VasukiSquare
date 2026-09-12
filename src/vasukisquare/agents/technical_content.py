@@ -170,72 +170,87 @@ def extract_chapter_research(
     tech_pkg = tech_name.lower().replace(" ", "")
 
     if classification.is_technical:
-        packages.append(tech_pkg)
-        if chapter.chapter_number == 1:
-            cli_commands = [
-                f"python --version || node --version",
-                f"pip install {tech_pkg} || npm install {tech_pkg}",
-                f"{tech_pkg} --help",
-            ]
-            if not code_snippets:
-                code_snippets.append({
-                    "language": "python",
-                    "filename": "quickstart.py",
-                    "code": f"import {tech_pkg}\n\nclient = {tech_pkg}.Client()\nprint('Connected:', client.is_ready())",
-                    "explanation": f"Initializes connection to {tech_name}."
-                })
-            key_terms = [
-                {"term": f"{tech_name}", "definition": f"Core technical runtime and system component."},
-                {"term": "Client Instance", "definition": "Programmatic interface to interact with the engine."}
-            ]
-            api_methods = [
-                {"name": "Client()", "description": "Constructs and initializes the runtime client."},
-                {"name": "is_ready()", "description": "Returns boolean indicating operational health."}
-            ]
-        elif chapter.chapter_number == 2:
-            cli_commands = [
-                f"{tech_pkg} init --config config.json",
-                f"{tech_pkg} status --verbose",
-            ]
-            configuration = {"port": 8080, "host": "127.0.0.1", "engine": tech_pkg}
-            if not code_snippets:
-                code_snippets.append({
-                    "language": "python",
-                    "filename": "crud_operations.py",
-                    "code": (
-                        f"# Core CRUD Lifecycle\n"
-                        f"record = client.create(table='users', data={{'id': 1, 'name': 'Alice'}})\n"
-                        f"fetched = client.read(table='users', id=1)\n"
-                        f"client.update(table='users', id=1, data={{'name': 'Alice Smith'}})\n"
-                        f"print('Record processed:', fetched)"
-                    ),
-                    "explanation": "Executes complete create, read, and update lifecycle operations."
-                })
-            api_methods = [
-                {"name": "create(table, data)", "description": "Persists a new entity record."},
-                {"name": "read(table, id)", "description": "Retrieves an entity by unique primary identifier."},
-                {"name": "update(table, id, data)", "description": "Modifies existing record attributes."}
-            ]
+        is_python = tech_pkg in ["python", "pythonprogramming", "python3"]
+        if is_python:
+            packages.append("python")
+            if chapter.chapter_number == 1:
+                cli_commands = [
+                    "python3 --version",
+                    "python3 hello.py",
+                ]
+                if not code_snippets:
+                    code_snippets.append({
+                        "language": "python",
+                        "filename": "hello.py",
+                        "code": 'print("Hello, World!")\nname = "Python"\nprint(f"Welcome to {name}!")',
+                        "explanation": "Executes your first Python script using print and f-strings."
+                    })
+                key_terms = [
+                    {"term": "Interpreter", "definition": "Software program that directly executes instructions written in Python."},
+                    {"term": "REPL", "definition": "Read-Eval-Print Loop interactive shell for testing Python expressions."}
+                ]
+                api_methods = [
+                    {"name": "print(*objects, sep=' ', end='\\n')", "description": "Prints objects to the text stream file."},
+                    {"name": "input(prompt)", "description": "Reads a string line from standard input."}
+                ]
+            elif chapter.chapter_number == 2:
+                cli_commands = ["python3 variables.py"]
+                if not code_snippets:
+                    code_snippets.append({
+                        "language": "python",
+                        "filename": "variables.py",
+                        "code": 'user_age = 25\nis_active = True\nprice = 19.99\nprint(f"Age: {user_age}, Active: {is_active}, Price: ${price:.2f}")',
+                        "explanation": "Declares integers, booleans, and floating point variables with formatted output."
+                    })
+                key_terms = [
+                    {"term": "Dynamic Typing", "definition": "Variable types are determined automatically at runtime."},
+                    {"term": "f-string", "definition": "Formatted string literal allowing embedded expressions."}
+                ]
+            else:
+                cli_commands = [f"python3 chapter_{chapter.chapter_number}.py"]
+                if not code_snippets:
+                    code_snippets.append({
+                        "language": "python",
+                        "filename": f"example_ch{chapter.chapter_number}.py",
+                        "code": (
+                            'def calculate_summary(numbers: list[int]) -> dict:\n'
+                            '    total = sum(numbers)\n'
+                            '    count = len(numbers)\n'
+                            '    avg = total / count if count > 0 else 0.0\n'
+                            '    return {"total": total, "count": count, "average": avg}\n\n'
+                            'scores = [85, 92, 78, 90]\n'
+                            'result = calculate_summary(scores)\n'
+                            'print("Summary:", result)'
+                        ),
+                        "explanation": f"Modular function processing and returning dictionary summary for Chapter {chapter.chapter_number}."
+                    })
         else:
-            cli_commands = [
-                f"{tech_pkg} run --environment production",
-                f"{tech_pkg} test --all",
-            ]
-            if not code_snippets:
-                code_snippets.append({
-                    "language": "python",
-                    "filename": f"service_ch{chapter.chapter_number}.py",
-                    "code": (
-                        f"def process_batch(items: list) -> list:\n"
-                        f"    results = []\n"
-                        f"    for item in items:\n"
-                        f"        validated = client.validate(item)\n"
-                        f"        results.append(validated)\n"
-                        f"    return results\n\n"
-                        f"print('Batch processor ready.')"
-                    ),
-                    "explanation": f"Workflow handler for Chapter {chapter.chapter_number}."
-                })
+            packages.append(tech_pkg)
+            if chapter.chapter_number == 1:
+                cli_commands = [
+                    f"{tech_pkg} --version",
+                    f"{tech_pkg} --help",
+                ]
+                if not code_snippets:
+                    code_snippets.append({
+                        "language": "bash",
+                        "filename": "quickstart.sh",
+                        "code": f"# Check {tech_name} installation\n{tech_pkg} --version",
+                        "explanation": f"Verifies installation of {tech_name}."
+                    })
+                key_terms = [
+                    {"term": f"{tech_name}", "definition": f"Core technical runtime and system component."},
+                ]
+            elif chapter.chapter_number == 2:
+                cli_commands = [
+                    f"{tech_pkg} init --config config.json",
+                    f"{tech_pkg} status",
+                ]
+                configuration = {"port": 8080, "host": "127.0.0.1", "engine": tech_pkg}
+            else:
+                cli_commands = [
+                    f"{tech_pkg} run --environment production",
+                ]
 
     bundle = ChapterResearchBundle(
         chapter_number=chapter.chapter_number,

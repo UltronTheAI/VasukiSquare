@@ -19,18 +19,20 @@ class FetchParams(BaseModel):
     source_type: SourceType = SourceType.WEBPAGE
 
 
+from vasukisquare.research.sanitization import clean_source_title, sanitize_source_text
+
+
 def clean_html_content(raw_html: str) -> tuple[str, str]:
-    """Strip scripts, styles, and tags, returning (title, clean_text)."""
+    """Strip scripts, styles, boilerplate, and tags, returning (title, clean_text)."""
     # Extract title
     title_match = re.search(r"<title[^>]*>(.*?)</title>", raw_html, re.IGNORECASE | re.DOTALL)
-    title = title_match.group(1).strip() if title_match else "Untitled Webpage"
+    raw_title = title_match.group(1).strip() if title_match else "Untitled Webpage"
+    title = clean_source_title(raw_title)
 
     # Remove script and style tags
-    clean = re.sub(r"<(script|style|nav|header|footer|aside)[^>]*>.*?</\1>", " ", raw_html, flags=re.IGNORECASE | re.DOTALL)
-    # Remove HTML tags
-    clean = re.sub(r"<[^>]+>", " ", clean)
-    # Normalize whitespace
-    clean = re.sub(r"\s+", " ", clean).strip()
+    clean = re.sub(r"<(script|style|nav|header|footer|aside|form|noscript)[^>]*>.*?</\1>", " ", raw_html, flags=re.IGNORECASE | re.DOTALL)
+    # Sanitize general web content
+    clean = sanitize_source_text(clean)
     return title, clean
 
 
