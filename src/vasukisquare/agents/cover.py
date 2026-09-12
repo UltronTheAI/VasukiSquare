@@ -287,8 +287,8 @@ class CoverPlannerAgent:
             "icon_led",
         ]
 
-        # Shift choice using robust 32-bit golden ratio hash mixer of seed and title
-        seed_hash = ((abs(seed) * 2654435761) ^ (len(title) * 97)) & 0xFFFFFFFF
+        # Shift choice using robust hash mixer of seed and title with bit-shift dispersion
+        seed_hash = ((abs(seed) * 104729) + ((abs(seed) >> 3) * 7919) ^ (len(title) * 97)) & 0xFFFFFFFF
         style_idx = seed_hash % len(styles)
         comp_style = styles[style_idx]
 

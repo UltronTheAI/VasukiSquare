@@ -53,6 +53,8 @@ class Settings(BaseSettings):
     ollama_model: str = Field(default="qwen2.5:7b-instruct", alias="OLLAMA_MODEL")
     ollama_num_ctx: int = Field(default=8192, alias="OLLAMA_NUM_CTX")
 
+    # Small Model Mode ("auto", "true", "false")
+    small_model_mode: str = Field(default="auto", alias="SMALL_MODEL_MODE")
 
     # MongoDB
     mongodb_uri: str = Field(default="mongodb://localhost:27017", alias="MONGODB_URI")
@@ -164,6 +166,27 @@ class Settings(BaseSettings):
         raise EnvironmentConfigurationError(
             f"Unsupported LLM_PROVIDER '{self.llm_provider}'. Supported values: 'auto', 'groq', 'ollama'."
         )
+
+    @property
+    def is_small_model_active(self) -> bool:
+        """Determine if small-model mode is active based on configuration and resolved model name."""
+        mode = (self.small_model_mode or "auto").strip().lower()
+        if mode in ("true", "1", "yes", "always"):
+            return True
+        if mode in ("false", "0", "no", "never"):
+            return False
+
+        # In auto mode: detect based on active provider and model name
+        provider, model_name, _ = self.resolve_llm_provider()
+        m_lower = (model_name or "").lower()
+
+        # Match small model indicators (e.g., 0.5b, 1b, 1.5b, 2b, 3b)
+        small_indicators = ["0.5b", "1b", "1.5b", "2b", "3b", "tiny", "small", "mini"]
+        if any(ind in m_lower for ind in small_indicators):
+            return True
+        if provider == "ollama" and ("0.5b" in m_lower or "1b" in m_lower or "3b" in m_lower):
+            return True
+        return False
 
 
     def validate_production_environment(self) -> None:

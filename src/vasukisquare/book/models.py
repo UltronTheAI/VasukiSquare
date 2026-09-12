@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 from pydantic import BaseModel, Field, model_validator
-from vasukisquare.book.layout import LayoutType, VisualAnchorType
+from vasukisquare.book.layout import LayoutType, VisualAnchorType, TechnicalPageType, TechnicalPageSpec, PAGE_TYPE_SPECS
 from vasukisquare.design.theme import Theme, get_chapter_theme
 from vasukisquare.design.tokens import ColorToken, validate_color_token
 
