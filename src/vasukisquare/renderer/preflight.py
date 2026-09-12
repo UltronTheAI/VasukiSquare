@@ -27,7 +27,9 @@ class PagePreflightReport(BaseModel):
     layout: str
     valid: bool = True
     overflow: bool = False
+    underfilled: bool = False
     content_utilization: float = 0.0
+    content_units: int = 0
     header_collision: bool = False
     footer_collision: bool = False
     decorative_collision: bool = False
@@ -41,13 +43,14 @@ class BookPreflightReport(BaseModel):
     total_pages: int
     valid_pages: int
     invalid_pages: int
-    all_valid: bool
+    underfilled_pages: int = 0
+    all_valid: bool = True
     page_reports: List[PagePreflightReport] = Field(default_factory=list)
     overall_warnings: List[str] = Field(default_factory=list)
 
 
 def preflight_page(page: Page, theme: Optional[SectionTheme] = None) -> PagePreflightReport:
-    """Inspect an individual page model against strict physical A4 geometry, safe zones, and collision contracts."""
+    """Inspect an individual page model against strict physical A4 geometry, safe zones, and density contracts."""
     p_type = getattr(page, "page_type", "") or page.layout_type.value
     layout = getattr(page, "layout", "") or page.layout_type.value
 
@@ -59,6 +62,7 @@ def preflight_page(page: Page, theme: Optional[SectionTheme] = None) -> PagePref
             layout=layout,
             valid=True,
             content_utilization=1.0,
+            content_units=3,
         )
 
     if p_type in ("chapter_opener", LayoutType.CHAPTER_OPENER.value):
@@ -68,12 +72,14 @@ def preflight_page(page: Page, theme: Optional[SectionTheme] = None) -> PagePref
             layout=layout,
             valid=True,
             content_utilization=0.45,
+            content_units=2,
         )
 
     util = estimate_page_utilization(page)
     warnings: List[str] = []
     errors: List[str] = []
     is_overflow = False
+    is_underfilled = util.is_underfilled
     footer_coll = False
     header_coll = False
     decorative_coll = False
@@ -96,7 +102,11 @@ def preflight_page(page: Page, theme: Optional[SectionTheme] = None) -> PagePref
             )
 
     # 3. Utilization Target Verification (70-90% for normal pages)
-    if util.estimated_ratio < util.target_min_ratio:
+    if util.is_hard_fail:
+        errors.append(
+            f"Hard Fail: Page {page.page_number} content utilization ({util.estimated_ratio:.1%}) is below the critical quality threshold (45.0%)."
+        )
+    elif is_underfilled:
         warnings.append(
             f"Page underfilled: utilization is {util.estimated_ratio:.1%} (target min {util.target_min_ratio:.1%})."
         )
@@ -106,7 +116,13 @@ def preflight_page(page: Page, theme: Optional[SectionTheme] = None) -> PagePref
             f"Page overfilled: utilization is {util.estimated_ratio:.1%} (> 95% threshold)."
         )
 
-    # 4. Decorative Watermark Collision Protection
+    # 4. Content Units Count Check (Must have at least 2 distinct educational components)
+    if util.content_units < 2:
+        errors.append(
+            f"Page {page.page_number} is incomplete: contains only {util.content_units} educational content unit(s)."
+        )
+
+    # 5. Decorative Watermark Collision Protection
     if util.estimated_ratio > 0.85 and getattr(page, "watermark_svg", None):
         decorative_coll = True
         warnings.append("Decorative watermark rendered on dense page; suppressing watermark to protect text readability.")
@@ -119,7 +135,9 @@ def preflight_page(page: Page, theme: Optional[SectionTheme] = None) -> PagePref
         layout=layout,
         valid=is_valid,
         overflow=is_overflow,
+        underfilled=is_underfilled,
         content_utilization=util.estimated_ratio,
+        content_units=util.content_units,
         header_collision=header_coll,
         footer_collision=footer_coll,
         decorative_collision=decorative_coll,
@@ -156,12 +174,21 @@ def preflight_book(pages: List[Page], book_theme: Optional[BookThemeMap] = None)
             )
 
     invalid_count = sum(1 for r in reports if not r.valid)
+    underfilled_count = sum(1 for r in reports if r.underfilled and r.page_type not in ("cover", "chapter_opener", "thank_you"))
     valid_count = len(reports) - invalid_count
+
+    # Book-level density QA: If more than 10% of normal pages are severely underfilled, fail QA
+    normal_pages_count = sum(1 for r in reports if r.page_type not in ("cover", "chapter_opener", "thank_you", "toc", "copyright"))
+    if normal_pages_count > 0 and (underfilled_count / normal_pages_count) > 0.15:
+        overall_warnings.append(
+            f"Book density warning: {underfilled_count}/{normal_pages_count} normal content pages are underfilled."
+        )
 
     return BookPreflightReport(
         total_pages=len(pages),
         valid_pages=valid_count,
         invalid_pages=invalid_count,
+        underfilled_pages=underfilled_count,
         all_valid=(invalid_count == 0),
         page_reports=reports,
         overall_warnings=overall_warnings,

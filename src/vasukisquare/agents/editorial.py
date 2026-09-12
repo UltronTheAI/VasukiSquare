@@ -4,7 +4,12 @@ import logging
 from typing import List, Optional, Union
 from pydantic import BaseModel, Field
 from vasukisquare.config import Settings, get_settings
-from vasukisquare.book.layout import LayoutType
+from vasukisquare.book.layout import (
+    LayoutType,
+    PAGE_TYPE_SPECS,
+    TechnicalPageType,
+    ContentBudget,
+)
 from vasukisquare.book.models import (
     BookIntent,
     BookPlan,
@@ -1045,63 +1050,82 @@ class EditorialPlannerAgent:
                     sec_idx = cp_idx % len(ch.sections) if ch.sections else 0
                     sec = ch.sections[sec_idx] if ch.sections else None
                     anchor = sec.visual_anchors[cp_idx % len(sec.visual_anchors)] if sec and sec.visual_anchors else VisualAnchorType.TEXT
-                    brief_text = f"{sec.title} (Part {cp_idx + 1})" if sec else f"{ch.title} In-Depth Exploration"
+                    subtopic_suffixes = ["Advanced Nuances & Mechanics", "Practical Patterns & Edge Cases", "Architecture & Real-World Usage"]
+                    suffix = subtopic_suffixes[(cp_idx - (len(ch.sections) if ch.sections else 0)) % len(subtopic_suffixes)]
+                    brief_text = f"{sec.title}: {suffix}" if sec else f"{ch.title} In-Depth Exploration"
 
                 layout_type = LayoutType.EDITORIAL.value
                 req_components = ["explanation"]
                 forb_components = ["step"]
                 is_hands_on = False
                 page_archetype = "concept"
+                type_enum = TechnicalPageType.CONCEPT
 
-                if "capstone" in ch.title.lower() or "project" in ch.title.lower() or "project" in brief_text.lower():
+                brief_l = brief_text.lower()
+                ch_l = ch.title.lower()
+
+                if "history" in brief_l or "origin" in brief_l or "evolution" in brief_l:
+                    page_archetype = "history"
+                    type_enum = TechnicalPageType.HISTORY
+                    layout_type = LayoutType.TIMELINE.value
+                    req_components = ["explanation", "timeline", "callout"]
+                elif "features" in brief_l or "benefits" in brief_l or "advantages" in brief_l or "why python" in brief_l:
+                    page_archetype = "features"
+                    type_enum = TechnicalPageType.FEATURES
+                    layout_type = LayoutType.COMPARISON.value
+                    req_components = ["explanation", "table", "code", "callout"]
+                elif "capstone" in ch_l or "project" in ch_l or "project" in brief_l:
                     page_archetype = "mini_project"
+                    type_enum = TechnicalPageType.MINI_PROJECT
                     layout_type = LayoutType.CODE_FOCUS.value
                     req_components = ["explanation", "code", "output"]
-                    forb_components = ["step"]
                     is_hands_on = True
-                elif "setup" in brief_text.lower() or "install" in brief_text.lower() or "environment" in brief_text.lower():
+                elif "setup" in brief_l or "install" in brief_l or "environment" in brief_l:
                     page_archetype = "procedure_setup"
+                    type_enum = TechnicalPageType.PROCEDURE_SETUP
                     layout_type = LayoutType.EDITORIAL.value
                     req_components = ["explanation", "terminal"]
                     forb_components = []
                     is_hands_on = True
                 elif anchor == VisualAnchorType.CODE or (is_technical and cp_idx % 2 == 1):
                     page_archetype = "code_tutorial"
+                    type_enum = TechnicalPageType.CODE_TUTORIAL
                     layout_type = LayoutType.CODE_FOCUS.value
                     req_components = ["explanation", "code", "output"]
-                    forb_components = ["step"]
                     is_hands_on = True
                 elif anchor in (VisualAnchorType.COMPARISON, VisualAnchorType.TABLE):
                     page_archetype = "comparison"
+                    type_enum = TechnicalPageType.COMPARISON
                     layout_type = LayoutType.COMPARISON.value
                     req_components = ["explanation", "table"]
-                    forb_components = ["step"]
                 elif anchor == VisualAnchorType.DIAGRAM:
                     page_archetype = "concept"
+                    type_enum = TechnicalPageType.CONCEPT
                     layout_type = LayoutType.DIAGRAM_FOCUS.value
                     req_components = ["explanation", "diagram"]
-                    forb_components = ["step"]
                 elif anchor == VisualAnchorType.STATISTIC:
                     page_archetype = "concept"
+                    type_enum = TechnicalPageType.CONCEPT
                     layout_type = LayoutType.LARGE_NUMBER.value
                     req_components = ["explanation", "statistic"]
-                    forb_components = ["step"]
                 elif anchor == VisualAnchorType.QUOTE:
                     page_archetype = "concept"
+                    type_enum = TechnicalPageType.CONCEPT
                     layout_type = LayoutType.QUOTE.value
                     req_components = ["explanation", "quote"]
-                    forb_components = ["step"]
                 elif anchor == VisualAnchorType.TIMELINE:
-                    page_archetype = "concept"
+                    page_archetype = "history"
+                    type_enum = TechnicalPageType.HISTORY
                     layout_type = LayoutType.TIMELINE.value
                     req_components = ["explanation", "timeline"]
-                    forb_components = ["step"]
                 elif anchor == VisualAnchorType.EXERCISE:
                     page_archetype = "exercise"
+                    type_enum = TechnicalPageType.EXERCISE
                     layout_type = LayoutType.EDITORIAL.value
                     req_components = ["explanation", "exercise"]
-                    forb_components = ["step"]
                     is_hands_on = True
+
+                type_spec = PAGE_TYPE_SPECS.get(type_enum, PAGE_TYPE_SPECS[TechnicalPageType.CONCEPT])
 
                 p_content = PlannedPage(
                     page_number=curr_page_num,
@@ -1119,6 +1143,9 @@ class EditorialPlannerAgent:
                         required_components=req_components,
                         forbidden_components=forb_components,
                         is_hands_on=is_hands_on,
+                        content_budget=type_spec.content_budget,
+                        content_depth="normal",
+                        minimum_content_units=type_spec.minimum_content_units,
                     ),
                 )
                 all_pages.append(p_content)

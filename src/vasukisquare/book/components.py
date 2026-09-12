@@ -290,9 +290,19 @@ class TimelineItem(BaseModel):
     """Single milestone or step in a timeline."""
 
     time: Optional[str] = Field(default=None, description="Time or phase identifier")
+    year: Optional[str] = Field(default=None, description="Alias for time/year")
     step: Optional[str] = Field(default=None, description="Step number or label")
     title: str = Field(description="Milestone title")
     description: str = Field(description="Milestone explanation")
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.time and self.year:
+            self.time = self.year
+        elif not self.year and self.time:
+            self.year = self.time
+
+
+TimelineEvent = TimelineItem
 
 
 class TimelineBlock(BaseModel):
@@ -301,6 +311,13 @@ class TimelineBlock(BaseModel):
     type: Literal["timeline"] = "timeline"
     title: Optional[str] = Field(default=None, description="Timeline title")
     items: List[Union[Dict[str, str], TimelineItem]] = Field(default_factory=list, description="Ordered timeline items")
+    events: Optional[List[Union[Dict[str, str], TimelineItem]]] = Field(default=None, description="Alias for items")
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.items and self.events:
+            self.items = self.events
+        elif not self.events and self.items:
+            self.events = self.items
 
 
 class ChecklistItem(BaseModel):
@@ -364,9 +381,17 @@ class OutputBlock(BaseModel):
     """Dedicated expected standard output console block."""
 
     type: Literal["output"] = "output"
-    output: str = Field(description="Exact expected standard output text")
+    output: Optional[str] = Field(default=None, description="Exact expected standard output text")
+    content: Optional[str] = Field(default=None, description="Alias for output")
+    text: Optional[str] = Field(default=None, description="Alias for output")
     caption: Optional[str] = Field(default="Expected Output", description="Caption or description")
     title: Optional[str] = Field(default=None, description="Optional title header")
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.output:
+            self.output = self.content or self.text or ""
+        elif not self.content:
+            self.content = self.output
 
 
 class CommonMistakeBlock(BaseModel):
@@ -374,11 +399,23 @@ class CommonMistakeBlock(BaseModel):
 
     type: Literal["mistake"] = "mistake"
     title: str = Field(default="Common Beginner Mistake", description="Title of the mistake")
-    mistake_code: str = Field(description="Incorrect code snippet illustrating the mistake")
+    mistake_code: Optional[str] = Field(default=None, description="Incorrect code snippet illustrating the mistake")
+    wrong_code: Optional[str] = Field(default=None, description="Alias for mistake_code")
     corrected_code: Optional[str] = Field(default=None, description="Corrected executable code snippet")
+    correct_code: Optional[str] = Field(default=None, description="Alias for corrected_code")
     explanation: str = Field(description="Explanation of why the error occurs and how to avoid it")
     error_type: Optional[str] = Field(default=None, description="Name of exception or error (e.g. SyntaxError, NameError)")
     language: str = Field(default="python", description="Programming language")
+
+    def model_post_init(self, __context: Any) -> None:
+        if not self.mistake_code and self.wrong_code:
+            self.mistake_code = self.wrong_code
+        elif not self.wrong_code and self.mistake_code:
+            self.wrong_code = self.mistake_code
+        if not self.corrected_code and self.correct_code:
+            self.corrected_code = self.correct_code
+        elif not self.correct_code and self.corrected_code:
+            self.correct_code = self.corrected_code
 
 
 # Aliases for unified card models

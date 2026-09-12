@@ -30,7 +30,7 @@ from pydantic import BaseModel, Field
 
 
 class PageUtilization(BaseModel):
-    """Accurate physical A4 vertical layout utilization metrics."""
+    """Accurate physical A4 vertical layout utilization and educational density metrics."""
 
     estimated_ratio: float = Field(description="Estimated content height fraction of usable A4 height (0.0 to 1.0+)")
     status: str = Field(description="Utilization status: underfilled, optimal, or overflow_risk")
@@ -39,6 +39,9 @@ class PageUtilization(BaseModel):
     total_content_height_mm: float = Field(default=0.0)
     target_min_ratio: float = Field(default=0.70)
     target_max_ratio: float = Field(default=0.90)
+    content_units: int = Field(default=0, description="Count of meaningful educational content units")
+    is_underfilled: bool = Field(default=False, description="True if utilization is below the minimum threshold")
+    is_hard_fail: bool = Field(default=False, description="True if content density is severely deficient (< 0.45 for normal pages)")
 
     @property
     def utilization_ratio(self) -> float:
@@ -54,7 +57,7 @@ class PageUtilization(BaseModel):
 
 
 class DensityEstimator:
-    """Estimates vertical fill percentage of content on an A4 page."""
+    """Estimates vertical fill percentage and educational completeness of content on an A4 page."""
 
     @staticmethod
     def estimate_block_height_mm(block: Any) -> float:
@@ -80,6 +83,19 @@ class DensityEstimator:
             header_h = 10.0 if (getattr(block, "filename", None) or getattr(block, "language", None)) else 0.0
             caption_h = 7.0 if getattr(block, "caption", None) else 0.0
             return header_h + (code_lines * 4.8) + caption_h + 12.0
+
+        elif b_type == "output":
+            lines = (getattr(block, "content", "") or "").split("\n")
+            return 12.0 + (len(lines) * 4.8) + 8.0
+
+        elif b_type == "mistake":
+            wrong = getattr(block, "wrong_code", "") or ""
+            correct = getattr(block, "correct_code", "") or ""
+            exp = getattr(block, "explanation", "") or ""
+            w_lines = len(wrong.split("\n"))
+            c_lines = len(correct.split("\n"))
+            exp_lines = max(1, len(exp) // 60 + 1)
+            return 16.0 + ((w_lines + c_lines) * 4.8) + (exp_lines * 5.0) + 10.0
 
         elif isinstance(block, TerminalBlock) or b_type == "terminal":
             lines = getattr(block, "lines", []) or []
@@ -167,6 +183,9 @@ class DensityEstimator:
                 total_content_height_mm=110.0,
                 target_min_ratio=0.25,
                 target_max_ratio=0.60,
+                content_units=2,
+                is_underfilled=False,
+                is_hard_fail=False,
             )
 
         # Full-page dedicated structural layouts
@@ -179,6 +198,9 @@ class DensityEstimator:
                 total_content_height_mm=199.0,
                 target_min_ratio=0.70,
                 target_max_ratio=0.90,
+                content_units=3,
+                is_underfilled=False,
+                is_hard_fail=False,
             )
 
         total_height_mm = 0.0
@@ -189,6 +211,7 @@ class DensityEstimator:
         headline = getattr(content, "headline", None) if content else None
 
         # 1. Headline & Header Spacing
+        content_units_count = 0
         if headline:
             total_height_mm += 14.0
             breakdown["headline"] = 14.0
@@ -200,14 +223,17 @@ class DensityEstimator:
             total_height_mm += h
             b_name = f"{getattr(b, 'type', 'block')}_{idx+1}"
             breakdown[b_name] = round(h, 1)
+            content_units_count += 1
 
         # 3. Fallback Prose Body
         if not blocks and content and getattr(content, "body", None):
             body = content.body
-            lines = max(1, len(body) // 65 + 1)
-            h = lines * 5.5
+            paras = [p for p in body.split("\n\n") if p.strip()]
+            lines = sum(max(1, len(p) // 65 + 1) for p in paras) if paras else max(1, len(body) // 65 + 1)
+            h = (lines * 5.5) + (len(paras) * 3.5 if paras else 0)
             total_height_mm += h
             breakdown["body_prose"] = round(h, 1)
+            content_units_count += max(1, len(paras))
 
         # 4. Fallback HTML
         if not blocks and not (content and getattr(content, "body", None)) and getattr(page, "html", None):
@@ -215,24 +241,29 @@ class DensityEstimator:
             h = lines * 5.0
             total_height_mm += h
             breakdown["html_content"] = round(h, 1)
+            content_units_count += 1
 
         # 5. Key points
         if content and getattr(content, "key_points", None):
             kp_h = len(content.key_points) * 6.5
             total_height_mm += kp_h
             breakdown["key_points"] = round(kp_h, 1)
+            content_units_count += 1
 
         ratio = round(total_height_mm / USABLE_PAGE_HEIGHT_MM, 3)
 
-        # Determine status according to target ratios
-        # Normal content target: 0.70 - 0.90
-        # Code-heavy target: 0.65 - 0.90
-        # Diagram-heavy target: 0.60 - 0.90
+        # Target minimum ratios:
+        # Diagram/visual: 0.60
+        # Code/terminal: 0.65
+        # Normal content/concept: 0.70
         has_code = any("code" in k or "terminal" in k for k in breakdown.keys())
         has_diagram = any("diagram" in k or "chart" in k for k in breakdown.keys())
         min_target = 0.60 if has_diagram else (0.65 if has_code else 0.70)
 
-        if ratio < min_target:
+        is_underfilled = (ratio < min_target)
+        is_hard_fail = (ratio < 0.45)
+
+        if is_underfilled:
             status = "underfilled"
         elif ratio > 0.95:
             status = "overflow_risk"
@@ -247,7 +278,15 @@ class DensityEstimator:
             total_content_height_mm=round(total_height_mm, 1),
             target_min_ratio=min_target,
             target_max_ratio=0.90,
+            content_units=content_units_count,
+            is_underfilled=is_underfilled,
+            is_hard_fail=is_hard_fail,
         )
+
+
+def estimate_page_utilization(page: Any, page_type: str = "chapter_content") -> PageUtilization:
+    """Public helper to calculate page density and utilization metrics."""
+    return DensityEstimator.estimate_utilization(page, page_type=page_type)
 
 
 def estimate_page_utilization(page: Any, page_type: str = "chapter_content") -> PageUtilization:

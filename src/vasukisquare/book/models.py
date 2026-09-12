@@ -5,7 +5,15 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 from pydantic import BaseModel, Field, model_validator
-from vasukisquare.book.layout import LayoutType, VisualAnchorType, TechnicalPageType, TechnicalPageSpec, PAGE_TYPE_SPECS
+from vasukisquare.book.layout import (
+    LayoutType,
+    VisualAnchorType,
+    TechnicalPageType,
+    TechnicalPageSpec,
+    PAGE_TYPE_SPECS,
+    ContentBudget,
+    ContentDensity,
+)
 from vasukisquare.design.theme import Theme, get_chapter_theme
 from vasukisquare.design.tokens import ColorToken, validate_color_token
 
@@ -284,14 +292,17 @@ class PlannedChapter(BaseModel):
 
 
 class PagePurpose(BaseModel):
-    """Explicit purpose and pedagogical contract for an individual content page."""
+    """Explicit purpose, pedagogical contract, and content budget for an individual content page."""
 
-    page_type: str = Field(default="concept", description="Archetype: concept, code_tutorial, terminal_tutorial, exercise, debugging, comparison, mini_project")
+    page_type: str = Field(default="concept", description="Archetype: concept, history, features, code_tutorial, terminal_tutorial, exercise, debugging, comparison, mini_project")
     learning_goal: str = Field(default="", description="Specific outcome or takeaway for the reader")
     concepts: List[str] = Field(default_factory=list, description="Core concepts taught on this page")
     required_components: List[str] = Field(default_factory=list, description="Eligible block components (e.g. ['explanation', 'code', 'output', 'exercise'])")
     forbidden_components: List[str] = Field(default_factory=list, description="Explicitly forbidden blocks (e.g. ['step'] on concept pages)")
     is_hands_on: bool = Field(default=False, description="Whether this page requires runnable code/commands")
+    content_depth: str = Field(default="normal", description="Content depth level: introductory, normal, deep")
+    minimum_content_units: int = Field(default=3, ge=1, description="Minimum distinct educational components required")
+    content_budget: Optional[ContentBudget] = Field(default=None, description="Detailed content and density allocation budget")
 
 
 class RequirementCoverageItem(BaseModel):

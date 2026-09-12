@@ -162,6 +162,59 @@ class ContentValidator:
         return errors
 
     @classmethod
+    def validate_final_book_quality(
+        cls,
+        pages: List[Page],
+    ) -> List[str]:
+        """Validate interior content density, utilization ratio, and content unit counts across book pages."""
+        from vasukisquare.renderer.overflow import estimate_page_utilization
+
+        errors: List[str] = []
+        content_pages = [
+            p for p in pages
+            if p.layout not in ("cover", "imprint", "title", "copyright", "toc", "thank_you", "chapter_opener", "references", "acknowledgement")
+            and p.page_type not in ("cover", "imprint", "title", "copyright", "toc", "thank_you", "chapter_opener", "references", "acknowledgement")
+        ]
+
+        if not content_pages:
+            return errors
+
+        ratios = []
+        severely_underfilled = 0
+
+        for p in content_pages:
+            util = estimate_page_utilization(p)
+            ratios.append(util.estimated_ratio)
+
+            if util.is_hard_fail:
+                severely_underfilled += 1
+                err = (
+                    f"Page {p.page_number} ('{p.content.headline}') is severely underfilled: "
+                    f"utilization {util.estimated_ratio:.1%} < 45.0% threshold."
+                )
+                errors.append(err)
+                logger.error(err)
+
+            if util.content_units < 2:
+                err = (
+                    f"Page {p.page_number} ('{p.content.headline}') lacks sufficient educational content: "
+                    f"found {util.content_units} content units (minimum required is 2)."
+                )
+                errors.append(err)
+                logger.error(err)
+
+        underfill_rate = severely_underfilled / len(content_pages)
+        if underfill_rate > 0.15:
+            err = (
+                f"Book failed content density QA: {severely_underfilled}/{len(content_pages)} "
+                f"({underfill_rate:.1%}) normal content pages are severely underfilled (max allowed: 15.0%)."
+            )
+            errors.append(err)
+            logger.error(err)
+
+        return errors
+
+    @classmethod
     def validate_book(
         cls,
         pages: List[Page],
@@ -185,6 +238,10 @@ class ContentValidator:
         if expected_topic:
             rel_errors = cls.validate_topic_relevance(pages, expected_topic, expected_language)
             all_errors.extend(rel_errors)
+
+        # Check content density and quality
+        density_errors = cls.validate_final_book_quality(pages)
+        all_errors.extend(density_errors)
 
         return all_errors
 

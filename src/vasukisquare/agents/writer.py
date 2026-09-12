@@ -135,8 +135,9 @@ def repair_underfilled_page(
     verified_code_snippets: Optional[List[str]] = None,
     topic: Optional[str] = None,
 ) -> Any:
-    """Repair an underfilled page strictly adhering to component eligibility and pedagogical validity."""
+    """Repair an underfilled page strictly adhering to component eligibility, type-specific enrichment, and pedagogical validity."""
     from vasukisquare.renderer.overflow import estimate_page_utilization
+    from vasukisquare.book.components import TimelineEvent
 
     is_page_obj = isinstance(page_content, Page)
     content_obj = page_content.content if is_page_obj else page_content
@@ -147,126 +148,247 @@ def repair_underfilled_page(
 
     is_python = "python" in primary_subject.lower()
     headline = content_obj.headline or primary_subject
+    headline_lower = headline.lower()
     blocks = list(content_obj.blocks)
     if not blocks and getattr(content_obj, "body", None):
         blocks.append(TextBlock(text=content_obj.body))
 
+    # Determine if page is History or Features from spec or headline
+    is_history = (
+        spec.page_type == TechnicalPageType.HISTORY
+        or any(w in headline_lower for w in ["history", "origin", "evolution", "background", "timeline"])
+    )
+    is_features = (
+        spec.page_type == TechnicalPageType.FEATURES
+        or any(w in headline_lower for w in ["features", "benefits", "advantages", "philosophy", "why python", "capabilities"])
+    )
+
     has_code = any(getattr(b, "type", "") == "code" for b in blocks)
     has_terminal = any(getattr(b, "type", "") == "terminal" for b in blocks)
     has_table = any(getattr(b, "type", "") == "table" for b in blocks)
+    has_timeline = any(getattr(b, "type", "") == "timeline" for b in blocks)
     has_callout = any(getattr(b, "type", "") in ("callout", "tip", "note", "warning", "important") for b in blocks)
     has_output = any(getattr(b, "type", "") == "output" for b in blocks)
 
-    # 1. Enforce Required Code
-    if spec.requires_code and not has_code:
-        if is_python:
-            code_str = (
-                f"# Practical demonstration of {headline}\n"
-                f"def demonstrate_concept():\n"
-                f"    print('Running demonstration...')\n"
-                f"    data = [1, 2, 3, 4, 5]\n"
-                f"    result = sum(data)\n"
-                f"    return result\n\n"
-                f"print('Computed result:', demonstrate_concept())"
-            )
-        else:
-            code_str = (
-                f"// Implementation for {headline}\n"
-                f"function executeTask() {{\n"
-                f"    return 'Task executed successfully';\n"
-                f"}}\n"
-                f"console.log(executeTask());"
-            )
-        blocks.append(
-            CodeBlock(
-                language="python" if is_python else "javascript",
-                filename="example.py" if is_python else "example.js",
-                code=code_str,
-                caption=f"Listing: {headline} Implementation",
-                line_numbers=True,
-            )
-        )
-        has_code = True
+    # 1. Type-Specific Enrichment: History
+    if is_history:
+        if not has_timeline:
+            events = [
+                TimelineEvent(
+                    year="1989",
+                    title="Origins & Conception",
+                    description="Guido van Rossum begins developing Python at CWI in the Netherlands as a successor to ABC.",
+                ),
+                TimelineEvent(
+                    year="1991",
+                    title="Python 0.9.0 Public Release",
+                    description="First public code release featuring functions, classes, exception handling, and core built-in types.",
+                ),
+                TimelineEvent(
+                    year="2000",
+                    title="Python 2.0 & Community Governance",
+                    description="Introduced list comprehensions, cycle-detecting garbage collection, and open community PEP process.",
+                ),
+                TimelineEvent(
+                    year="2008",
+                    title="Python 3.0 Modernization",
+                    description="Major architectural redesign enforcing clean Unicode string separation, integer division, and standard library cleanup.",
+                ),
+                TimelineEvent(
+                    year="Present",
+                    title="Modern High-Performance Python",
+                    description="Python 3.12+ features specialized adaptive interpreters, structural pattern matching, and extensive typing systems.",
+                ),
+            ]
+            blocks.append(TimelineBlock(title="Milestones in Python Evolution", events=events))
+            has_timeline = True
 
-    # 2. Enforce Required Terminal
-    if spec.requires_terminal and not has_terminal:
-        cmd = "python3 -m unittest test_module.py" if is_python else f"{primary_subject.split()[0].lower()} --version"
-        blocks.append(
-            TerminalBlock(
-                title=f"Terminal: {headline}",
-                shell="bash",
-                lines=[
-                    TerminalLine(kind="command", text=cmd),
-                    TerminalLine(kind="output", text="Execution verified successfully."),
-                ],
+        util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
+        if util.estimated_ratio < 0.70:
+            blocks.append(
+                TextBlock(
+                    text="### Why These Milestones Matter\n"
+                    "Each major evolutionary milestone resolved critical software development trade-offs. "
+                    "Python's progression from a scripting language to the backbone of data science, web services, "
+                    "and artificial intelligence demonstrates the power of prioritizing code readability and developer productivity."
+                )
             )
-        )
-        has_terminal = True
+            util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
 
-    # 3. Enforce Callout
-    if not has_callout and is_component_eligible("callout", spec.page_type):
-        blocks.append(
-            CalloutBlock(
-                title="Practical Best Practice",
-                content=f"When working with {headline}, keep your implementations modular and test each component with isolated inputs.",
-                variant="tip",
+        if util.estimated_ratio < 0.70 and not has_callout:
+            blocks.append(
+                CalloutBlock(
+                    title="Guiding Takeaway",
+                    content="Python was engineered on the belief that code is read far more often than it is written. Designing for clarity creates resilient, maintainable software systems.",
+                    variant="tip",
+                )
             )
-        )
 
-    # 4. Progressive Filling Loop
-    util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
-
-    # Add Output block if code is present but no output block
-    if util.estimated_ratio < 0.70 and has_code and not has_output and is_component_eligible("output", spec.page_type):
-        candidate_blocks = list(blocks) + [
-            OutputBlock(
-                title="Expected Console Output",
-                content="Computed result: 15",
+    # 2. Type-Specific Enrichment: Features & Benefits
+    elif is_features:
+        if not has_table and not any(getattr(b, "type", "") == "comparison" for b in blocks):
+            blocks.append(
+                TableBlock(
+                    caption="Core Architectural Features of Python",
+                    columns=["Feature", "Technical Advantage", "Developer Impact"],
+                    rows=[
+                        ["Readable Syntax", "Semantic indentation without clutter", "Lower cognitive load & faster onboarding"],
+                        ["Dynamic Typing with Type Hints", "Rapid prototyping with optional safety", "Flexibility during discovery, clarity at scale"],
+                        ["Batteries-Included Stdlib", "Comprehensive built-in modules", "No external dependencies for core tasks"],
+                        ["Cross-Platform Portability", "Identical execution on Linux/macOS/Windows", "Build once, deploy anywhere seamlessly"],
+                    ],
+                )
             )
-        ]
-        if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
-            blocks = candidate_blocks
+            has_table = True
+
+        util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
+        if util.estimated_ratio < 0.70 and not has_code:
+            blocks.append(
+                CodeBlock(
+                    language="python",
+                    filename="expressive_features.py",
+                    code=(
+                        "# Python expressiveness: list comprehensions and clean syntax\n"
+                        "numbers = [1, 2, 3, 4, 5, 6]\n"
+                        "even_squares = [n ** 2 for n in numbers if n % 2 == 0]\n"
+                        "print(f'Processed even squares: {even_squares}')"
+                    ),
+                    caption="Listing: Expressive Python syntax in action.",
+                    line_numbers=True,
+                )
+            )
+            has_code = True
+            blocks.append(
+                OutputBlock(
+                    title="Console Output",
+                    content="Processed even squares: [4, 16, 36]",
+                )
+            )
             has_output = True
             util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
 
-    # Add Common Mistake if debugging/eligible
-    if util.estimated_ratio < 0.70 and is_component_eligible("mistake", spec.page_type) and not any(getattr(b, "type", "") == "mistake" for b in blocks):
-        candidate_blocks = list(blocks) + [
-            CommonMistakeBlock(
-                title="Common Beginner Mistake",
-                wrong_code="total = '10' + 5  # TypeError: can only concatenate str to str",
-                correct_code="total = int('10') + 5  # Correct: explicit type cast to integer",
-                explanation="In Python, strings and integers cannot be added directly without explicit type conversion.",
+        if util.estimated_ratio < 0.70 and not has_callout:
+            blocks.append(
+                CalloutBlock(
+                    title="Beginner Perspective",
+                    content="Focus on learning one feature at a time. Python's gradual learning curve allows you to write productive scripts immediately before adopting advanced paradigms.",
+                    variant="tip",
+                )
             )
-        ]
-        if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
-            blocks = candidate_blocks
-            util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
 
-    # Add Secondary explanation if underfilled
-    if util.estimated_ratio < 0.70:
-        if verified_facts:
-            additional_text = f"Key principle: {verified_facts[0]}. In structured software development, understanding these foundational mechanics ensures predictable execution and simplifies debugging."
-        else:
-            additional_text = f"When applying {headline}, maintaining clarity and following standard idioms ensures your code is readable, maintainable, and robust against unexpected inputs."
-        candidate_blocks = list(blocks) + [TextBlock(text=additional_text)]
-        if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
-            blocks = candidate_blocks
-            util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
-
-    # Add Exercise if eligible
-    if util.estimated_ratio < 0.70 and is_component_eligible("exercise", spec.page_type) and not any(getattr(b, "type", "") == "exercise" for b in blocks):
-        candidate_blocks = list(blocks) + [
-            ExerciseBlock(
-                title=f"Practice Challenge: {headline}",
-                instructions=[
-                    f"Write a short function that applies {headline} to process a list of 3 items.",
-                    "Verify the output by printing the result to the console.",
-                ],
+    # 3. Standard Pedagogical & Code Pages
+    else:
+        # Enforce Required Code
+        if spec.requires_code and not has_code:
+            if is_python:
+                code_str = (
+                    f"# Practical demonstration of {headline}\n"
+                    f"def demonstrate_concept(items: list[int]) -> int:\n"
+                    f"    '''Process data items and compute cumulative summary.'''\n"
+                    f"    summary = sum(items)\n"
+                    f"    return summary\n\n"
+                    f"sample_data = [10, 20, 30, 40]\n"
+                    f"result = demonstrate_concept(sample_data)\n"
+                    f"print(f'Summary output: {{result}}')"
+                )
+            else:
+                code_str = (
+                    f"// Implementation for {headline}\n"
+                    f"function executeTask(items) {{\n"
+                    f"    return items.reduce((acc, curr) => acc + curr, 0);\n"
+                    f"}}\n"
+                    f"console.log('Result:', executeTask([10, 20, 30, 40]));"
+                )
+            blocks.append(
+                CodeBlock(
+                    language="python" if is_python else "javascript",
+                    filename=f"{headline.lower().replace(' ', '_')[:20]}.py" if is_python else "example.js",
+                    code=code_str,
+                    caption=f"Listing: {headline} Implementation",
+                    line_numbers=True,
+                )
             )
-        ]
-        if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
-            blocks = candidate_blocks
+            has_code = True
+
+        # Enforce Required Terminal
+        if spec.requires_terminal and not has_terminal:
+            cmd = "python3 main.py" if is_python else f"{primary_subject.split()[0].lower()} --version"
+            blocks.append(
+                TerminalBlock(
+                    title=f"Terminal: {headline}",
+                    shell="bash",
+                    lines=[
+                        TerminalLine(kind="command", text=cmd),
+                        TerminalLine(kind="output", text="Execution verified successfully."),
+                    ],
+                )
+            )
+            has_terminal = True
+
+        # Enforce Callout
+        if not has_callout and is_component_eligible("callout", spec.page_type):
+            blocks.append(
+                CalloutBlock(
+                    title="Practical Best Practice",
+                    content=f"When working with {headline}, keep your implementations modular, validate boundary conditions, and test each component with isolated inputs.",
+                    variant="tip",
+                )
+            )
+
+        # Progressive Filling Loop
+        util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
+
+        # Add Output block if code is present but no output block
+        if util.estimated_ratio < 0.70 and has_code and not has_output and is_component_eligible("output", spec.page_type):
+            candidate_blocks = list(blocks) + [
+                OutputBlock(
+                    title="Expected Console Output",
+                    content="Summary output: 100",
+                )
+            ]
+            if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
+                blocks = candidate_blocks
+                has_output = True
+                util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
+
+        # Add Common Mistake if debugging/eligible
+        if util.estimated_ratio < 0.70 and is_component_eligible("mistake", spec.page_type) and not any(getattr(b, "type", "") == "mistake" for b in blocks):
+            candidate_blocks = list(blocks) + [
+                CommonMistakeBlock(
+                    title="Common Beginner Mistake",
+                    wrong_code="total = '10' + 5  # TypeError: can only concatenate str to str",
+                    correct_code="total = int('10') + 5  # Correct: explicit type cast to integer",
+                    explanation="In Python, strings and integers cannot be added directly without explicit type conversion.",
+                )
+            ]
+            if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
+                blocks = candidate_blocks
+                util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
+
+        # Add Secondary explanation if underfilled
+        if util.estimated_ratio < 0.70:
+            if verified_facts:
+                additional_text = f"Key principle: {verified_facts[0]}. In structured software development, understanding these foundational mechanics ensures predictable execution and simplifies debugging."
+            else:
+                additional_text = f"When applying {headline}, maintaining clarity and following standard idioms ensures your code is readable, maintainable, and robust against unexpected inputs."
+            candidate_blocks = list(blocks) + [TextBlock(text=additional_text)]
+            if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
+                blocks = candidate_blocks
+                util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
+
+        # Add Exercise if eligible
+        if util.estimated_ratio < 0.70 and is_component_eligible("exercise", spec.page_type) and not any(getattr(b, "type", "") == "exercise" for b in blocks):
+            candidate_blocks = list(blocks) + [
+                ExerciseBlock(
+                    title=f"Practice Challenge: {headline}",
+                    instructions=[
+                        f"Write a short function that applies {headline} to process a collection of inputs.",
+                        "Verify the output by printing the calculated result to the console.",
+                    ],
+                )
+            ]
+            if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
+                blocks = candidate_blocks
 
     repaired_content = PageContent(headline=headline, blocks=blocks)
     if is_page_obj:
@@ -374,9 +496,19 @@ class PageWriterAgent:
         corpus: Optional[ResearchCorpus] = None,
     ) -> PageContent:
         """Generate content for a chapter content page using small-model decomposed flow, Groq LLM, or heuristic."""
+        page_type_enum = TechnicalPageType.CONCEPT
+        try:
+            page_type_enum = TechnicalPageType(p.page_type)
+        except ValueError:
+            pass
+        spec = PAGE_TYPE_SPECS.get(page_type_enum, PAGE_TYPE_SPECS[TechnicalPageType.CONCEPT])
+        primary_subj = plan.intent.domain_topic or plan.title
+        is_beginner = "beginner" in plan.title.lower() or plan.intent.technical_depth == "introductory"
+
         if self.settings.vasukisquare_mock_mode:
             self.metrics.record_fallback_page()
-            return self._heuristic_write_page(p, plan, citations)
+            content = self._heuristic_write_page(p, plan, citations)
+            return repair_underfilled_page(content, spec=spec, primary_subject=primary_subj, is_beginner=is_beginner)
 
         # Small model decomposed generation
         if self.settings.is_small_model_active:
@@ -384,7 +516,7 @@ class PageWriterAgent:
                 small_content = await self._small_model_write_page(p, plan, citations, corpus)
                 if small_content:
                     self.metrics.record_page_generated_by_llm()
-                    return small_content
+                    return repair_underfilled_page(small_content, spec=spec, primary_subject=primary_subj, is_beginner=is_beginner)
             except Exception as e:
                 logger.warning(f"Small model decomposed write failed for Page {p.page_number}: {e}")
 
@@ -393,13 +525,14 @@ class PageWriterAgent:
             llm_content = await self._llm_write_page(p, plan, corpus)
             if llm_content:
                 self.metrics.record_page_generated_by_llm()
-                return llm_content
+                return repair_underfilled_page(llm_content, spec=spec, primary_subject=primary_subj, is_beginner=is_beginner)
             raise ValueError(f"LLM returned empty content for Page {p.page_number}")
         except Exception as e:
             if self.settings.vasukisquare_mock_mode:
                 logger.warning(f"LLM page generation failed in mock mode for Page {p.page_number}, using fallback: {e}")
                 self.metrics.record_fallback_page()
-                return self._heuristic_write_page(p, plan, citations)
+                content = self._heuristic_write_page(p, plan, citations)
+                return repair_underfilled_page(content, spec=spec, primary_subject=primary_subj, is_beginner=is_beginner)
             raise GroqGenerationError(f"Failed to generate page content for Page {p.page_number} ({p.brief}) via Groq: {e}") from e
 
     async def _small_model_write_page(
@@ -870,8 +1003,192 @@ class PageWriterAgent:
         ch_num = p.chapter_number or 1
         brief_lower = (p.brief or "").lower()
 
-        # --- Chapter 1: Introduction & Environment ---
-        if "interpreter" in brief_lower or "how the interpreter works" in brief_lower or "how programs work" in brief_lower:
+        # --- Chapter 1: Foundations, History & Features ---
+        if "history" in brief_lower or "origin" in brief_lower or "evolution" in brief_lower:
+            from vasukisquare.book.components import TimelineEvent
+            return PageContent(
+                headline=headline,
+                blocks=[
+                    TextBlock(
+                        text="Python was conceived in the late 1980s by Guido van Rossum at the Centrum Wiskunde & Informatica (CWI) in the Netherlands. "
+                        "Designed as a successor to the ABC programming language, Python prioritized developer productivity, exceptional readability, "
+                        "and seamless extensibility through system calls and C libraries."
+                    ),
+                    TimelineBlock(
+                        title="Key Milestones in Python History",
+                        events=[
+                            TimelineEvent(
+                                year="1989",
+                                title="Conception & ABC Heritage",
+                                description="Implementation begins at CWI aiming for high expressiveness with clean syntax.",
+                            ),
+                            TimelineEvent(
+                                year="1991",
+                                title="Python 0.9.0 Released",
+                                description="Published with classes, functions, exception handling, and modular architecture.",
+                            ),
+                            TimelineEvent(
+                                year="2000",
+                                title="Python 2.0 & Community Governance",
+                                description="Introduced list comprehensions, garbage collection, and the open PEP RFC process.",
+                            ),
+                            TimelineEvent(
+                                year="2008",
+                                title="Python 3.0 Modernization",
+                                description="Major cleanup removing backward incompatibilities, unifying Unicode strings and integers.",
+                            ),
+                            TimelineEvent(
+                                year="Present",
+                                title="Python 3.12+ Performance Era",
+                                description="Specialized adaptive bytecode evaluation, subinterpreters, and rich typing ecosystem.",
+                            ),
+                        ],
+                    ),
+                    TextBlock(
+                        text="### Why Python's Evolution Matters\n"
+                        "Each evolutionary epoch solved real engineering friction. By steadfastly adhering to clean language ergonomics "
+                        "while evolving its runtime performance, Python evolved from a lightweight administrative scripting tool into the dominant "
+                        "language powering data engineering, artificial intelligence, scientific computing, and enterprise cloud services."
+                    ),
+                    CalloutBlock(
+                        variant="tip",
+                        title="Design Heritage",
+                        content="Python was engineered on the principle that 'code is read much more often than it is written.' Prioritizing clarity creates robust software.",
+                        icon="compass",
+                    ),
+                ],
+            )
+
+        elif "features" in brief_lower or "benefits" in brief_lower or "advantages" in brief_lower or "why python" in brief_lower:
+            return PageContent(
+                headline=headline,
+                blocks=[
+                    TextBlock(
+                        text="Python combines high-level abstractions with powerful multi-paradigm flexibility. "
+                        "Whether designing object-oriented architectures, procedural pipelines, or functional data transformations, "
+                        "Python provides expressive primitives that minimize boilerplate and accelerate development velocity."
+                    ),
+                    TableBlock(
+                        caption="Core Strengths and Architectural Capabilities of Python",
+                        columns=["Architectural Feature", "Technical Description", "Engineering Benefit"],
+                        rows=[
+                            ["Readable Syntax", "Semantic indentation replaces braces", "Reduces cognitive overhead & syntax noise"],
+                            ["Dynamic Typing + Type Hints", "Flexible binding with static verification", "Fast exploration with enterprise safety"],
+                            ["Batteries-Included Stdlib", "Comprehensive built-in utility modules", "Zero third-party dependency footprint for core tasks"],
+                            ["Cross-Platform Portability", "Standardized bytecode runtime (PVM)", "Identical behavior on Linux, macOS, and Windows"],
+                        ],
+                    ),
+                    CodeBlock(
+                        language="python",
+                        filename="expressive_features.py",
+                        code=(
+                            "# Expressive data transformation using list comprehensions\n"
+                            "raw_readings = [12.4, -999.0, 15.8, 18.2, -999.0, 21.0]\n"
+                            "valid_celsius = [val for val in raw_readings if val > -100.0]\n"
+                            "fahrenheit = [round(c * 9/5 + 32, 1) for c in valid_celsius]\n\n"
+                            "print(f'Cleaned readings (Fahrenheit): {fahrenheit}')"
+                        ),
+                        caption="Listing 1.1: Expressive syntax and list comprehensions in Python.",
+                        line_numbers=True,
+                    ),
+                    OutputBlock(
+                        title="Console Output",
+                        content="Cleaned readings (Fahrenheit): [54.3, 60.4, 64.8, 69.8]",
+                    ),
+                    CalloutBlock(
+                        variant="tip",
+                        title="Getting Started",
+                        content="Start with simple procedural scripts. As your projects grow, adopt type hints (`typing`) to document function contracts and prevent type bugs.",
+                        icon="lightbulb",
+                    ),
+                ],
+            )
+
+        elif "philosophy" in brief_lower or "zen of python" in brief_lower:
+            return PageContent(
+                headline=headline,
+                blocks=[
+                    TextBlock(
+                        text="The design principles behind Python are codified in PEP 20, known as 'The Zen of Python' by Tim Peters. "
+                        "These 19 guiding aphorisms guide language decisions and provide a shared aesthetic standard for writing idiomatic, 'Pythonic' code."
+                    ),
+                    TableBlock(
+                        caption="Core Principles of The Zen of Python (PEP 20)",
+                        columns=["Guiding Maxim", "Practical Meaning", "Pythonic Code Example"],
+                        rows=[
+                            ["Beautiful is better than ugly", "Favor clear, aesthetically readable layouts", "Clean whitespace and modular functions"],
+                            ["Explicit is better than implicit", "Avoid hidden magic or implicit conversions", "`import module` over wildcard `from module import *`"],
+                            ["Simple is better than complex", "Choose direct straightforward logic", "Built-in `sum()` over nested loops"],
+                            ["Readability counts", "Write code intended for human maintainers", "Descriptive variable names over abbreviations"],
+                        ],
+                    ),
+                    CodeBlock(
+                        language="python",
+                        filename="zen_comparison.py",
+                        code=(
+                            "# Non-Pythonic (Complex & Implicit)\n"
+                            "# res = [x for x in [y for y in data if y > 0] if x % 2 == 0]\n\n"
+                            "# Pythonic: Explicit, readable, and simple\n"
+                            "data = [-2, 1, 4, 7, 8, 10]\n"
+                            "even_positives = [n for n in data if n > 0 and n % 2 == 0]\n"
+                            "print(f'Filtered results: {even_positives}')"
+                        ),
+                        caption="Listing 1.2: Applying Zen of Python principles to readable filtering.",
+                        line_numbers=True,
+                    ),
+                    OutputBlock(
+                        title="Console Output",
+                        content="Filtered results: [4, 8, 10]",
+                    ),
+                    CalloutBlock(
+                        variant="note",
+                        title="Easter Egg in REPL",
+                        content="You can view the full Zen of Python anytime in your interactive shell by typing `import this`.",
+                        icon="book-open",
+                    ),
+                ],
+            )
+
+        elif "indentation" in brief_lower or "semantic whitespace" in brief_lower:
+            return PageContent(
+                headline=headline,
+                blocks=[
+                    TextBlock(
+                        text="Unlike languages that use curly braces `{}` or keywords like `begin`/`end` to define code blocks, "
+                        "Python uses semantic indentation. The PEP 8 style guide standardizes indentation to exactly 4 spaces per indentation level. "
+                        "Consistent indentation enforces visual hierarchy and prevents block mismatch bugs."
+                    ),
+                    CodeBlock(
+                        language="python",
+                        filename="indentation_rules.py",
+                        code=(
+                            "def evaluate_threshold(value: int, limit: int = 50) -> str:\n"
+                            "    # 4 spaces indent for function body\n"
+                            "    if value > limit:\n"
+                            "        # 8 spaces indent for conditional block\n"
+                            "        status = 'Above threshold'\n"
+                            "    else:\n"
+                            "        status = 'Within limits'\n"
+                            "    return status\n\n"
+                            "print('Status:', evaluate_threshold(75))"
+                        ),
+                        caption="Listing 1.3: Clean 4-space indentation structuring functions and branches.",
+                        line_numbers=True,
+                    ),
+                    OutputBlock(
+                        title="Console Output",
+                        content="Status: Above threshold",
+                    ),
+                    CommonMistakeBlock(
+                        title="IndentationError: unexpected indent",
+                        wrong_code="def calculate():\nprint('starting')  # IndentationError: expected an indented block",
+                        correct_code="def calculate():\n    print('starting')  # Correct: 4 spaces indent",
+                        explanation="Python requires an indented block following any header terminating in a colon `:`.",
+                    ),
+                ],
+            )
+
+        elif "interpreter" in brief_lower or "how the interpreter works" in brief_lower or "how programs work" in brief_lower:
             return PageContent(
                 headline=headline,
                 blocks=[
