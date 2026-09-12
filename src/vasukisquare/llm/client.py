@@ -179,7 +179,7 @@ class LLMClient:
         ]
 
         # -------------------------------------------------------------
-        # GROQ PROVIDER EXECUTION WITH MODEL POOL FAILOVER
+        # GROQ PROVIDER EXECUTION WITH MODEL POOL FAILOVER & SMART WAIT
         # -------------------------------------------------------------
         if effective_provider == "groq":
             pool = self.get_pool_for_stage(stage)
@@ -187,108 +187,140 @@ class LLMClient:
             candidate_models = pool.get_candidate_models()
             errors_by_model: Dict[str, Exception] = {}
             retries_per_model = self.settings.groq_retries_per_model
+            structured_retries_attempted: set[str] = set()
 
-            for model_candidate in candidate_models:
-                for attempt in range(1, retries_per_model + 1):
-                    start_time = time.time()
-                    try:
-                        llm = self.get_chat_model(
-                            temperature=temperature,
-                            provider="groq",
-                            model_name=model_candidate,
+            async def _try_invoke_model(model_name: str, msgs: List[Any], is_recovery: bool = False) -> Optional[T]:
+                start_time = time.time()
+                try:
+                    llm = self.get_chat_model(
+                        temperature=temperature,
+                        provider="groq",
+                        model_name=model_name,
+                    )
+                    structured_llm = llm.with_structured_output(schema)
+
+                    logger.debug(
+                        f"[LLM:START] provider=groq model={model_name} "
+                        f"stage={stage} recovery={is_recovery}"
+                    )
+                    raw_res = await structured_llm.ainvoke(msgs)
+                    duration = time.time() - start_time
+
+                    if not isinstance(raw_res, schema):
+                        if isinstance(raw_res, dict):
+                            raw_res = schema.model_validate(raw_res)
+                        else:
+                            raise ValueError(f"LLM returned unexpected type {type(raw_res)}, expected {schema.__name__}")
+
+                    prompt_tokens, completion_tokens = self._extract_tokens_from_response(raw_res)
+                    total_tokens = prompt_tokens + completion_tokens
+                    tps_str = f"{completion_tokens / duration:.1f} tok/s" if completion_tokens > 0 and duration > 0 else "N/A"
+
+                    # Record model success & telemetry
+                    pool.record_success(model_name)
+                    pool.switch_to_model(model_name, reason="successful call")
+                    self.active_model = model_name
+
+                    self.metrics.record_llm_call(
+                        stage=stage,
+                        model=model_name,
+                        duration=duration,
+                        prompt_tokens=prompt_tokens,
+                        completion_tokens=completion_tokens,
+                        provider="groq",
+                        success=True,
+                    )
+                    logger.info(
+                        f"[LLM] provider=groq model={model_name} stage={stage} "
+                        f"duration={duration:.2f}s tokens={total_tokens} speed={tps_str} "
+                        f"success=true"
+                    )
+                    return raw_res
+
+                except Exception as e:
+                    duration = time.time() - start_time
+                    err_info = is_retryable_groq_error(e)
+                    errors_by_model[model_name] = e
+
+                    if not err_info.is_retryable:
+                        logger.error(
+                            f"[LLM:NON_RETRYABLE] provider=groq model={model_name} stage={stage} "
+                            f"non-retryable error: {e}"
                         )
-                        structured_llm = llm.with_structured_output(schema)
-
-                        logger.debug(
-                            f"[LLM:START] provider=groq model={model_candidate} "
-                            f"stage={stage} attempt={attempt}/{retries_per_model}"
-                        )
-                        result = await structured_llm.ainvoke(messages)
-                        duration = time.time() - start_time
-
-                        if not isinstance(result, schema):
-                            if isinstance(result, dict):
-                                result = schema.model_validate(result)
-                            else:
-                                raise ValueError(f"LLM returned unexpected type {type(result)}, expected {schema.__name__}")
-
-                        prompt_tokens, completion_tokens = self._extract_tokens_from_response(result)
-                        total_tokens = prompt_tokens + completion_tokens
-                        tps_str = f"{completion_tokens / duration:.1f} tok/s" if completion_tokens > 0 and duration > 0 else "N/A"
-
-                        # Record model success & telemetry
-                        pool.record_success(model_candidate)
-                        pool.switch_to_model(model_candidate, reason="successful call")
-                        self.active_model = model_candidate
-
                         self.metrics.record_llm_call(
                             stage=stage,
-                            model=model_candidate,
+                            model=model_name,
                             duration=duration,
-                            prompt_tokens=prompt_tokens,
-                            completion_tokens=completion_tokens,
                             provider="groq",
-                            success=True,
+                            success=False,
                         )
-                        logger.info(
-                            f"[LLM] provider=groq model={model_candidate} stage={stage} "
-                            f"duration={duration:.2f}s tokens={total_tokens} speed={tps_str} "
-                            f"attempt={attempt} success=true"
-                        )
-                        return result
+                        raise e
 
-                    except Exception as e:
-                        duration = time.time() - start_time
-                        errors_by_model[model_candidate] = e
-                        is_retryable, is_rate_limit, retry_after, is_unavailable = is_retryable_groq_error(e)
-                        
-                        pool.record_failure(
-                            model=model_candidate,
-                            error=e,
-                            is_rate_limit=is_rate_limit,
-                            retry_after=retry_after,
-                        )
-
-                        if not is_retryable:
-                            # Non-retryable error (e.g. 401 Unauthorized / Invalid API Key)
-                            # Fail immediately without endlessly switching models
-                            logger.error(
-                                f"[LLM:NON_RETRYABLE] provider=groq model={model_candidate} stage={stage} "
-                                f"non-retryable error: {e}"
-                            )
-                            self.metrics.record_llm_call(
-                                stage=stage,
-                                model=model_candidate,
-                                duration=duration,
-                                provider="groq",
-                                success=False,
-                            )
-                            raise e
-
-                        # Model is retryable (rate limit, quota, server overload, unavailable)
-                        reason_type = "rate_limit" if is_rate_limit else ("unavailable" if is_unavailable else "server_error")
+                    if err_info.is_impossible_limit:
                         logger.warning(
-                            f"[LLM:MODEL_ERROR] provider=groq model={model_candidate} stage={stage} "
-                            f"attempt={attempt}/{retries_per_model} failed ({reason_type}): {e}"
+                            f"[LLM:IMPOSSIBLE_LIMIT] provider=groq model={model_name} stage={stage} "
+                            f"prompt exceeds model context/OTPM limit: {e}"
                         )
+                        pool.record_failure(model=model_name, error=e, is_rate_limit=False)
+                        return None
 
-                        if self.settings.groq_model_fallback and len(candidate_models) > 1:
-                            # Switch immediately to next model in pool
-                            next_models = [m for m in candidate_models if m != model_candidate and m not in errors_by_model]
-                            next_model_name = next_models[0] if next_models else "None"
-                            logger.warning(
-                                f"[LLM:FAILOVER] Failover triggered: '{model_candidate}' -> '{next_model_name}' "
-                                f"for stage='{stage}'"
+                    if err_info.is_structured_error:
+                        pool.record_failure(model=model_name, error=e, is_structured_error=True)
+                        logger.warning(
+                            f"[LLM:STRUCTURED_ERROR] provider=groq model={model_name} stage={stage}: {e}"
+                        )
+                        if not is_recovery and model_name not in structured_retries_attempted:
+                            structured_retries_attempted.add(model_name)
+                            recovery_sys = (
+                                f"{effective_system_prompt}\n\n"
+                                f"CRITICAL: Output strictly valid JSON matching the schema with no preamble or commentary."
                             )
-                            break
-                        else:
-                            # Single model or fallback disabled: backoff retry
-                            if attempt < retries_per_model:
-                                backoff = retry_after if retry_after else (2 ** (attempt - 1))
-                                await asyncio.sleep(backoff)
+                            recovery_msgs = [
+                                SystemMessage(content=recovery_sys),
+                                HumanMessage(content=user_prompt),
+                            ]
+                            logger.info(f"[LLM:SAME_MODEL_RETRY] Retrying structured prompt on {model_name}...")
+                            return await _try_invoke_model(model_name, recovery_msgs, is_recovery=True)
+                        return None
 
-            # All Groq candidate models have failed
-            # Check for provider fallback to Ollama if configured
+                    # Rate limit or server error
+                    pool.record_failure(
+                        model=model_name,
+                        error=e,
+                        is_rate_limit=err_info.is_rate_limit,
+                        retry_after=err_info.retry_after,
+                    )
+                    reason_type = "rate_limit" if err_info.is_rate_limit else "server_error"
+                    logger.warning(
+                        f"[LLM:MODEL_ERROR] provider=groq model={model_name} stage={stage} "
+                        f"failed ({reason_type}): {e}"
+                    )
+                    return None
+
+            # 1. Iterate through candidate models
+            for model_candidate in candidate_models:
+                res = await _try_invoke_model(model_candidate, messages)
+                if res is not None:
+                    return res
+                if not self.settings.groq_model_fallback:
+                    break
+
+            # 2. If all candidate models failed, check if rate-limited and smart wait is eligible
+            rate_limited_models = [m for m in candidate_models if pool.is_in_cooldown(m)]
+            if rate_limited_models and self.settings.groq_wait_for_rate_limit:
+                earliest_model, wait_sec = pool.get_earliest_available_wait(candidate_models)
+                if earliest_model and wait_sec <= self.settings.groq_max_rate_limit_wait_seconds:
+                    total_wait = wait_sec + self.settings.groq_rate_limit_buffer_seconds
+                    logger.info(
+                        f"[GroqPool] All models temporarily rate-limited. Earliest available: '{earliest_model}' "
+                        f"in {wait_sec:.1f}s. Waiting {total_wait:.1f}s to retry..."
+                    )
+                    await asyncio.sleep(total_wait)
+                    retry_res = await _try_invoke_model(earliest_model, messages)
+                    if retry_res is not None:
+                        return retry_res
+
+            # 3. Check for provider fallback to Ollama if configured
             if self.settings.llm_fallback_on_rate_limit:
                 logger.warning(
                     f"[LLM:PROVIDER_FALLBACK] All Groq models ({list(errors_by_model.keys())}) exhausted. "

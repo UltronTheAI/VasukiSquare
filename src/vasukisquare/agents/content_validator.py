@@ -22,10 +22,12 @@ class ContentValidationResult(BaseModel):
 
 
 def count_page_words(page: PageContent) -> int:
-    """Calculate total word count across prose paragraphs and component blocks."""
+    """Calculate total word count across prose paragraphs and all component blocks."""
     total_words = 0
 
-    # Count main body prose
+    # Count main headline and body prose
+    if page.headline:
+        total_words += len(re.findall(r'\b\w+\b', page.headline))
     if page.body:
         total_words += len(re.findall(r'\b\w+\b', page.body))
 
@@ -41,17 +43,19 @@ def count_page_words(page: PageContent) -> int:
 
     # Count blocks
     for block in getattr(page, "blocks", []):
-        b_type = getattr(block, "type", "")
-        if b_type == "text" or hasattr(block, "text"):
-            total_words += len(re.findall(r'\b\w+\b', getattr(block, "text", "")))
+        if hasattr(block, "text") and block.text:
+            total_words += len(re.findall(r'\b\w+\b', str(block.text)))
+        if hasattr(block, "title") and block.title:
+            total_words += len(re.findall(r'\b\w+\b', str(block.title)))
         if hasattr(block, "paragraphs") and block.paragraphs:
             for p in block.paragraphs:
                 total_words += len(re.findall(r'\b\w+\b', str(p)))
         if hasattr(block, "content") and block.content:
             total_words += len(re.findall(r'\b\w+\b', str(block.content)))
         if hasattr(block, "code") and block.code:
-            # Code tokens count toward density
             total_words += len(re.findall(r'\b\w+\b', str(block.code)))
+        if hasattr(block, "caption") and block.caption:
+            total_words += len(re.findall(r'\b\w+\b', str(block.caption)))
         if hasattr(block, "lines") and block.lines:
             for line in block.lines:
                 txt = getattr(line, "text", str(line))
@@ -60,10 +64,27 @@ def count_page_words(page: PageContent) -> int:
             total_words += len(re.findall(r'\b\w+\b', str(block.quote)))
         if hasattr(block, "steps") and block.steps:
             for step in block.steps:
-                total_words += len(re.findall(r'\b\w+\b', str(step)))
+                if isinstance(step, dict):
+                    for v in step.values():
+                        total_words += len(re.findall(r'\b\w+\b', str(v)))
+                else:
+                    total_words += len(re.findall(r'\b\w+\b', str(step)))
         if hasattr(block, "instructions") and block.instructions:
             for inst in block.instructions:
                 total_words += len(re.findall(r'\b\w+\b', str(inst)))
+        if hasattr(block, "columns") and block.columns:
+            for col in block.columns:
+                total_words += len(re.findall(r'\b\w+\b', str(col)))
+        if hasattr(block, "rows") and block.rows:
+            for row in block.rows:
+                for cell in row:
+                    total_words += len(re.findall(r'\b\w+\b', str(cell)))
+        if hasattr(block, "left_items") and block.left_items:
+            for item in block.left_items:
+                total_words += len(re.findall(r'\b\w+\b', str(item)))
+        if hasattr(block, "right_items") and block.right_items:
+            for item in block.right_items:
+                total_words += len(re.findall(r'\b\w+\b', str(item)))
 
     return total_words
 

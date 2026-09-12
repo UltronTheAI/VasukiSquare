@@ -48,6 +48,11 @@ def parse_args():
         action="store_true",
         help="Skip persisting records to MongoDB.",
     )
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume generation from latest stage/page checkpoints in output directory.",
+    )
     return parser.parse_args()
 
 
@@ -63,6 +68,8 @@ async def main_async():
     print(f" Topic: {args.topic}")
     print(f" Target Pages: {args.pages}")
     print(f" Output Directory: {out_dir.resolve()}")
+    if args.resume:
+        print(f" Mode: RESUME from checkpoints")
     print(f"==========================================\n")
 
     state = await pipeline.run(
@@ -71,6 +78,7 @@ async def main_async():
         output_dir=out_dir,
         generate_pdf=not args.no_pdf,
         persist_db=not args.no_db,
+        resume=args.resume,
     )
 
     print(f"\n==========================================")

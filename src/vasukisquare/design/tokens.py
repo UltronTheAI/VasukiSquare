@@ -1,7 +1,7 @@
 """Design token definitions, font fallbacks, and CSS generator parsed from DESIGN.md."""
 
 from enum import Enum
-from typing import Dict, Optional, Set
+from typing import Any, Dict, Optional, Set, Union
 from pydantic import BaseModel, Field
 
 
@@ -80,6 +80,61 @@ def validate_color_token(color: str) -> ColorToken:
         if token.value.lower() == c_clean:
             return token
     raise ValueError(f"Color '{color}' is not a valid design token from DESIGN.md. Arbitrary colors are prohibited.")
+
+
+def normalize_design_color(
+    value: Any,
+    fallback_token: ColorToken = ColorToken.BRAND_GREEN,
+) -> ColorToken:
+    """Safely normalize a ColorToken, enum name, or hex string into a valid ColorToken without raising ValueError."""
+    if isinstance(value, ColorToken):
+        return value
+    if not value or not isinstance(value, str):
+        return fallback_token
+
+    val_clean = value.strip().lower()
+
+    # 1. Check direct hex match against ColorToken values
+    for token in ColorToken.__members__.values():
+        if token.value.lower() == val_clean:
+            return token
+
+    # 2. Check enum member name match (e.g., "BRAND_GREEN", "brand_green", "brand-green")
+    clean_name = val_clean.replace("-", "_").upper()
+    if clean_name in ColorToken.__members__:
+        return ColorToken[clean_name]
+
+    # 3. Known common aliases / hex mappings
+    HEX_FALLBACK_MAP = {
+        "#00ed64": ColorToken.BRAND_GREEN,
+        "#00b545": ColorToken.PRIMARY_DEEP,
+        "#008c34": ColorToken.PRIMARY_PRESSED,
+        "#001e2b": ColorToken.INK,
+        "#00684a": ColorToken.BRAND_GREEN_DARK,
+        "#00a35c": ColorToken.BRAND_GREEN_MID,
+        "#c3f0d2": ColorToken.BRAND_GREEN_SOFT,
+        "#003d4f": ColorToken.BRAND_TEAL,
+        "#7b3ff2": ColorToken.ACCENT_PURPLE,
+        "#fa6e39": ColorToken.ACCENT_ORANGE,
+        "#f06bb8": ColorToken.ACCENT_PINK,
+        "#3d4f9f": ColorToken.ACCENT_BLUE,
+        "#ffffff": ColorToken.ON_DARK,
+        "#f9fbfa": ColorToken.SURFACE,
+        "#f4f7f6": ColorToken.SURFACE_SOFT,
+        "#e3fcef": ColorToken.SURFACE_FEATURE,
+        "#e1e5e8": ColorToken.HAIRLINE,
+        "#eceff1": ColorToken.HAIRLINE_SOFT,
+        "#c1ccd6": ColorToken.HAIRLINE_STRONG,
+        "#1c2d38": ColorToken.CHARCOAL,
+        "#3d4f5b": ColorToken.SLATE,
+        "#5c6c7a": ColorToken.STEEL,
+        "#7c8c9a": ColorToken.STONE,
+        "#a8b3bc": ColorToken.MUTED,
+    }
+    if val_clean in HEX_FALLBACK_MAP:
+        return HEX_FALLBACK_MAP[val_clean]
+
+    return fallback_token
 
 
 class SpacingToken(str, Enum):

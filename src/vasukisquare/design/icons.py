@@ -1,8 +1,8 @@
 """Lucide icon handling and tokenized color resolution mapped from DESIGN.md."""
 
 import html
-from typing import Optional
-from vasukisquare.design.tokens import ColorToken, validate_color_token
+from typing import Any, Optional, Union
+from vasukisquare.design.tokens import ColorToken, validate_color_token, normalize_design_color
 from vasukisquare.design.theme import Theme
 
 
@@ -55,15 +55,13 @@ class LucideIcon:
     def __init__(
         self,
         name: str,
-        color: ColorToken = ColorToken.BRAND_GREEN,
+        color: Union[ColorToken, str] = ColorToken.BRAND_GREEN,
         size: int = 24,
         stroke_width: float = 2.0,
         custom_path: Optional[str] = None,
     ):
         self.name = name.strip().lower()
-        if not isinstance(color, ColorToken):
-            raise ValueError(f"Color '{color}' must be a valid ColorToken from DESIGN.md.")
-        self.color = color
+        self.color = normalize_design_color(color, fallback_token=ColorToken.BRAND_GREEN)
         self.size = size
         self.stroke_width = stroke_width
         self.custom_path = custom_path
@@ -93,7 +91,7 @@ class LucideIcon:
 
 def render_lucide_icon(
     name: str,
-    color: ColorToken = ColorToken.BRAND_GREEN,
+    color: Union[ColorToken, str] = ColorToken.BRAND_GREEN,
     size: int = 24,
     stroke_width: float = 2.0,
 ) -> str:

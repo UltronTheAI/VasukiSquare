@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     groq_retries_per_model: int = Field(default=1, alias="GROQ_RETRIES_PER_MODEL")
     groq_max_model_attempts: int = Field(default=0, alias="GROQ_MAX_MODEL_ATTEMPTS")
     groq_model_cooldown_seconds: float = Field(default=60.0, alias="GROQ_MODEL_COOLDOWN_SECONDS")
+    groq_wait_for_rate_limit: bool = Field(default=True, alias="GROQ_WAIT_FOR_RATE_LIMIT")
+    groq_max_rate_limit_wait_seconds: float = Field(default=60.0, alias="GROQ_MAX_RATE_LIMIT_WAIT_SECONDS")
+    groq_rate_limit_buffer_seconds: float = Field(default=1.0, alias="GROQ_RATE_LIMIT_BUFFER_SECONDS")
 
     # Optional task-specific Groq model groups
     groq_models_writing: Optional[str] = Field(default=None, alias="GROQ_MODELS_WRITING")

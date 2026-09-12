@@ -68,8 +68,9 @@ class EbookGenerationPipeline:
         generate_pdf: bool = True,
         save_raster_cover: bool = False,
         persist_db: bool = True,
+        resume: bool = False,
     ) -> GenerationState:
-        """Execute the full 7-stage pipeline synchronously or asynchronously."""
+        """Execute the full 7-stage pipeline synchronously or asynchronously with checkpointing & resume support."""
         if target_pages is None:
             target_pages = self.settings.default_target_pages
 
@@ -77,21 +78,50 @@ class EbookGenerationPipeline:
         out_dir.mkdir(parents=True, exist_ok=True)
         pages_dir = out_dir / "pages"
         pages_dir.mkdir(parents=True, exist_ok=True)
+        checkpoints_dir = out_dir / "checkpoints"
+        checkpoints_dir.mkdir(parents=True, exist_ok=True)
+        pages_checkpoint_dir = checkpoints_dir / "pages"
+        pages_checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
         state = GenerationState(topic=topic)
         self.metrics.topic = topic
         self.metrics.target_pages = target_pages
 
-        logger.info(f"Starting VasukiSquare Generation Pipeline for topic: '{topic}'")
+        logger.info(f"Starting VasukiSquare Generation Pipeline for topic: '{topic}' (resume={resume})")
         logger.info(f"Active Search Provider: {self.settings.active_search_provider_name} | Active LLM: {self.llm_client.active_provider} ({self.llm_client.active_model})")
 
         # Stage 1: Intent Inference
         logger.info("Stage 1/7: Inferring Book Intent...")
-        state.intent = await self.editorial_agent.infer_intent(topic)
+        intent_ckpt = checkpoints_dir / "intent.json"
+        if resume and intent_ckpt.exists():
+            try:
+                from vasukisquare.book.models import BookIntent
+                state.intent = BookIntent.model_validate_json(intent_ckpt.read_text(encoding="utf-8"))
+                logger.info("Resumed from checkpoint: Book Intent loaded.")
+            except Exception as e:
+                logger.warning(f"Failed to load intent checkpoint: {e}. Re-inferring intent.")
+                state.intent = await self.editorial_agent.infer_intent(topic)
+                intent_ckpt.write_text(state.intent.model_dump_json(indent=2), encoding="utf-8")
+        else:
+            state.intent = await self.editorial_agent.infer_intent(topic)
+            intent_ckpt.write_text(state.intent.model_dump_json(indent=2), encoding="utf-8")
 
         # Stage 2: Deep Research
         logger.info("Stage 2/7: Executing Research Pipeline...")
-        state.research_corpus = await self.research_service.research_topic(topic)
+        research_ckpt = checkpoints_dir / "research.json"
+        if resume and research_ckpt.exists():
+            try:
+                from vasukisquare.research.models import ResearchCorpus
+                state.research_corpus = ResearchCorpus.model_validate_json(research_ckpt.read_text(encoding="utf-8"))
+                logger.info("Resumed from checkpoint: Research Corpus loaded.")
+            except Exception as e:
+                logger.warning(f"Failed to load research checkpoint: {e}. Re-running research.")
+                state.research_corpus = await self.research_service.research_topic(topic)
+                research_ckpt.write_text(state.research_corpus.model_dump_json(indent=2), encoding="utf-8")
+        else:
+            state.research_corpus = await self.research_service.research_topic(topic)
+            research_ckpt.write_text(state.research_corpus.model_dump_json(indent=2), encoding="utf-8")
+
         research_json_path = out_dir / "research.json"
         research_json_path.write_text(state.research_corpus.model_dump_json(indent=2), encoding="utf-8")
         state.artifacts["research_json"] = str(research_json_path)
@@ -106,12 +136,30 @@ class EbookGenerationPipeline:
 
         # Stage 3: Editorial Planning
         logger.info(f"Stage 3/7: Generating Editorial & Chapter Plans (Target Pages: {target_pages})...")
-        state.book_plan = await self.editorial_agent.generate_book_plan(
-            prompt=topic,
-            intent=state.intent,
-            corpus=state.research_corpus,
-            target_pages=target_pages,
-        )
+        plan_ckpt = checkpoints_dir / "book_plan.json"
+        if resume and plan_ckpt.exists():
+            try:
+                from vasukisquare.book.models import BookPlan
+                state.book_plan = BookPlan.model_validate_json(plan_ckpt.read_text(encoding="utf-8"))
+                logger.info("Resumed from checkpoint: Book Plan loaded.")
+            except Exception as e:
+                logger.warning(f"Failed to load book plan checkpoint: {e}. Re-generating book plan.")
+                state.book_plan = await self.editorial_agent.generate_book_plan(
+                    prompt=topic,
+                    intent=state.intent,
+                    corpus=state.research_corpus,
+                    target_pages=target_pages,
+                )
+                plan_ckpt.write_text(state.book_plan.model_dump_json(indent=2), encoding="utf-8")
+        else:
+            state.book_plan = await self.editorial_agent.generate_book_plan(
+                prompt=topic,
+                intent=state.intent,
+                corpus=state.research_corpus,
+                target_pages=target_pages,
+            )
+            plan_ckpt.write_text(state.book_plan.model_dump_json(indent=2), encoding="utf-8")
+
         plan_json_path = out_dir / "book_plan.json"
         plan_json_path.write_text(state.book_plan.model_dump_json(indent=2), encoding="utf-8")
         state.artifacts["book_plan_json"] = str(plan_json_path)
@@ -127,15 +175,36 @@ class EbookGenerationPipeline:
 
         # Stage 4: Cover Planning & Design
         logger.info("Stage 4/7: Designing Cover Artwork...")
-        state.cover_plan = await self.cover_agent.plan_cover(
-            title=state.book_plan.title,
-            subtitle=state.book_plan.subtitle,
-            category=state.intent.book_type.replace("_", " ").title(),
-            tone=state.intent.tone,
-            audience=state.intent.target_audience,
-            technical_depth=state.intent.technical_depth,
-            seed=book_seed,
-        )
+        cover_ckpt = checkpoints_dir / "cover_plan.json"
+        if resume and cover_ckpt.exists():
+            try:
+                from vasukisquare.book.models import CoverPlan
+                state.cover_plan = CoverPlan.model_validate_json(cover_ckpt.read_text(encoding="utf-8"))
+                logger.info("Resumed from checkpoint: Cover Plan loaded.")
+            except Exception as e:
+                logger.warning(f"Failed to load cover plan checkpoint: {e}. Re-planning cover.")
+                state.cover_plan = await self.cover_agent.plan_cover(
+                    title=state.book_plan.title,
+                    subtitle=state.book_plan.subtitle,
+                    category=state.intent.book_type.replace("_", " ").title(),
+                    tone=state.intent.tone,
+                    audience=state.intent.target_audience,
+                    technical_depth=state.intent.technical_depth,
+                    seed=book_seed,
+                )
+                cover_ckpt.write_text(state.cover_plan.model_dump_json(indent=2), encoding="utf-8")
+        else:
+            state.cover_plan = await self.cover_agent.plan_cover(
+                title=state.book_plan.title,
+                subtitle=state.book_plan.subtitle,
+                category=state.intent.book_type.replace("_", " ").title(),
+                tone=state.intent.tone,
+                audience=state.intent.target_audience,
+                technical_depth=state.intent.technical_depth,
+                seed=book_seed,
+            )
+            cover_ckpt.write_text(state.cover_plan.model_dump_json(indent=2), encoding="utf-8")
+
         if not state.cover_plan:
             raise RuntimeError("Book cover is missing or failed to render.")
 
@@ -161,9 +230,20 @@ class EbookGenerationPipeline:
         raw_pages: List[Page] = []
 
         for p_spec in state.book_plan.all_planned_pages:
+            page_ckpt = pages_checkpoint_dir / f"page_{p_spec.page_number:03d}.json"
             if p_spec.page_number == 1 or p_spec.page_type == LayoutType.COVER.value:
                 raw_pages.append(a4_cover_page)
+                page_ckpt.write_text(a4_cover_page.model_dump_json(indent=2), encoding="utf-8")
                 continue
+
+            if resume and page_ckpt.exists():
+                try:
+                    page_model = Page.model_validate_json(page_ckpt.read_text(encoding="utf-8"))
+                    logger.info(f"Page {p_spec.page_number} loaded from checkpoint ({page_ckpt.name}).")
+                    raw_pages.append(page_model)
+                    continue
+                except Exception as e:
+                    logger.warning(f"Failed to load checkpoint for page {p_spec.page_number}: {e}. Generating page.")
 
             # Assign theme styling from BookThemeMap
             ch_num = p_spec.chapter_number
@@ -190,6 +270,7 @@ class EbookGenerationPipeline:
                 ]
                 page_model.style.opener_template = opener_styles[(ch_num - 1) % len(opener_styles)]
 
+            page_ckpt.write_text(page_model.model_dump_json(indent=2), encoding="utf-8")
             raw_pages.append(page_model)
 
 

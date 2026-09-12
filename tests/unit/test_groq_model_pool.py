@@ -172,24 +172,24 @@ def test_retry_after_header_and_regex_parsing():
 def test_error_classification():
     """is_retryable_groq_error correctly identifies retryable vs non-retryable errors."""
     # 401 Unauthorized / Invalid API Key -> Non-retryable
-    is_ret, is_rl, _, is_unavail = is_retryable_groq_error(Exception("401 Unauthorized: Invalid API key"))
-    assert not is_ret
+    info1 = is_retryable_groq_error(Exception("401 Unauthorized: Invalid API key"))
+    assert not info1.is_retryable
 
     # 429 Rate limit -> Retryable
-    is_ret, is_rl, retry_after, _ = is_retryable_groq_error(Exception("429 Rate limit reached for TPM. Try again in 5.2s"))
-    assert is_ret
-    assert is_rl
-    assert retry_after == 5.2
+    info2 = is_retryable_groq_error(Exception("429 Rate limit reached for TPM. Try again in 5.2s"))
+    assert info2.is_retryable
+    assert info2.is_rate_limit
+    assert info2.retry_after == 5.2
 
     # 503 Service Unavailable -> Retryable
-    is_ret, is_rl, _, _ = is_retryable_groq_error(Exception("503 Service Unavailable: Server overloaded"))
-    assert is_ret
-    assert not is_rl
+    info3 = is_retryable_groq_error(Exception("503 Service Unavailable: Server overloaded"))
+    assert info3.is_retryable
+    assert not info3.is_rate_limit
 
     # Model decommissioned / not found -> Retryable across models
-    is_ret, _, _, is_unavail = is_retryable_groq_error(Exception("Model 'old-model' is decommissioned and no longer exists"))
-    assert is_ret
-    assert is_unavail
+    info4 = is_retryable_groq_error(Exception("Model 'old-model' is decommissioned and no longer exists"))
+    assert info4.is_retryable
+    assert info4.is_model_unavailable
 
 
 # =========================================================================
