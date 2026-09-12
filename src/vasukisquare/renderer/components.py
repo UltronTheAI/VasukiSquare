@@ -2,7 +2,7 @@
 
 import html
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name, TextLexer
 from pygments.formatters import HtmlFormatter
@@ -55,8 +55,10 @@ class ComponentRenderer:
     """Renders structured technical content components into deterministic, high-contrast HTML."""
 
     @classmethod
-    def render_block(cls, block: ContentBlock, theme: Theme = Theme.LIGHT) -> str:
+    def render_block(cls, block: ContentBlock, theme: Union[Theme, str] = Theme.LIGHT) -> str:
         """Dispatch rendering for any ContentBlock variant."""
+        if isinstance(theme, str):
+            theme = Theme.DARK if theme.lower() == "dark" else Theme.LIGHT
         b_type = getattr(block, "type", None)
         if isinstance(block, CodeBlock) or b_type == "code":
             return cls.render_code(block, theme)
@@ -758,8 +760,9 @@ class ComponentRenderer:
             else ""
         )
 
+        theme_val = getattr(theme, "value", str(theme))
         return f"""
-        <div class="copyright-container theme-{theme.value}">
+        <div class="copyright-container theme-{theme_val}">
           <div class="copyright-header">
             <div class="typo-eyebrow" style="margin-bottom: 6px;">Publication Information</div>
             <h1 class="copyright-title">{title_escaped}</h1>
@@ -835,8 +838,9 @@ class ComponentRenderer:
                 """
             )
 
+        theme_val = getattr(theme, "value", str(theme))
         return f"""
-        <div class="component-toc theme-{theme.value}">
+        <div class="component-toc theme-{theme_val}">
           <div class="toc-header">
             <div class="typo-eyebrow">Contents</div>
             <h1 class="toc-title">{title_escaped}</h1>

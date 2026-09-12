@@ -1,7 +1,7 @@
 """Configuration loading for VasukiSquare using Pydantic Settings."""
 
 from functools import lru_cache
-from typing import Optional
+from typing import Any, Dict, List, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -30,14 +30,26 @@ class Settings(BaseSettings):
     llm_temperature: float = Field(default=0.25, alias="LLM_TEMPERATURE")
     llm_fallback_on_rate_limit: bool = Field(default=False, alias="LLM_FALLBACK_ON_RATE_LIMIT")
 
-    # Groq & Cloud LLM
+    # Groq & Cloud LLM Model Pool
     groq_api_key: Optional[str] = Field(default=None, alias="GROQ_API_KEY")
     groq_model: str = Field(default="openai/gpt-oss-120b", alias="GROQ_MODEL")
+    groq_models: Optional[str] = Field(default=None, alias="GROQ_MODELS")
+    groq_model_strategy: str = Field(default="ordered", alias="GROQ_MODEL_STRATEGY")
+    groq_model_fallback: bool = Field(default=True, alias="GROQ_MODEL_FALLBACK")
+    groq_retries_per_model: int = Field(default=1, alias="GROQ_RETRIES_PER_MODEL")
+    groq_max_model_attempts: int = Field(default=0, alias="GROQ_MAX_MODEL_ATTEMPTS")
+    groq_model_cooldown_seconds: float = Field(default=60.0, alias="GROQ_MODEL_COOLDOWN_SECONDS")
+
+    # Optional task-specific Groq model groups
+    groq_models_writing: Optional[str] = Field(default=None, alias="GROQ_MODELS_WRITING")
+    groq_models_research: Optional[str] = Field(default=None, alias="GROQ_MODELS_RESEARCH")
+    groq_models_planning: Optional[str] = Field(default=None, alias="GROQ_MODELS_PLANNING")
 
     # Ollama Local Fallback
     ollama_base_url: str = Field(default="http://localhost:11434", alias="OLLAMA_BASE_URL")
     ollama_model: str = Field(default="qwen2.5:7b-instruct", alias="OLLAMA_MODEL")
     ollama_num_ctx: int = Field(default=8192, alias="OLLAMA_NUM_CTX")
+
 
     # MongoDB
     mongodb_uri: str = Field(default="mongodb://localhost:27017", alias="MONGODB_URI")
@@ -70,6 +82,10 @@ class Settings(BaseSettings):
     cover_variation_enabled: bool = Field(default=True, alias="COVER_VARIATION_ENABLED")
     cover_max_retries: int = Field(default=1, alias="COVER_MAX_RETRIES")
 
+    def model_post_init(self, __context: Any) -> None:
+        if self.app_env == "test":
+            self.vasukisquare_mock_mode = True
+
     @property
     def has_web_search_provider(self) -> bool:
         """Check if at least one general web search provider is configured."""
@@ -86,6 +102,35 @@ class Settings(BaseSettings):
             return "brave"
         return "mock"
 
+    def get_groq_models(self, group: Optional[str] = None) -> list[str]:
+        """Parse and return ordered list of unique Groq models for a given task group or general pool."""
+        raw_val = None
+        if group:
+            grp_lower = group.lower().strip()
+            if grp_lower == "writing" and self.groq_models_writing:
+                raw_val = self.groq_models_writing
+            elif grp_lower == "research" and self.groq_models_research:
+                raw_val = self.groq_models_research
+            elif grp_lower == "planning" and self.groq_models_planning:
+                raw_val = self.groq_models_planning
+
+        if not raw_val:
+            raw_val = self.groq_models or self.groq_model
+
+        if not raw_val or not raw_val.strip():
+            return ["openai/gpt-oss-120b"]
+
+        # Split on commas, trim whitespace, ignore empty, deduplicate preserving order
+        models: list[str] = []
+        seen: set[str] = set()
+        for item in raw_val.split(","):
+            cleaned = item.strip()
+            if cleaned and cleaned not in seen:
+                seen.add(cleaned)
+                models.append(cleaned)
+
+        return models if models else ["openai/gpt-oss-120b"]
+
     def resolve_llm_provider(self) -> tuple[str, str, str]:
         """Resolve active LLM provider, active model, and rationale string.
         
@@ -93,10 +138,13 @@ class Settings(BaseSettings):
             (provider_name, model_name, reason_description)
         """
         prov = (self.llm_provider or "auto").strip().lower()
+        groq_models = self.get_groq_models()
+        active_groq_model = groq_models[0]
+        model_count_str = f" (pool of {len(groq_models)} models)" if len(groq_models) > 1 else ""
 
         if prov == "auto":
             if self.groq_api_key and self.groq_api_key.strip():
-                return ("groq", self.groq_model, "GROQ_API_KEY configured")
+                return ("groq", active_groq_model, f"GROQ_API_KEY configured{model_count_str}")
             return ("ollama", self.ollama_model, "GROQ_API_KEY missing or empty")
 
         if prov == "groq":
@@ -105,7 +153,7 @@ class Settings(BaseSettings):
                     "LLM_PROVIDER is set to 'groq' but GROQ_API_KEY is missing or empty. "
                     "Set GROQ_API_KEY in .env/.env.local or set LLM_PROVIDER=auto / LLM_PROVIDER=ollama."
                 )
-            return ("groq", self.groq_model, "Explicitly set via LLM_PROVIDER=groq")
+            return ("groq", active_groq_model, f"Explicitly set via LLM_PROVIDER=groq{model_count_str}")
 
         if prov == "ollama":
             return ("ollama", self.ollama_model, "Explicitly set via LLM_PROVIDER=ollama")
@@ -113,6 +161,7 @@ class Settings(BaseSettings):
         raise EnvironmentConfigurationError(
             f"Unsupported LLM_PROVIDER '{self.llm_provider}'. Supported values: 'auto', 'groq', 'ollama'."
         )
+
 
     def validate_production_environment(self) -> None:
         """Validate required configuration for production book generation."""
@@ -174,4 +223,10 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Return cached application settings instance."""
     return Settings()
+
+
+def get_groq_models(group: Optional[str] = None) -> list[str]:
+    """Convenience helper to retrieve configured Groq models."""
+    return get_settings().get_groq_models(group)
+
 

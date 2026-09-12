@@ -9,7 +9,20 @@ VasukiSquare uses `pydantic-settings` to load and validate configuration from en
 | `APP_ENV` | `str` | `development` | Application runtime environment (`development`, `production`, `test`) |
 | `LOG_LEVEL` | `str` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `GROQ_API_KEY` | `str` | None | API key for Groq LLM services |
-| `GROQ_MODEL` | `str` | `llama-3.3-70b-versatile` | Model name on Groq |
+| `GROQ_MODEL` | `str` | `openai/gpt-oss-120b` | Single default model or fallback model name |
+| `GROQ_MODELS` | `str` | None | Comma-separated list of Groq models for automatic failover pool |
+| `GROQ_MODEL_STRATEGY` | `str` | `ordered` | Model selection strategy (`ordered`, `random`, `rotate`) |
+| `GROQ_MODEL_FALLBACK` | `bool` | `true` | Enable automatic failover between pool models on rate limit/server errors |
+| `GROQ_RETRIES_PER_MODEL` | `int` | `1` | Retries on an individual model before failing over |
+| `GROQ_MAX_MODEL_ATTEMPTS` | `int` | `0` | Max candidate models to attempt per request (`0` = all) |
+| `GROQ_MODEL_COOLDOWN_SECONDS` | `float` | `60.0` | Cooldown duration for a failed model |
+| `GROQ_MODELS_WRITING` | `str` | None | Optional task-specific model pool for content writing |
+| `GROQ_MODELS_RESEARCH` | `str` | None | Optional task-specific model pool for research curation |
+| `GROQ_MODELS_PLANNING` | `str` | None | Optional task-specific model pool for editorial planning |
+| `LLM_PROVIDER` | `str` | `auto` | Provider mode (`auto`, `groq`, `ollama`) |
+| `LLM_FALLBACK_ON_RATE_LIMIT` | `bool` | `false` | Fall back from Groq to Ollama if entire Groq pool is exhausted |
+| `OLLAMA_BASE_URL` | `str` | `http://localhost:11434` | Ollama API endpoint |
+| `OLLAMA_MODEL` | `str` | `qwen2.5:7b-instruct` | Ollama local model tag |
 | `MONGODB_URI` | `str` | `mongodb://localhost:27017` | MongoDB connection URI string |
 | `MONGODB_DATABASE` | `str` | `vasukisquare` | Database name for book storage |
 | `TAVILY_API_KEY` | `str` | None | Search API key for Tavily |

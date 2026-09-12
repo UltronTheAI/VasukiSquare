@@ -12,7 +12,26 @@ from vasukisquare.llm.metrics import BookGenerationMetrics
 logger = logging.getLogger(__name__)
 
 
-from vasukisquare.design.themes import LIGHT_BACKGROUND_COLORS, LIGHT_ACCENT_COLORS
+# Design-token compliant palettes for cover backgrounds and accents
+COVER_LIGHT_BACKGROUNDS = [
+    ColorToken.CANVAS.value,
+    ColorToken.SURFACE.value,
+    ColorToken.SURFACE_SOFT.value,
+    ColorToken.SURFACE_FEATURE.value,
+    ColorToken.BRAND_GREEN_SOFT.value,
+    ColorToken.SEMANTIC_WARNING_BG.value,
+]
+
+COVER_ACCENT_TOKENS = [
+    ColorToken.BRAND_GREEN_DARK.value,
+    ColorToken.BRAND_GREEN_MID.value,
+    ColorToken.BRAND_TEAL_DEEP.value,
+    ColorToken.BRAND_TEAL.value,
+    ColorToken.ACCENT_PURPLE.value,
+    ColorToken.ACCENT_ORANGE.value,
+    ColorToken.ACCENT_PINK.value,
+    ColorToken.ACCENT_BLUE.value,
+]
 
 
 # List of standard approved composition families
@@ -278,9 +297,9 @@ class CoverPlannerAgent:
             if prev_style == comp_style:
                 comp_style = styles[(style_idx + 1) % len(styles)]
 
-        # Background color selected deterministically from LIGHT_BACKGROUND_COLORS
-        bg = LIGHT_BACKGROUND_COLORS[seed_hash % len(LIGHT_BACKGROUND_COLORS)]
-        accent = LIGHT_ACCENT_COLORS[(seed_hash + 1) % len(LIGHT_ACCENT_COLORS)]
+        # Background color selected deterministically from token-compliant light backgrounds
+        bg = COVER_LIGHT_BACKGROUNDS[seed_hash % len(COVER_LIGHT_BACKGROUNDS)]
+        accent = COVER_ACCENT_TOKENS[(seed_hash + 1) % len(COVER_ACCENT_TOKENS)]
 
         # Theme & Accents
         if any(w in t_lower for w in ["database", "storage", "vector", "distributed", "liorandb", "sql", "nosql"]):

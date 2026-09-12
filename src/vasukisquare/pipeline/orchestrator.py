@@ -139,9 +139,11 @@ class EbookGenerationPipeline:
         if not state.cover_plan:
             raise RuntimeError("Book cover is missing or failed to render.")
 
-        # Ensure cover uses the light background from book_theme
-        state.cover_plan.background_color = book_theme.cover.background_color
-        state.cover_plan.accent_color = book_theme.cover.accent_color
+        # Ensure cover has valid background and accent colors
+        if not state.cover_plan.background_color:
+            state.cover_plan.background_color = book_theme.cover.background_color
+        if not state.cover_plan.accent_color:
+            state.cover_plan.accent_color = book_theme.cover.accent_color
 
         cover_json_path = out_dir / "cover_plan.json"
         cover_json_path.write_text(state.cover_plan.model_dump_json(indent=2), encoding="utf-8")
@@ -366,6 +368,9 @@ class EbookGenerationPipeline:
             if self.metrics.fallback_pages > 0:
                 raise RuntimeError(f"Production failure: {self.metrics.fallback_pages} fallback pages were emitted.")
 
-        logger.info(f"Pipeline Completed! Total Pages: {len(state.pages)}\n{self.metrics.summary_string()}")
+        summary_lines = [f"Pipeline Completed! Total Pages: {len(state.pages)}", self.metrics.summary_string()]
+        if hasattr(self.llm_client, "groq_pool") and self.llm_client.active_provider == "groq":
+            summary_lines.append(self.llm_client.groq_pool.get_summary())
+        logger.info("\n".join(summary_lines))
         return state
 

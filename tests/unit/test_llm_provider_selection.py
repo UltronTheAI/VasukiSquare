@@ -215,7 +215,7 @@ async def test_groq_rate_limit_fallback_enabled_switches_to_ollama():
 
     expected = SampleSchema(title="Fallback Result", points=["p1", "p2"])
 
-    def mock_get_chat(temperature=None, provider=None):
+    def mock_get_chat(temperature=None, provider=None, **kwargs):
         m = MagicMock()
         s_m = MagicMock()
         if provider == "groq":

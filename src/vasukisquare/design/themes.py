@@ -79,8 +79,32 @@ class SectionTheme(BaseModel):
     foreground: str = Field(description="Primary text hex color")
     muted: str = Field(description="Secondary/muted text hex color")
     accent: str = Field(description="Accent highlight hex color")
-    border: str = Field(description="Subtle border/divider hex color")
+    border: str = Field(default="rgba(15, 23, 42, 0.12)", description="Subtle border/divider hex color")
     surface: str = Field(description="Card/panel background hex color")
+
+    @property
+    def background_color(self) -> str:
+        return self.background
+
+    @property
+    def accent_color(self) -> str:
+        return self.accent
+
+    @property
+    def text_color(self) -> str:
+        return self.foreground
+
+    @property
+    def text_muted(self) -> str:
+        return self.muted
+
+    @property
+    def border_color(self) -> str:
+        return self.border
+
+    @property
+    def surface_bg(self) -> str:
+        return self.surface
 
 
 class BookThemeMap(BaseModel):
@@ -92,6 +116,10 @@ class BookThemeMap(BaseModel):
     acknowledgement: SectionTheme
     thank_you: SectionTheme
     seed: int = 42
+
+    @property
+    def backmatter(self) -> SectionTheme:
+        return self.thank_you
 
 
 def _build_light_theme(bg_color: str, accent_color: str) -> SectionTheme:

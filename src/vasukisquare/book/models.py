@@ -188,6 +188,11 @@ class PlannedChapter(BaseModel):
         self.theme = get_chapter_theme(self.chapter_number)
         return self
 
+    @property
+    def target_pages(self) -> int:
+        """Backward-compatible alias for page_budget."""
+        return self.page_budget
+
 
 class PlannedPage(BaseModel):
     """Individual pre-allocated page specification in the book plan."""

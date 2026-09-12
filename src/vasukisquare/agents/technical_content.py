@@ -105,7 +105,10 @@ def extract_chapter_research(
     output_dir: Optional[Path] = None,
 ) -> ChapterResearchBundle:
     """Extract and curate focused research context for a single chapter."""
-    ch_text = f"{chapter.title} {chapter.summary} {' '.join(chapter.key_topics or [])}".lower()
+    key_topics = getattr(chapter, "key_topics", None) or [
+        c for s in getattr(chapter, "sections", []) for c in getattr(s, "key_concepts", [])
+    ]
+    ch_text = f"{chapter.title} {chapter.summary} {' '.join(key_topics)}".lower()
     
     # Filter relevant facts
     relevant_facts = []
@@ -178,7 +181,7 @@ def extract_chapter_research(
         chapter_number=chapter.chapter_number,
         title=chapter.title,
         summary=chapter.summary,
-        target_pages=chapter.target_pages,
+        target_pages=getattr(chapter, "page_budget", getattr(chapter, "target_pages", 8)),
         key_terms=key_terms,
         cli_commands=cli_commands,
         code_snippets=code_snippets,
