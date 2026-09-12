@@ -21,9 +21,12 @@ from vasukisquare.renderer.validator import ContentValidator
 from vasukisquare.database.connection import DatabaseManager
 from vasukisquare.database.repository import BookRepository, PageRepository, CoverRepository
 from vasukisquare.pipeline.state import GenerationState
+from vasukisquare.design.themes import generate_book_theme
+from vasukisquare.agents.technical_content import classify_topic, extract_chapter_research
 
 from vasukisquare.llm.client import LLMClient
 from vasukisquare.llm.metrics import BookGenerationMetrics
+
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +116,15 @@ class EbookGenerationPipeline:
         plan_json_path.write_text(state.book_plan.model_dump_json(indent=2), encoding="utf-8")
         state.artifacts["book_plan_json"] = str(plan_json_path)
 
+        # Topic classification and per-chapter research bundling
+        topic_class = classify_topic(topic, state.intent.target_audience)
+        for ch in state.book_plan.chapters:
+            extract_chapter_research(ch, state.research_corpus, topic_class, output_dir=out_dir)
+
+        # Generate cohesive Book Theme Map (Light Cover, Alternating Chapters, Consecutive Palette Shifts)
+        book_seed = (abs(hash(topic)) ^ (len(topic) * 31)) % 1000000
+        book_theme = generate_book_theme(num_chapters=len(state.book_plan.chapters), seed=book_seed)
+
         # Stage 4: Cover Planning & Design
         logger.info("Stage 4/7: Designing Cover Artwork...")
         state.cover_plan = await self.cover_agent.plan_cover(
@@ -122,9 +134,14 @@ class EbookGenerationPipeline:
             tone=state.intent.tone,
             audience=state.intent.target_audience,
             technical_depth=state.intent.technical_depth,
+            seed=book_seed,
         )
         if not state.cover_plan:
             raise RuntimeError("Book cover is missing or failed to render.")
+
+        # Ensure cover uses the light background from book_theme
+        state.cover_plan.background_color = book_theme.cover.background_color
+        state.cover_plan.accent_color = book_theme.cover.accent_color
 
         cover_json_path = out_dir / "cover_plan.json"
         cover_json_path.write_text(state.cover_plan.model_dump_json(indent=2), encoding="utf-8")
@@ -146,8 +163,33 @@ class EbookGenerationPipeline:
                 raw_pages.append(a4_cover_page)
                 continue
 
+            # Assign theme styling from BookThemeMap
+            ch_num = p_spec.chapter_number
+            if ch_num and ch_num in book_theme.chapters:
+                sec_theme = book_theme.chapters[ch_num]
+            elif p_spec.page_type in (LayoutType.THANK_YOU.value, LayoutType.REFERENCES.value):
+                sec_theme = book_theme.backmatter
+            else:
+                sec_theme = book_theme.frontmatter
+
+            p_spec.theme = sec_theme.mode
             page_model = await self.writer_agent.write_page(p_spec, state.book_plan, state.research_corpus)
+            page_model.theme = sec_theme.mode
+            page_model.style.background_color = sec_theme.background_color
+            page_model.style.text_color = sec_theme.text_color
+            page_model.style.text_muted = sec_theme.text_muted
+            page_model.style.border_color = sec_theme.border_color
+            page_model.style.accent_color = sec_theme.accent_color
+
+            if ch_num:
+                opener_styles = [
+                    "minimal_centered", "left_accent_banner", "split_contrast",
+                    "editorial_classic", "technical_blueprint", "icon_heroic"
+                ]
+                page_model.style.opener_template = opener_styles[(ch_num - 1) % len(opener_styles)]
+
             raw_pages.append(page_model)
+
 
         # Apply controlled page overflow repair without regenerating the entire book
         logger.info("Validating A4 page capacity and applying controlled repair...")

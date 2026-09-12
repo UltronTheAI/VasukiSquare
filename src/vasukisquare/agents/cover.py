@@ -12,6 +12,9 @@ from vasukisquare.llm.metrics import BookGenerationMetrics
 logger = logging.getLogger(__name__)
 
 
+from vasukisquare.design.themes import LIGHT_BACKGROUND_COLORS, LIGHT_ACCENT_COLORS
+
+
 # List of standard approved composition families
 COMPOSITION_FAMILIES = [
     "asymmetric_left",
@@ -148,8 +151,7 @@ class CoverPlannerAgent:
             "Some covers should be typography-only (icon_strategy='none').\n"
             "4. Decorative Geometry: choose topic-aligned geometry [database_nodes, circuit_grid, structural_rings, "
             "abstract_matrix, angular_lines, code_terminal_frame, dense_blueprint, orthogonal_axes, none].\n"
-            "5. Palette Tokens: strictly map colors to DESIGN.md palette (brand_dark, deep_teal, accent_purple, accent_orange, accent_blue) "
-            "with high contrast against dark backgrounds."
+            "5. Light Theme Canvas: Cover is always rendered in light mode with dark high-contrast typography and clean accents."
         )
 
         user_prompt = (
@@ -183,6 +185,9 @@ class CoverPlannerAgent:
                 plan.tone = tone
                 plan.audience = audience
                 plan.cover_seed = cover_seed
+                # Enforce light mode background color selection
+                plan.background_color = LIGHT_BACKGROUND_COLORS[cover_seed % len(LIGHT_BACKGROUND_COLORS)]
+                plan.contrast_mode = "high_contrast_light"
 
                 # Diversity check against previous cover
                 if prev_plan_obj and attempt < max_retries:
@@ -273,39 +278,33 @@ class CoverPlannerAgent:
             if prev_style == comp_style:
                 comp_style = styles[(style_idx + 1) % len(styles)]
 
+        # Background color selected deterministically from LIGHT_BACKGROUND_COLORS
+        bg = LIGHT_BACKGROUND_COLORS[seed_hash % len(LIGHT_BACKGROUND_COLORS)]
+        accent = LIGHT_ACCENT_COLORS[(seed_hash + 1) % len(LIGHT_ACCENT_COLORS)]
+
         # Theme & Accents
         if any(w in t_lower for w in ["database", "storage", "vector", "distributed", "liorandb", "sql", "nosql"]):
             palette = "deep_teal"
-            accent = ColorToken.BRAND_GREEN.value
-            bg = ColorToken.BRAND_TEAL_DEEP.value
             hero_icon = "database"
             geometry = "database_nodes"
             concept = "Distributed Data Architecture"
         elif any(w in t_lower for w in ["ai", "neural", "learning", "model", "intelligence", "gpt", "llm"]):
             palette = "accent_purple"
-            accent = ColorToken.ACCENT_PURPLE.value
-            bg = ColorToken.BRAND_TEAL_DEEP.value
             hero_icon = "sparkles"
-            geometry = "abstract_mesh"
+            geometry = "abstract_matrix"
             concept = "Neural Matrix Synthesis"
         elif any(w in t_lower for w in ["code", "programming", "python", "rust", "go", "typescript", "developer"]):
             palette = "brand_dark"
-            accent = ColorToken.BRAND_GREEN.value
-            bg = ColorToken.BRAND_TEAL_DEEP.value
             hero_icon = "code"
             geometry = "code_terminal_frame"
             concept = "Syntax & Runtime Blueprint"
         elif any(w in t_lower for w in ["cloud", "network", "system", "architecture", "sre", "kubernetes"]):
             palette = "accent_orange"
-            accent = ColorToken.ACCENT_ORANGE.value
-            bg = ColorToken.BRAND_TEAL_DEEP.value
             hero_icon = "layers"
             geometry = "circuit_grid"
             concept = "Cloud Topology Framework"
         else:
             palette = "brand_dark"
-            accent = ColorToken.BRAND_GREEN.value
-            bg = ColorToken.BRAND_TEAL_DEEP.value
             hero_icon = "compass"
             geometry = "orthogonal_axes"
             concept = "Foundational Engineering Guide"
@@ -318,7 +317,7 @@ class CoverPlannerAgent:
         return CoverDesignPlan(
             concept_name=concept,
             composition_style=comp_style,
-            background_style="solid_dark",
+            background_style="solid_light",
             title_alignment=title_align,
             title_position=title_pos,
             subtitle_position="below_title",
@@ -329,7 +328,7 @@ class CoverPlannerAgent:
             border_strategy=border_strat,
             spacing_strategy="balanced_editorial",
             visual_density="moderate",
-            contrast_mode="high_contrast_dark",
+            contrast_mode="high_contrast_light",
             decorative_geometry=geometry,
             rationale=f"Heuristic composition selected for {category} with seed {seed}.",
             palette_theme=palette,
@@ -343,5 +342,6 @@ class CoverPlannerAgent:
             author="VasukiSquare AI",
             cover_seed=seed,
         )
+
 
 

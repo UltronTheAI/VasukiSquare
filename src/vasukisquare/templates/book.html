@@ -14,7 +14,7 @@
 </head>
 <body class="book-document">
   {% for item in page_items %}
-  <div class="page theme-{{ item.page.theme.value }} layout-{{ item.page.layout_type.value }}" data-page-number="{{ item.page.page_number }}">
+  <div class="page theme-{{ item.page.theme.value }} layout-{{ item.page.layout_type.value }}" data-page-number="{{ item.page.page_number }}" style="{{ item.custom_inline_style }}">
     <div class="page-safe-content">
       {% if item.page.layout_type.value not in ["chapter_opener", "cover", "thank_you"] %}
       <header class="page-header">
@@ -25,13 +25,17 @@
 
       <main class="page-content">
         {% if item.page.layout_type.value == "chapter_opener" %}
-        <div class="chapter-opener-block">
-          <div class="chapter-icon">
-            {{ item.icon_svg | safe }}
-          </div>
-          <div class="chapter-num">Chapter {{ item.page.chapter_number }}</div>
-          <h1 class="chapter-title">{{ item.page.chapter_title }}</h1>
-        </div>
+          {% if item.opener_html %}
+            {{ item.opener_html | safe }}
+          {% else %}
+            <div class="chapter-opener-block">
+              <div class="chapter-icon">
+                {{ item.icon_svg | safe }}
+              </div>
+              <div class="chapter-num">Chapter {{ item.page.chapter_number }}</div>
+              <h1 class="chapter-title">{{ item.page.chapter_title }}</h1>
+            </div>
+          {% endif %}
         {% elif item.page.layout_type.value == "cover" %}
           {% if item.page.html %}
             {{ item.page.html | safe }}
@@ -57,22 +61,26 @@
             </div>
           </div>
         {% elif item.page.layout_type.value == "thank_you" %}
-        <div class="thank-you-brand">
-          <span>VASUKISQUARE TECHNICAL PUBLISHING</span>
-          <span>END OF VOLUME</span>
-        </div>
-        <div class="thank-you-body">
-          <div class="thank-you-icon">
-            {{ item.icon_svg | safe }}
-          </div>
-          <div class="thank-you-divider"></div>
-          <h1 class="thank-you-title">{{ (item.page.content and item.page.content.headline) or "THANK YOU" }}</h1>
-          <p class="thank-you-statement">{{ (item.page.content and item.page.content.body) or "Thank you for reading. Researched from primary authoritative sources and rendered deterministically to physical A4 print specifications by VasukiSquare." }}</p>
-        </div>
-        <div class="thank-you-footer">
-          <span>{{ running_title or book_title }}</span>
-          <span>FIRST EDITION</span>
-        </div>
+          {% if item.thank_you_html %}
+            {{ item.thank_you_html | safe }}
+          {% else %}
+            <div class="thank-you-brand">
+              <span>VASUKISQUARE TECHNICAL PUBLISHING</span>
+              <span>END OF VOLUME</span>
+            </div>
+            <div class="thank-you-body">
+              <div class="thank-you-icon">
+                {{ item.icon_svg | safe }}
+              </div>
+              <div class="thank-you-divider"></div>
+              <h1 class="thank-you-title">{{ (item.page.content and item.page.content.headline) or "THANK YOU" }}</h1>
+              <p class="thank-you-statement">{{ (item.page.content and item.page.content.body) or "Thank you for reading. Researched from primary authoritative sources and rendered deterministically to physical A4 print specifications by VasukiSquare." }}</p>
+            </div>
+            <div class="thank-you-footer">
+              <span>{{ running_title or book_title }}</span>
+              <span>FIRST EDITION</span>
+            </div>
+          {% endif %}
         {% else %}
           {% if item.page.content and item.page.content.headline and item.page.layout_type.value not in ["copyright", "acknowledgement"] %}
           <h2 class="content-headline">{{ item.page.content.headline }}</h2>

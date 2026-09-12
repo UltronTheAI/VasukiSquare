@@ -272,6 +272,103 @@ class TocBlock(BaseModel):
     entries: List[TocEntry] = Field(default_factory=list, description="Resolved chapter and section entries")
 
 
+
+class ComparisonBlock(BaseModel):
+    """Side-by-side comparison block (e.g. Pros vs Cons, Do vs Don't)."""
+
+    type: Literal["comparison"] = "comparison"
+    title: Optional[str] = Field(default=None, description="Comparison block title")
+    left_title: str = Field(default="Do / Advantage", description="Left column heading")
+    left_items: List[str] = Field(default_factory=list, description="Left column items")
+    right_title: str = Field(default="Don't / Pitfall", description="Right column heading")
+    right_items: List[str] = Field(default_factory=list, description="Right column items")
+    left_icon: str = Field(default="check", description="Lucide icon for left items")
+    right_icon: str = Field(default="x", description="Lucide icon for right items")
+
+
+class TimelineItem(BaseModel):
+    """Single milestone or step in a timeline."""
+
+    time: Optional[str] = Field(default=None, description="Time or phase identifier")
+    step: Optional[str] = Field(default=None, description="Step number or label")
+    title: str = Field(description="Milestone title")
+    description: str = Field(description="Milestone explanation")
+
+
+class TimelineBlock(BaseModel):
+    """Vertical timeline sequence block."""
+
+    type: Literal["timeline"] = "timeline"
+    title: Optional[str] = Field(default=None, description="Timeline title")
+    items: List[Union[Dict[str, str], TimelineItem]] = Field(default_factory=list, description="Ordered timeline items")
+
+
+class ChecklistItem(BaseModel):
+    """Single item in a checklist."""
+
+    text: str = Field(description="Checklist label text")
+    checked: bool = Field(default=True, description="Whether item is marked complete")
+
+
+class ChecklistBlock(BaseModel):
+    """Checklist or key takeaways block."""
+
+    type: Literal["checklist"] = "checklist"
+    title: Optional[str] = Field(default=None, description="Checklist title")
+    items: List[Union[Dict[str, Any], ChecklistItem, str]] = Field(default_factory=list, description="Checklist items")
+
+
+class StepItem(BaseModel):
+    """Single step in a procedural tutorial block."""
+
+    step_number: Optional[int] = Field(default=None, description="Step sequence number")
+    title: str = Field(description="Step title")
+    description: str = Field(description="Step description")
+    code: Optional[str] = Field(default=None, description="Optional command or code snippet")
+    language: Optional[str] = Field(default="bash", description="Code language")
+
+
+class StepBlock(BaseModel):
+    """Step-by-step procedural tutorial block."""
+
+    type: Literal["step"] = "step"
+    title: Optional[str] = Field(default=None, description="Step block title")
+    steps: List[Union[Dict[str, Any], StepItem]] = Field(default_factory=list, description="Ordered tutorial steps")
+
+
+class DefinitionBlock(BaseModel):
+    """Technical glossary or term definition card."""
+
+    type: Literal["definition"] = "definition"
+    term: str = Field(description="Term or keyword being defined")
+    definition: str = Field(description="Precise technical definition")
+    pronunciation: Optional[str] = Field(default=None, description="Phonetic pronunciation")
+    part_of_speech: Optional[str] = Field(default=None, description="Part of speech, e.g. noun, verb")
+    example: Optional[str] = Field(default=None, description="Usage example or code snippet")
+
+
+class ExerciseBlock(BaseModel):
+    """Practical hands-on exercise / challenge block."""
+
+    type: Literal["exercise"] = "exercise"
+    title: str = Field(description="Exercise title")
+    objective: str = Field(description="Goal or learning outcome")
+    instructions: List[str] = Field(default_factory=list, description="Step-by-step instructions")
+    difficulty: str = Field(default="Intermediate", description="Difficulty: Beginner, Intermediate, Advanced")
+    starter_code: Optional[str] = Field(default=None, description="Starter template code")
+    solution: Optional[str] = Field(default=None, description="Optional solution reference")
+    hints: Optional[List[str]] = Field(default=None, description="Helpful hints")
+
+
+# Aliases for unified card models
+IconCard = CalloutBlock
+InfoCard = CalloutBlock
+WarningCard = CalloutBlock
+TipCard = CalloutBlock
+StatisticCard = StatisticBlock
+QuoteCard = QuoteBlock
+
+
 # Union type for all content blocks
 ContentBlock = Union[
     CodeBlock,
@@ -290,4 +387,11 @@ ContentBlock = Union[
     AcknowledgementBlock,
     CopyrightBlock,
     TocBlock,
+    ComparisonBlock,
+    TimelineBlock,
+    ChecklistBlock,
+    StepBlock,
+    DefinitionBlock,
+    ExerciseBlock,
 ]
+

@@ -276,8 +276,14 @@ class PageStyle(BaseModel):
     theme: Theme = Theme.LIGHT
     font_family: str = "Euclid Circular A"
     accent_color: str = "#00ed64"
+    background_color: Optional[str] = None
+    text_color: Optional[str] = None
+    text_muted: Optional[str] = None
+    border_color: Optional[str] = None
+    opener_template: Optional[str] = None
     layout_variant: Optional[str] = None
     custom_css: Optional[str] = None
+
 
 
 class ChapterMetadata(BaseModel):

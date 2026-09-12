@@ -11,26 +11,40 @@ from vasukisquare.book.components import (
     AcknowledgementBlock,
     CalloutBlock,
     ChartBlock,
+    ChecklistBlock,
     CodeBlock,
+    ComparisonBlock,
     ContentBlock,
     CopyrightBlock,
+    DefinitionBlock,
     DiagramBlock,
+    ExerciseBlock,
     HeadingBlock,
     IconTextBlock,
     ImageBlock,
     QuoteBlock,
     SourceBlock,
     StatisticBlock,
+    StepBlock,
     TableBlock,
     TerminalBlock,
     TerminalLine,
     TextBlock,
+    TimelineBlock,
     TocBlock,
     TocEntry,
 )
 from vasukisquare.design.icons import render_lucide_icon, IconColorResolver
 from vasukisquare.design.theme import Theme
 from vasukisquare.design.tokens import ColorToken, validate_color_token
+from vasukisquare.design.visual_components import (
+    render_comparison_block,
+    render_timeline_block,
+    render_checklist_block,
+    render_step_block,
+    render_definition_block,
+    render_exercise_block,
+)
 from vasukisquare.renderer.richtext import RichTextRenderer
 from vasukisquare.renderer.url_normalizer import UrlNormalizer
 
@@ -43,39 +57,111 @@ class ComponentRenderer:
     @classmethod
     def render_block(cls, block: ContentBlock, theme: Theme = Theme.LIGHT) -> str:
         """Dispatch rendering for any ContentBlock variant."""
-        if isinstance(block, CodeBlock) or getattr(block, "type", None) == "code":
+        b_type = getattr(block, "type", None)
+        if isinstance(block, CodeBlock) or b_type == "code":
             return cls.render_code(block, theme)
-        elif isinstance(block, TerminalBlock) or getattr(block, "type", None) == "terminal":
+        elif isinstance(block, TerminalBlock) or b_type == "terminal":
             return cls.render_terminal(block, theme)
-        elif isinstance(block, TableBlock) or getattr(block, "type", None) == "table":
+        elif isinstance(block, TableBlock) or b_type == "table":
             return cls.render_table(block, theme)
-        elif isinstance(block, SourceBlock) or getattr(block, "type", None) == "source":
+        elif isinstance(block, SourceBlock) or b_type == "source":
             return cls.render_source(block, theme)
-        elif isinstance(block, CalloutBlock) or getattr(block, "type", None) == "callout":
+        elif isinstance(block, CalloutBlock) or b_type in ("callout", "info", "warning", "tip", "note"):
             return cls.render_callout(block, theme)
-        elif isinstance(block, IconTextBlock) or getattr(block, "type", None) == "icon_text":
+        elif isinstance(block, IconTextBlock) or b_type == "icon_text":
             return cls.render_icon_text(block, theme)
-        elif isinstance(block, ChartBlock) or getattr(block, "type", None) == "chart":
+        elif isinstance(block, ChartBlock) or b_type == "chart":
             return cls.render_chart(block, theme)
-        elif isinstance(block, DiagramBlock) or getattr(block, "type", None) == "diagram":
+        elif isinstance(block, DiagramBlock) or b_type == "diagram":
             return cls.render_diagram(block, theme)
-        elif isinstance(block, QuoteBlock) or getattr(block, "type", None) == "quote":
+        elif isinstance(block, QuoteBlock) or b_type == "quote":
             return cls.render_quote(block, theme)
-        elif isinstance(block, StatisticBlock) or getattr(block, "type", None) == "statistic":
+        elif isinstance(block, StatisticBlock) or b_type == "statistic":
             return cls.render_statistic(block, theme)
-        elif isinstance(block, ImageBlock) or getattr(block, "type", None) == "image":
+        elif isinstance(block, ImageBlock) or b_type == "image":
             return cls.render_image(block, theme)
-        elif isinstance(block, HeadingBlock) or getattr(block, "type", None) == "heading":
+        elif isinstance(block, HeadingBlock) or b_type == "heading":
             return cls.render_heading(block, theme)
-        elif isinstance(block, TextBlock) or getattr(block, "type", None) == "text":
+        elif isinstance(block, TextBlock) or b_type == "text":
             return cls.render_text(block, theme)
-        elif isinstance(block, AcknowledgementBlock) or getattr(block, "type", None) == "acknowledgement":
+        elif isinstance(block, ComparisonBlock) or b_type == "comparison":
+            return render_comparison_block(
+                title=getattr(block, "title", None) or "",
+                left_title=getattr(block, "left_title", "Do"),
+                left_items=getattr(block, "left_items", []),
+                right_title=getattr(block, "right_title", "Don't"),
+                right_items=getattr(block, "right_items", []),
+                left_icon=getattr(block, "left_icon", "check"),
+                right_icon=getattr(block, "right_icon", "x"),
+                theme=theme,
+            )
+        elif isinstance(block, TimelineBlock) or b_type == "timeline":
+            items = []
+            for it in getattr(block, "items", []):
+                if isinstance(it, dict):
+                    items.append(it)
+                elif hasattr(it, "model_dump"):
+                    items.append(it.model_dump())
+                else:
+                    items.append({"title": str(it), "description": ""})
+            return render_timeline_block(
+                title=getattr(block, "title", None) or "",
+                items=items,
+                theme=theme,
+            )
+        elif isinstance(block, ChecklistBlock) or b_type == "checklist":
+            items = []
+            for it in getattr(block, "items", []):
+                if isinstance(it, dict):
+                    items.append(it)
+                elif isinstance(it, str):
+                    items.append({"text": it, "checked": True})
+                elif hasattr(it, "model_dump"):
+                    items.append(it.model_dump())
+            return render_checklist_block(
+                title=getattr(block, "title", None) or "",
+                items=items,
+                theme=theme,
+            )
+        elif isinstance(block, StepBlock) or b_type == "step":
+            steps = []
+            for s in getattr(block, "steps", []):
+                if isinstance(s, dict):
+                    steps.append(s)
+                elif hasattr(s, "model_dump"):
+                    steps.append(s.model_dump())
+            return render_step_block(
+                title=getattr(block, "title", None) or "",
+                steps=steps,
+                theme=theme,
+            )
+        elif isinstance(block, DefinitionBlock) or b_type == "definition":
+            return render_definition_block(
+                term=getattr(block, "term", ""),
+                definition=getattr(block, "definition", ""),
+                pronunciation=getattr(block, "pronunciation", None),
+                part_of_speech=getattr(block, "part_of_speech", None),
+                example=getattr(block, "example", None),
+                theme=theme,
+            )
+        elif isinstance(block, ExerciseBlock) or b_type == "exercise":
+            return render_exercise_block(
+                title=getattr(block, "title", ""),
+                objective=getattr(block, "objective", ""),
+                instructions=getattr(block, "instructions", []),
+                difficulty=getattr(block, "difficulty", "Intermediate"),
+                starter_code=getattr(block, "starter_code", None),
+                hints=getattr(block, "hints", None),
+                theme=theme,
+            )
+        elif isinstance(block, AcknowledgementBlock) or b_type == "acknowledgement":
             return cls.render_acknowledgement(block, theme)
-        elif isinstance(block, CopyrightBlock) or getattr(block, "type", None) == "copyright":
+        elif isinstance(block, CopyrightBlock) or b_type == "copyright":
             return cls.render_copyright(block, theme)
-        elif isinstance(block, TocBlock) or getattr(block, "type", None) == "toc":
+        elif isinstance(block, TocBlock) or b_type == "toc":
             return cls.render_toc(block, theme)
         return ""
+
 
     @classmethod
     def render_code(cls, block: CodeBlock, theme: Theme = Theme.LIGHT) -> str:

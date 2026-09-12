@@ -1473,4 +1473,627 @@ sub { vertical-align: sub; font-size: 0.75em; line-height: 0; }
   text-align: right;
 }
 
+/* ==========================================================================
+   Chapter Opener Templates (6 Unique Editorial Layouts)
+   ========================================================================== */
+
+.chapter-opener-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* 1. Minimal Centered */
+.chapter-opener-wrapper.layout-minimal-centered {
+  align-items: center;
+  text-align: center;
+  gap: 18px;
+}
+.opener-icon-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: var(--theme-accent-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.chapter-opener-wrapper .chapter-num {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--theme-accent);
+}
+.chapter-opener-wrapper .chapter-title {
+  font-size: 34px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--theme-text);
+  max-width: 580px;
+}
+.opener-divider {
+  width: 48px;
+  height: 3px;
+  background: var(--theme-accent);
+  margin-top: 12px;
+  border-radius: 2px;
+}
+
+/* 2. Left Accent Banner */
+.chapter-opener-wrapper.layout-left-accent {
+  flex-direction: row;
+  align-items: center;
+  gap: 32px;
+  padding: 0 16px;
+}
+.opener-left-stripe {
+  width: 6px;
+  height: 220px;
+  background: var(--theme-accent);
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+.opener-content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 540px;
+}
+.opener-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.opener-badge {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--theme-accent);
+}
+.opener-icon-corner {
+  opacity: 0.85;
+}
+.opener-title {
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--theme-text);
+}
+
+/* 3. Split Contrast Card */
+.chapter-opener-wrapper.layout-split-contrast {
+  align-items: center;
+}
+.opener-card {
+  background: var(--theme-card-bg);
+  border: 1px solid var(--theme-border-strong);
+  border-radius: var(--radius-xl);
+  padding: 48px 40px;
+  width: 100%;
+  max-width: 540px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+}
+.opener-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.opener-icon-badge {
+  padding: 12px;
+  background: var(--theme-accent-soft);
+  border-radius: var(--radius-md);
+  display: inline-flex;
+}
+
+/* 4. Editorial Classic */
+.chapter-opener-wrapper.layout-editorial-classic {
+  align-items: flex-start;
+  position: relative;
+  padding-left: 24px;
+}
+.opener-num-watermark {
+  position: absolute;
+  top: 10%;
+  right: 5%;
+  font-size: 140px;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--theme-text-subtle);
+  opacity: 0.12;
+  user-select: none;
+}
+.opener-eyebrow {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--theme-accent);
+  margin-top: 16px;
+}
+.opener-divider-line {
+  width: 100%;
+  max-width: 480px;
+  height: 2px;
+  background: var(--theme-border);
+  margin-top: 20px;
+}
+
+/* 5. Technical Blueprint */
+.chapter-opener-wrapper.layout-technical-blueprint {
+  align-items: center;
+}
+.opener-blueprint-frame {
+  border: 1px dashed var(--theme-border-strong);
+  padding: 56px 48px;
+  width: 100%;
+  max-width: 560px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 20px;
+}
+.corner-bracket {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-color: var(--theme-accent);
+}
+.corner-bracket.top-left { top: -1px; left: -1px; border-top: 3px solid var(--theme-accent); border-left: 3px solid var(--theme-accent); }
+.corner-bracket.top-right { top: -1px; right: -1px; border-top: 3px solid var(--theme-accent); border-right: 3px solid var(--theme-accent); }
+.corner-bracket.bottom-left { bottom: -1px; left: -1px; border-bottom: 3px solid var(--theme-accent); border-left: 3px solid var(--theme-accent); }
+.corner-bracket.bottom-right { bottom: -1px; right: -1px; border-bottom: 3px solid var(--theme-accent); border-right: 3px solid var(--theme-accent); }
+.opener-mono-tag {
+  font-family: var(--font-code);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--theme-accent);
+  background: var(--theme-accent-soft);
+  padding: 4px 10px;
+  border-radius: 2px;
+}
+
+/* 6. Icon Heroic */
+.chapter-opener-wrapper.layout-icon-heroic {
+  align-items: center;
+  text-align: center;
+  gap: 24px;
+}
+.opener-hero-halo {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: var(--theme-accent-soft);
+  border: 2px solid var(--theme-accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.opener-num-pill {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--theme-text-muted);
+  background: var(--theme-card-bg);
+  border: 1px solid var(--theme-border);
+  padding: 4px 14px;
+  border-radius: var(--radius-full);
+}
+
+/* ==========================================================================
+   Thank You / Finishing Layouts (3 Distinct Styles)
+   ========================================================================== */
+
+.thank-you-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40px 24px;
+  box-sizing: border-box;
+}
+.thank-you-brand {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--theme-text-muted);
+  border-bottom: 1px solid var(--theme-border);
+  padding-bottom: 16px;
+}
+.thank-you-body {
+  margin: auto 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 20px;
+  max-width: 520px;
+  align-self: center;
+}
+.thank-you-icon {
+  margin-bottom: 8px;
+}
+.thank-you-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--theme-text);
+}
+.thank-you-statement {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--theme-text-secondary);
+}
+.thank-you-next-steps {
+  background: var(--theme-card-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  margin-top: 12px;
+  text-align: left;
+}
+.thank-you-next-steps h4 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--theme-accent);
+  margin-bottom: 6px;
+}
+.thank-you-next-steps p {
+  font-size: 12.5px;
+  color: var(--theme-text-muted);
+  line-height: 1.45;
+}
+.thank-you-quote {
+  font-size: 17px;
+  font-style: italic;
+  font-weight: 600;
+  color: var(--theme-text);
+  line-height: 1.45;
+}
+.thank-you-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--theme-text-muted);
+  border-top: 1px solid var(--theme-border);
+  padding-top: 16px;
+}
+
+/* ==========================================================================
+   16 Visual Component Blocks Styling
+   ========================================================================== */
+
+/* Comparison Block */
+.component-comparison {
+  margin: 12px 0;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--theme-border);
+  background: var(--theme-card-bg);
+  padding: 16px;
+}
+.comparison-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--theme-text);
+}
+.comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.comparison-col-header {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1.5px solid var(--theme-border);
+}
+.comparison-left .comparison-col-header { color: #00a35c; }
+.comparison-right .comparison-col-header { color: #fa6e39; }
+.comparison-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.comparison-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--theme-text-secondary);
+}
+.comp-icon {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Timeline Block */
+.component-timeline {
+  margin: 12px 0;
+  padding: 14px 16px;
+  background: var(--theme-card-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+}
+.timeline-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  color: var(--theme-text);
+}
+.timeline-track {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  position: relative;
+  padding-left: 8px;
+}
+.timeline-item {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.timeline-marker {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.timeline-tag {
+  font-family: var(--font-code);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--theme-accent);
+  text-transform: uppercase;
+}
+.timeline-heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--theme-text);
+  margin: 2px 0;
+}
+.timeline-desc {
+  font-size: 12px;
+  color: var(--theme-text-secondary);
+  line-height: 1.4;
+}
+
+/* Checklist Block */
+.component-checklist {
+  margin: 12px 0;
+  padding: 14px 16px;
+  background: var(--theme-card-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+}
+.checklist-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  color: var(--theme-text);
+}
+.checklist-items {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.checklist-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.checklist-checkbox {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.checklist-text {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--theme-text-secondary);
+}
+
+/* Step Block */
+.component-steps {
+  margin: 12px 0;
+}
+.step-block-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--theme-text);
+}
+.step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.step-card {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: var(--theme-card-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+.step-badge {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--theme-accent);
+  color: #001e2b;
+  font-weight: 800;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.step-details {
+  flex: 1;
+}
+.step-heading {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--theme-text);
+  margin-bottom: 4px;
+}
+.step-desc {
+  font-size: 12px;
+  color: var(--theme-text-secondary);
+  line-height: 1.4;
+}
+.step-code {
+  margin-top: 8px;
+  background: rgba(0,0,0,0.15);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-code);
+  font-size: 11.5px;
+}
+
+/* Definition Block */
+.component-definition {
+  margin: 12px 0;
+  background: var(--theme-card-bg);
+  border-left: 4px solid var(--theme-accent);
+  border-top: 1px solid var(--theme-border);
+  border-right: 1px solid var(--theme-border);
+  border-bottom: 1px solid var(--theme-border);
+  border-radius: 0 var(--radius-md) var(--radius-md) 0;
+  padding: 14px 16px;
+}
+.def-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.def-term {
+  font-size: 14.5px;
+  font-weight: 800;
+  color: var(--theme-text);
+}
+.def-pronunciation {
+  font-family: var(--font-code);
+  font-size: 11.5px;
+  color: var(--theme-text-muted);
+}
+.def-pos {
+  font-size: 11px;
+  font-style: italic;
+  color: var(--theme-text-muted);
+}
+.def-body p {
+  font-size: 12.5px;
+  color: var(--theme-text-secondary);
+  line-height: 1.45;
+}
+.def-example {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--theme-text-muted);
+  border-top: 1px solid var(--theme-border);
+  padding-top: 6px;
+}
+
+/* Exercise Block */
+.component-exercise {
+  margin: 12px 0;
+  background: var(--theme-card-bg);
+  border: 1.5px solid var(--theme-accent);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+}
+.exercise-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--theme-border);
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+}
+.exercise-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.exercise-title {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--theme-text);
+}
+.exercise-difficulty {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--theme-accent-soft);
+  color: var(--theme-accent);
+}
+.exercise-objective {
+  font-size: 12.5px;
+  color: var(--theme-text-secondary);
+  margin-bottom: 10px;
+}
+.exercise-instructions {
+  padding-left: 18px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--theme-text-secondary);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.exercise-starter {
+  margin-top: 10px;
+}
+.starter-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--theme-text-muted);
+}
+.exercise-starter pre {
+  margin-top: 4px;
+  background: rgba(0,0,0,0.2);
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-code);
+  font-size: 11px;
+}
+.exercise-hints {
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: var(--theme-accent-soft);
+  border-radius: var(--radius-sm);
+  font-size: 11.5px;
+}
+.exercise-hints ul {
+  padding-left: 16px;
+  margin-top: 4px;
+}
+
 
