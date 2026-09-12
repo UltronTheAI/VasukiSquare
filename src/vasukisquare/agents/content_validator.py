@@ -396,3 +396,144 @@ def validate_page_content(
         suggestions=suggestions,
     )
 
+
+class PageQualityScore(BaseModel):
+    """Holistic quality evaluation score measuring pedagogical rigor, density, and layout balance."""
+
+    educational_quality: float = Field(description="Educational depth and concept clarity score (0.0 to 1.0)")
+    technical_validity: float = Field(description="Accuracy and validity of code, CLI, and facts (0.0 to 1.0)")
+    page_utilization: float = Field(description="Physical A4 vertical height fill ratio (0.0 to 1.0)")
+    layout_balance: float = Field(description="Visual rhythm, component diversity, and readability (0.0 to 1.0)")
+    duplication_score: float = Field(description="Similarity to recent pages / boilerplate repetition (0.0 = unique, 1.0 = duplicate)")
+    is_accepted: bool = Field(description="Whether the page meets all production publication criteria")
+
+
+def compute_page_similarity(text_or_page_a: Any, text_or_page_b: Any) -> float:
+    """Calculate n-gram Jaccard similarity between two pages of text to detect duplication."""
+    def extract_text(obj: Any) -> str:
+        if isinstance(obj, str):
+            return obj
+        content = getattr(obj, "content", obj)
+        return f"{getattr(content, 'headline', '') or ''} {getattr(content, 'body', '') or ''} " + " ".join(
+            getattr(b, "text", "") or getattr(b, "content", "") or "" for b in getattr(content, "blocks", [])
+        )
+
+    text_a = extract_text(text_or_page_a)
+    text_b = extract_text(text_or_page_b)
+    if not text_a or not text_b:
+        return 0.0
+    
+    words_a = re.findall(r'\b[a-zA-Z0-9_]{3,}\b', text_a.lower())
+    words_b = re.findall(r'\b[a-zA-Z0-9_]{3,}\b', text_b.lower())
+    
+    if not words_a or not words_b:
+        return 0.0
+
+    # Trigram shingles
+    def get_shingles(words: List[str], k: int = 3) -> set:
+        if len(words) < k:
+            return set(words)
+        return set(" ".join(words[i : i + k]) for i in range(len(words) - k + 1))
+
+    shingles_a = get_shingles(words_a, 3)
+    shingles_b = get_shingles(words_b, 3)
+
+    union = shingles_a.union(shingles_b)
+    if not union:
+        return 0.0
+
+    intersection = shingles_a.intersection(shingles_b)
+    return round(len(intersection) / len(union), 3)
+
+
+def detect_repeated_sentence_boilerplate(text_or_pages: Any, seen_sentences: Optional[set] = None) -> List[str]:
+    """Detect sentences repeated across different pages in the book."""
+    if isinstance(text_or_pages, list):
+        seen = seen_sentences if seen_sentences is not None else set()
+        all_issues = []
+        for p in text_or_pages:
+            content = getattr(p, "content", p)
+            p_text = f"{getattr(content, 'headline', '') or ''} {getattr(content, 'body', '') or ''} " + " ".join(
+                getattr(b, "text", "") or getattr(b, "content", "") or "" for b in getattr(content, "blocks", [])
+            )
+            all_issues.extend(detect_repeated_sentence_boilerplate(p_text, seen))
+        return all_issues
+
+    text = text_or_pages or ""
+    issues = []
+    if not text or seen_sentences is None:
+        return issues
+
+    sentences = [s.strip() for s in re.split(r'[.!?]+', text) if len(s.strip().split()) >= 6]
+    for s in sentences:
+        s_norm = re.sub(r'\s+', ' ', s.lower())
+        if s_norm in seen_sentences:
+            issues.append(f"Detected duplicate sentence across pages: '{s[:60]}...'")
+        else:
+            seen_sentences.add(s_norm)
+
+    return issues
+
+
+def evaluate_page_quality_score(
+    page: PageContent,
+    spec: TechnicalPageSpec,
+    primary_subject: str = "technical topic",
+    is_beginner: bool = False,
+    previous_page_text: Optional[str] = None,
+) -> PageQualityScore:
+    """Calculate composite page quality score across educational value, technical validity, utilization, and uniqueness."""
+    from vasukisquare.renderer.overflow import estimate_page_utilization
+
+    # 1. Technical validation
+    tech_val = evaluate_technical_page(page, spec, primary_subject=primary_subject, is_beginner=is_beginner)
+    tech_score = 1.0 if tech_val.is_valid else max(0.2, 1.0 - (len(tech_val.issues) * 0.25))
+
+    # 2. Page utilization
+    util = estimate_page_utilization(page)
+    util_ratio = util.estimated_ratio
+
+    # Optimal range is 0.65 to 0.90
+    if 0.65 <= util_ratio <= 0.92:
+        util_score = 0.95
+    elif util_ratio < 0.50:
+        util_score = max(0.3, util_ratio / 0.70)
+    elif util_ratio > 0.95:
+        util_score = 0.60
+    else:
+        util_score = 0.80
+
+    # 3. Educational quality
+    words = count_page_words(page)
+    edu_score = min(1.0, max(0.4, words / 300.0))
+    if any("hallucinated" in issue.lower() for issue in tech_val.issues):
+        edu_score = 0.1
+
+    # 4. Duplication
+    page_text = f"{page.headline or ''} {page.body or ''} " + " ".join(
+        getattr(b, "text", "") or getattr(b, "content", "") or "" for b in getattr(page, "blocks", [])
+    )
+    dup_score = compute_page_similarity(page_text, previous_page_text or "") if previous_page_text else 0.0
+
+    # 5. Layout balance (variety of component types)
+    block_types = set(getattr(b, "type", "") for b in getattr(page, "blocks", []))
+    layout_balance = min(1.0, 0.5 + (len(block_types) * 0.15))
+
+    is_accepted = (
+        tech_score >= 0.70
+        and util_ratio >= 0.60
+        and util_ratio <= 0.95
+        and dup_score < 0.80
+        and len(tech_val.issues) == 0
+    )
+
+    return PageQualityScore(
+        educational_quality=round(edu_score, 2),
+        technical_validity=round(tech_score, 2),
+        page_utilization=round(util_ratio, 2),
+        layout_balance=round(layout_balance, 2),
+        duplication_score=round(dup_score, 2),
+        is_accepted=is_accepted,
+    )
+
+

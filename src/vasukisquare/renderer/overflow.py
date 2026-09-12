@@ -26,75 +26,233 @@ MAX_BODY_PARAGRAPHS = 6
 USABLE_PAGE_HEIGHT_MM = 249.0  # 297mm - 48mm (top/bottom 24mm margins)
 
 
+from pydantic import BaseModel, Field
+
+
+class PageUtilization(BaseModel):
+    """Accurate physical A4 vertical layout utilization metrics."""
+
+    estimated_ratio: float = Field(description="Estimated content height fraction of usable A4 height (0.0 to 1.0+)")
+    status: str = Field(description="Utilization status: underfilled, optimal, or overflow_risk")
+    block_breakdown: Dict[str, float] = Field(default_factory=dict, description="Estimated height in mm per component")
+    usable_height_mm: float = Field(default=USABLE_PAGE_HEIGHT_MM)
+    total_content_height_mm: float = Field(default=0.0)
+    target_min_ratio: float = Field(default=0.70)
+    target_max_ratio: float = Field(default=0.90)
+
+    @property
+    def utilization_ratio(self) -> float:
+        return self.estimated_ratio
+
+    @property
+    def estimated_height_mm(self) -> float:
+        return self.total_content_height_mm
+
+    @property
+    def is_overflow(self) -> bool:
+        return self.estimated_ratio > 0.95
+
+
 class DensityEstimator:
     """Estimates vertical fill percentage of content on an A4 page."""
 
     @staticmethod
-    def estimate_block_height_mm(block: ContentBlock) -> float:
+    def estimate_block_height_mm(block: Any) -> float:
         """Estimate the physical height in mm of a given component block."""
-        if isinstance(block, TextBlock):
-            # ~60 chars per line in standard body font, ~5.5mm per line including line-height and margin
-            lines = max(1, len(block.text) // 60 + 1)
+        b_type = getattr(block, "type", "")
+        
+        if isinstance(block, TextBlock) or b_type == "text":
+            text = getattr(block, "text", "") or ""
+            paragraphs = getattr(block, "paragraphs", [])
+            if paragraphs:
+                total_lines = sum(max(1, len(p) // 65 + 1) for p in paragraphs)
+                return total_lines * 5.5 + len(paragraphs) * 3.5
+            lines = max(1, len(text) // 65 + 1)
             return lines * 5.5 + 4.0
-        elif isinstance(block, HeadingBlock):
-            return 14.0 if block.level == 1 else (11.0 if block.level == 2 else 9.0)
-        elif isinstance(block, CodeBlock):
-            code_lines = len(block.code.split("\n"))
-            header_h = 10.0 if block.filename or block.language else 0.0
-            return header_h + (code_lines * 4.8) + 12.0
-        elif isinstance(block, TerminalBlock):
-            term_lines = len(block.lines)
+
+        elif isinstance(block, HeadingBlock) or b_type == "heading":
+            lvl = getattr(block, "level", 2)
+            return 14.0 if lvl == 1 else (11.0 if lvl == 2 else 9.0)
+
+        elif isinstance(block, CodeBlock) or b_type == "code":
+            code = getattr(block, "code", "") or ""
+            code_lines = len(code.split("\n"))
+            header_h = 10.0 if (getattr(block, "filename", None) or getattr(block, "language", None)) else 0.0
+            caption_h = 7.0 if getattr(block, "caption", None) else 0.0
+            return header_h + (code_lines * 4.8) + caption_h + 12.0
+
+        elif isinstance(block, TerminalBlock) or b_type == "terminal":
+            lines = getattr(block, "lines", []) or []
+            term_lines = len(lines) if lines else max(1, len((getattr(block, "command", "") or "").split("\n")))
             return 10.0 + (term_lines * 4.8) + 12.0
-        elif isinstance(block, TableBlock):
-            row_count = len(block.rows) + 1
-            caption_h = 8.0 if block.caption else 0.0
+
+        elif isinstance(block, TableBlock) or b_type == "table":
+            rows = getattr(block, "rows", []) or []
+            row_count = len(rows) + 1
+            caption_h = 8.0 if getattr(block, "caption", None) else 0.0
             return caption_h + (row_count * 9.5) + 8.0
-        elif isinstance(block, ChartBlock):
+
+        elif isinstance(block, ChartBlock) or b_type == "chart":
             return 65.0
-        elif isinstance(block, DiagramBlock):
+
+        elif isinstance(block, DiagramBlock) or b_type == "diagram":
             return 70.0
-        elif isinstance(block, CalloutBlock):
-            lines = max(1, len(block.content) // 55 + 1)
+
+        elif isinstance(block, CalloutBlock) or b_type in ("callout", "tip", "note", "warning", "important", "definition"):
+            content = getattr(block, "content", "") or ""
+            lines = max(1, len(content) // 55 + 1)
             return 12.0 + (lines * 5.5) + 8.0
-        elif isinstance(block, StatisticBlock):
+
+        elif isinstance(block, StatisticBlock) or b_type == "statistic":
             return 45.0
-        elif isinstance(block, QuoteBlock):
-            lines = max(1, len(block.quote) // 50 + 1)
+
+        elif isinstance(block, QuoteBlock) or b_type == "quote":
+            quote = getattr(block, "quote", "") or ""
+            lines = max(1, len(quote) // 50 + 1)
             return (lines * 6.5) + 16.0
-        elif isinstance(block, SourceBlock):
+
+        elif isinstance(block, SourceBlock) or b_type == "source":
             return 28.0
+
+        elif b_type == "step":
+            steps = getattr(block, "steps", []) or []
+            return 12.0 + (len(steps) * 11.0)
+
+        elif b_type == "exercise":
+            instructions = getattr(block, "instructions", []) or []
+            return 30.0 + (len(instructions) * 7.5)
+
+        elif b_type == "comparison":
+            left_items = getattr(block, "left_items", []) or []
+            right_items = getattr(block, "right_items", []) or []
+            max_items = max(len(left_items), len(right_items), 1)
+            return 18.0 + (max_items * 8.5)
+
+        elif b_type == "checklist":
+            items = getattr(block, "items", []) or []
+            return 10.0 + (len(items) * 7.0)
+
+        elif b_type == "timeline":
+            items = getattr(block, "items", []) or []
+            return 15.0 + (len(items) * 14.0)
+
+        elif b_type == "icon_text":
+            items = getattr(block, "items", []) or []
+            return 12.0 + (len(items) * 14.0)
+
+        elif b_type == "image":
+            return 60.0
+
         return 15.0
 
     @classmethod
-    def estimate_page_density(cls, page: Page) -> float:
+    def estimate_page_density(cls, page: Any) -> float:
         """Calculate the estimated fill fraction (0.0 to 1.0+) of usable A4 height."""
-        # Opener, cover, toc, thank you have dedicated fixed spatial layouts
-        if page.layout_type in {LayoutType.CHAPTER_OPENER, LayoutType.COVER, LayoutType.TOC, LayoutType.THANK_YOU, LayoutType.COPYRIGHT}:
-            return 0.75
+        util = cls.estimate_utilization(page)
+        return util.estimated_ratio
+
+    @classmethod
+    def estimate_utilization(cls, page: Any, page_type: str = "chapter_content") -> PageUtilization:
+        """Calculate complete physical layout utilization and component height breakdown."""
+        p_type = getattr(page, "page_type", page_type) or page_type
+        layout = getattr(page, "layout", "") or ""
+        
+        # Chapter Opener Page
+        if p_type == "chapter_opener" or layout == "chapter_opener":
+            return PageUtilization(
+                estimated_ratio=0.45,
+                status="optimal",
+                block_breakdown={"chapter_opener_banner": 110.0},
+                usable_height_mm=USABLE_PAGE_HEIGHT_MM,
+                total_content_height_mm=110.0,
+                target_min_ratio=0.25,
+                target_max_ratio=0.60,
+            )
+
+        # Full-page dedicated structural layouts
+        if p_type in ("cover", "copyright", "toc", "thank_you", "imprint") or layout in ("cover", "copyright", "toc", "thank_you", "imprint"):
+            return PageUtilization(
+                estimated_ratio=0.80,
+                status="optimal",
+                block_breakdown={"structural_layout": 199.0},
+                usable_height_mm=USABLE_PAGE_HEIGHT_MM,
+                total_content_height_mm=199.0,
+                target_min_ratio=0.70,
+                target_max_ratio=0.90,
+            )
 
         total_height_mm = 0.0
+        breakdown: Dict[str, float] = {}
 
-        # Headline
-        if page.content and page.content.headline:
+        # Content object extraction
+        content = getattr(page, "content", page)
+        headline = getattr(content, "headline", None) if content else None
+
+        # 1. Headline & Header Spacing
+        if headline:
             total_height_mm += 14.0
+            breakdown["headline"] = 14.0
 
-        # Blocks
-        if page.content and page.content.blocks:
-            for b in page.content.blocks:
-                total_height_mm += cls.estimate_block_height_mm(b)
-        elif page.content and page.content.body:
-            lines = max(1, len(page.content.body) // 60 + 1)
-            total_height_mm += lines * 5.5
-        elif page.html:
+        # 2. Content Blocks
+        blocks = getattr(content, "blocks", []) if content else []
+        for idx, b in enumerate(blocks):
+            h = cls.estimate_block_height_mm(b)
+            total_height_mm += h
+            b_name = f"{getattr(b, 'type', 'block')}_{idx+1}"
+            breakdown[b_name] = round(h, 1)
+
+        # 3. Fallback Prose Body
+        if not blocks and content and getattr(content, "body", None):
+            body = content.body
+            lines = max(1, len(body) // 65 + 1)
+            h = lines * 5.5
+            total_height_mm += h
+            breakdown["body_prose"] = round(h, 1)
+
+        # 4. Fallback HTML
+        if not blocks and not (content and getattr(content, "body", None)) and getattr(page, "html", None):
             lines = max(1, len(page.html) // 80 + 1)
-            total_height_mm += lines * 5.0
+            h = lines * 5.0
+            total_height_mm += h
+            breakdown["html_content"] = round(h, 1)
 
-        # Key points or callouts metadata
-        if page.content and page.content.key_points:
-            total_height_mm += len(page.content.key_points) * 6.0
+        # 5. Key points
+        if content and getattr(content, "key_points", None):
+            kp_h = len(content.key_points) * 6.5
+            total_height_mm += kp_h
+            breakdown["key_points"] = round(kp_h, 1)
 
-        density = total_height_mm / USABLE_PAGE_HEIGHT_MM
-        return density
+        ratio = round(total_height_mm / USABLE_PAGE_HEIGHT_MM, 3)
+
+        # Determine status according to target ratios
+        # Normal content target: 0.70 - 0.90
+        # Code-heavy target: 0.65 - 0.90
+        # Diagram-heavy target: 0.60 - 0.90
+        has_code = any("code" in k or "terminal" in k for k in breakdown.keys())
+        has_diagram = any("diagram" in k or "chart" in k for k in breakdown.keys())
+        min_target = 0.60 if has_diagram else (0.65 if has_code else 0.70)
+
+        if ratio < min_target:
+            status = "underfilled"
+        elif ratio > 0.95:
+            status = "overflow_risk"
+        else:
+            status = "optimal"
+
+        return PageUtilization(
+            estimated_ratio=ratio,
+            status=status,
+            block_breakdown=breakdown,
+            usable_height_mm=USABLE_PAGE_HEIGHT_MM,
+            total_content_height_mm=round(total_height_mm, 1),
+            target_min_ratio=min_target,
+            target_max_ratio=0.90,
+        )
+
+
+def estimate_page_utilization(page: Any, page_type: str = "chapter_content") -> PageUtilization:
+    """Public helper to calculate page density and utilization metrics."""
+    return DensityEstimator.estimate_utilization(page, page_type=page_type)
 
 
 class OverflowDetector:

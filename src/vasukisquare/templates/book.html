@@ -98,6 +98,10 @@
         {% endif %}
       </main>
 
+      {% if item.watermark_svg %}
+      {{ item.watermark_svg | safe }}
+      {% endif %}
+
       {% if item.page.layout_type.value not in ["chapter_opener", "cover", "thank_you"] %}
       <footer class="page-footer">
         <span class="footer-title">{{ running_title or book_title }}</span>

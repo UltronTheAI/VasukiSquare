@@ -2124,4 +2124,151 @@ sub { vertical-align: sub; font-size: 0.75em; line-height: 0; }
   margin-top: 4px;
 }
 
+/* ==========================================================================
+   Subtle Decorative Topic Watermark Icons (Non-intrusive background motifs)
+   ========================================================================== */
+.decorative-watermark-icon {
+  position: absolute;
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+  opacity: 0.06;
+  color: var(--theme-accent);
+  transition: opacity 0.2s ease;
+}
+
+.decorative-watermark-icon.pos-bottom-right {
+  bottom: 28mm;
+  right: 22mm;
+}
+
+.decorative-watermark-icon.pos-bottom-left {
+  bottom: 28mm;
+  left: 22mm;
+}
+
+.decorative-watermark-icon.pos-bottom-center {
+  bottom: 28mm;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.decorative-watermark-icon.pos-side-right {
+  top: 50%;
+  right: 18mm;
+  transform: translateY(-50%);
+}
+
+.decorative-watermark-icon svg {
+  width: 140px;
+  height: 140px;
+  stroke-width: 1.25;
+}
+
+.page.theme-dark .decorative-watermark-icon {
+  opacity: 0.05;
+}
+
+/* ==========================================================================
+   Canonical 16 Page Layout Families
+   ========================================================================== */
+.layout-editorial_standard .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.layout-editorial_split .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.layout-code_focus .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.layout-terminal_focus .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.layout-diagram_focus .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.layout-comparison_focus .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.layout-steps_focus .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.layout-cards_focus .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.layout-quote_or_definition .page-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: var(--spacing-lg);
+}
+
+.layout-architecture_focus .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.layout-visual_bottom .page-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+.layout-visual_side .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.layout-dense_reference .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xs);
+}
+
+.layout-minimal_summary .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+.layout-exercise_focus .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.layout-large_intro .page-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-lg);
+}
+
+
 

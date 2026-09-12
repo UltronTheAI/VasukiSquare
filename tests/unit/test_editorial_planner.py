@@ -2,6 +2,7 @@
 
 import asyncio
 import pytest
+from vasukisquare.config import Settings
 from vasukisquare.agents.editorial import EditorialPlannerAgent
 from vasukisquare.book.layout import LayoutType
 from vasukisquare.book.models import (
@@ -16,7 +17,7 @@ from vasukisquare.research.models import ResearchCorpus, SourceDocument, SourceT
 
 
 def test_book_intent_inference():
-    agent = EditorialPlannerAgent()
+    agent = EditorialPlannerAgent(settings=Settings(vasukisquare_mock_mode=True))
     
     async def _test():
         intent = await agent.infer_intent("Advanced Rust Memory Management and Concurrency")
@@ -30,7 +31,7 @@ def test_book_intent_inference():
 
 
 def test_book_plan_generation_structure():
-    agent = EditorialPlannerAgent()
+    agent = EditorialPlannerAgent(settings=Settings(vasukisquare_mock_mode=True))
     
     async def _test():
         prompt = "Distributed Consensus Algorithms in Modern Databases"
@@ -118,7 +119,7 @@ def test_book_plan_generation_structure():
 
 
 def test_deterministic_repeatability():
-    agent = EditorialPlannerAgent()
+    agent = EditorialPlannerAgent(settings=Settings(vasukisquare_mock_mode=True))
 
     async def _test():
         prompt = "Microservice Observability and OpenTelemetry"
@@ -137,7 +138,7 @@ def test_deterministic_repeatability():
 
 
 def test_python_beginner_planning_and_chapters():
-    agent = EditorialPlannerAgent()
+    agent = EditorialPlannerAgent(settings=Settings(vasukisquare_mock_mode=True))
 
     async def _test():
         prompt = "Getting Started with Python: A Beginner's Guide from Zero to Building Your First Real Programs"

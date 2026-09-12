@@ -4,9 +4,9 @@ from pathlib import Path
 from typing import List, Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from vasukisquare.book.models import Page
-from vasukisquare.design.icons import IconColorResolver, render_lucide_icon
+from vasukisquare.design.icons import IconColorResolver, render_lucide_icon, resolve_topic_decorative_icon
 from vasukisquare.renderer.components import ComponentRenderer
-from vasukisquare.renderer.overflow import PageRepairEngine, OverflowDetector
+from vasukisquare.renderer.overflow import PageRepairEngine, OverflowDetector, estimate_page_utilization
 
 
 class HtmlPageRenderer:
@@ -216,6 +216,25 @@ class HtmlPageRenderer:
                 styles.append(f"--theme-accent: {page.style.accent_color};")
         return " ".join(styles)
 
+    def _render_decorative_watermark(self, page: Page, book_topic: str, book_title: str) -> str:
+        """Render subtle, non-intrusive background Lucide watermark icon if page has appropriate negative space."""
+        p_type = getattr(page, "page_type", "") or page.layout_type.value
+        if p_type in ("chapter_opener", "cover", "thank_you", "toc", "copyright", "imprint"):
+            return ""
+
+        # Only render watermark if page is not overfilled
+        util = estimate_page_utilization(page)
+        if util.estimated_ratio > 0.90:
+            return ""
+
+        topic_str = f"{book_topic} {book_title} {page.chapter_title or ''} {getattr(page.content, 'headline', '')}"
+        icon_name = resolve_topic_decorative_icon(topic_str, getattr(page.content, 'headline', ''))
+        icon_color = IconColorResolver.resolve_color(page.theme, role="primary")
+        icon_svg = render_lucide_icon(name=icon_name, color=icon_color, size=130)
+
+        pos_class = "pos-bottom-right" if (page.page_number % 2 == 0) else "pos-bottom-left"
+        return f'<div class="decorative-watermark-icon {pos_class}">{icon_svg}</div>'
+
     def render_page(
         self,
         page: Page,
@@ -242,6 +261,8 @@ class HtmlPageRenderer:
         if page.layout == "thank_you" or page.page_type == "thank_you":
             thank_you_html = self._render_thank_you_html(page, icon_svg, book_title)
 
+        watermark_svg = self._render_decorative_watermark(page, book_topic, book_title)
+
         rendered = template.render(
             page=page,
             book_title=book_title,
@@ -252,6 +273,7 @@ class HtmlPageRenderer:
             blocks_html=blocks_html,
             opener_html=opener_html,
             thank_you_html=thank_you_html,
+            watermark_svg=watermark_svg,
             custom_inline_style=self._get_page_inline_style(page),
         )
         return rendered
@@ -287,12 +309,15 @@ class HtmlPageRenderer:
             if p.layout == "thank_you" or p.page_type == "thank_you":
                 thank_you_html = self._render_thank_you_html(p, icon_svg, book_title)
 
+            watermark_svg = self._render_decorative_watermark(p, book_topic, book_title)
+
             page_items.append({
                 "page": p,
                 "icon_svg": icon_svg,
                 "blocks_html": blocks_html,
                 "opener_html": opener_html,
                 "thank_you_html": thank_you_html,
+                "watermark_svg": watermark_svg,
                 "custom_inline_style": self._get_page_inline_style(p),
             })
 
@@ -304,4 +329,5 @@ class HtmlPageRenderer:
             styles=self._get_css(),
         )
         return rendered
+
 

@@ -576,17 +576,57 @@ class EditorialPlannerAgent:
         else:
             backmatter_count = 3  # References + Acknowledgements + Thank You
 
-        # 2. Strict Page Budgeting for Chapters
+        # 2. Proportional Page Budgeting for Chapters
         structural_pages = len(all_pages) + backmatter_count + len(chapters)  # cover + front + back + chapter openers
         available_content_pages = max(len(chapters), target_total_pages - structural_pages)
 
         num_chapters = len(chapters)
-        base_budget = available_content_pages // num_chapters
-        remainder = available_content_pages % num_chapters
+        
+        # Calculate chapter weights based on depth, section complexity, and role
+        weights = []
+        is_conclusion_list = []
+        for i, ch in enumerate(chapters):
+            t_lower = ch.title.lower()
+            is_last = (i == num_chapters - 1)
+            is_conclusion_title = any(w in t_lower for w in ["conclusion", "next step", "summary", "future outlook", "emerging trend", "roadmap", "wrap up"])
+            is_conc = is_last or is_conclusion_title
+            is_conclusion_list.append(is_conc)
+            
+            if is_conc and num_chapters > 2:
+                w = 1.0
+            else:
+                num_sec = len(ch.sections) if ch.sections else 3
+                has_code = any(VisualAnchorType.CODE in s.visual_anchors for s in ch.sections) if ch.sections else False
+                has_diag = any(VisualAnchorType.DIAGRAM in s.visual_anchors for s in ch.sections) if ch.sections else False
+                w = float(num_sec)
+                if has_code:
+                    w += 1.5
+                if has_diag:
+                    w += 1.0
+            weights.append(w)
+
+        # Allocate pages ensuring minimum 1 content page and capping conclusion chapters
+        allocated_content = [1] * num_chapters
+        remaining_pages = max(0, available_content_pages - num_chapters)
+
+        conclusion_caps = {}
+        for i in range(num_chapters):
+            if is_conclusion_list[i] and num_chapters > 2:
+                conclusion_caps[i] = 2  # max 2 content pages for conclusion/summary
+            else:
+                conclusion_caps[i] = 9999
+
+        while remaining_pages > 0:
+            eligible = [i for i in range(num_chapters) if allocated_content[i] < conclusion_caps[i]]
+            if not eligible:
+                eligible = list(range(num_chapters))
+            
+            best_ch = max(eligible, key=lambda idx: weights[idx] / (allocated_content[idx] + 0.5))
+            allocated_content[best_ch] += 1
+            remaining_pages -= 1
 
         for i, ch in enumerate(chapters):
-            ch_content_budget = base_budget + (1 if i < remainder else 0)
-            ch.page_budget = 1 + ch_content_budget  # 1 opener + content pages
+            ch.page_budget = 1 + allocated_content[i]  # 1 opener + allocated content pages
 
         # 3. Chapters
         for ch in chapters:

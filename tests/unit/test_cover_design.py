@@ -3,6 +3,7 @@
 import asyncio
 import pytest
 from vasukisquare.book.models import CoverDesignPlan, CoverPlan
+from vasukisquare.config import Settings
 from vasukisquare.design.cover_patterns import CoverPatternGenerator
 from vasukisquare.design.tokens import ColorToken
 from vasukisquare.agents.cover import CoverPlannerAgent
@@ -57,7 +58,7 @@ def test_cover_plan_rejects_arbitrary_colors():
 
 def test_different_seeds_produce_different_design_plans():
     """2. Verify different seeds generate different composition styles and design plans."""
-    agent = CoverPlannerAgent()
+    agent = CoverPlannerAgent(settings=Settings(vasukisquare_mock_mode=True))
 
     async def _test():
         plan1 = await agent.plan_cover(
