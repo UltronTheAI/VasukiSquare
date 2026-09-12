@@ -21,6 +21,29 @@ def slugify(text: str) -> str:
     return re.sub(r"[-\s]+", "-", slug)
 
 
+def normalize_cover_color_token(color: str, default: str) -> str:
+    """Ensure color strictly adheres to DESIGN.md tokens, normalizing hex variants."""
+    try:
+        return validate_color_token(color).value
+    except ValueError:
+        c_lower = (color or "").strip().lower()
+        if any(w in c_lower for w in ["orange", "ff66", "ff7", "fa6", "e65"]):
+            return ColorToken.ACCENT_ORANGE.value
+        if any(w in c_lower for w in ["purple", "violet", "7b3", "8a2"]):
+            return ColorToken.ACCENT_PURPLE.value
+        if any(w in c_lower for w in ["pink", "magenta", "f06", "f47"]):
+            return ColorToken.ACCENT_PINK.value
+        if any(w in c_lower for w in ["blue", "sky", "cyan", "3d4", "028"]):
+            return ColorToken.ACCENT_BLUE.value
+        if any(w in c_lower for w in ["green", "teal", "00e", "00b", "006"]):
+            return ColorToken.BRAND_GREEN.value
+        if any(w in c_lower for w in ["fff", "light", "white"]):
+            return ColorToken.CANVAS.value
+        if any(w in c_lower for w in ["001", "dark", "black", "1c2"]):
+            return ColorToken.BRAND_TEAL_DEEP.value
+        return default
+
+
 class CoverDesignPlan(BaseModel):
     """Specification for AI-directed custom cover generation adhering to DESIGN.md tokens."""
 

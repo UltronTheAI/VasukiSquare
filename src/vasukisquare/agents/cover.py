@@ -170,7 +170,10 @@ class CoverPlannerAgent:
             "Some covers should be typography-only (icon_strategy='none').\n"
             "4. Decorative Geometry: choose topic-aligned geometry [database_nodes, circuit_grid, structural_rings, "
             "abstract_matrix, angular_lines, code_terminal_frame, dense_blueprint, orthogonal_axes, none].\n"
-            "5. Light Theme Canvas: Cover is always rendered in light mode with dark high-contrast typography and clean accents."
+            "5. Light Theme Canvas: Cover is always rendered in light mode with dark high-contrast typography and clean accents.\n"
+            "6. Color Tokens (strictly choose from DESIGN.md):\n"
+            "   - accent_color: must be one of ['#00ed64', '#00684a', '#00a35c', '#001e2b', '#003d4f', '#7b3ff2', '#fa6e39', '#f06bb8', '#3d4f9f']\n"
+            "   - background_color: must be one of ['#ffffff', '#f9fbfa', '#f4f7f6', '#e3fcef', '#c3f0d2', '#fff8e0']"
         )
 
         user_prompt = (
@@ -205,7 +208,7 @@ class CoverPlannerAgent:
                 plan.audience = audience
                 plan.cover_seed = cover_seed
                 # Enforce light mode background color selection
-                plan.background_color = LIGHT_BACKGROUND_COLORS[cover_seed % len(LIGHT_BACKGROUND_COLORS)]
+                plan.background_color = COVER_LIGHT_BACKGROUNDS[cover_seed % len(COVER_LIGHT_BACKGROUNDS)]
                 plan.contrast_mode = "high_contrast_light"
 
                 # Diversity check against previous cover

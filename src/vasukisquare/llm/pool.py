@@ -70,22 +70,38 @@ def is_retryable_groq_error(error: Exception) -> Tuple[bool, bool, Optional[floa
     err_str = str(error).lower()
     retry_after = parse_retry_after(error)
 
-    # 1. Non-retryable auth/bad request errors
-    non_retryable_indicators = [
+    # 1. Non-retryable authentication / access errors (strictly invalid credentials)
+    auth_errors = [
         "invalid_api_key",
         "invalid api key",
         "unauthorized",
         "401",
         "forbidden",
         "403",
-        "invalid_request_error",
-        "unsupported parameter",
+        "authentication failed",
     ]
-    # If 401 or api key failure, definitely non-retryable
-    if any(ind in err_str for ind in ["invalid_api_key", "invalid api key", "unauthorized", "401"]):
+    if any(ind in err_str for ind in auth_errors):
         return (False, False, None, False)
 
-    # 2. Model unavailable / decommissioned / not found error (retryable across models)
+    # 2. Tool calling / function calling failures (model capability failure -> retryable across models)
+    tool_failures = [
+        "tool_use_failed",
+        "failed to call a function",
+        "attempted to call tool",
+        "tool call validation failed",
+        "tool_error",
+        "failed_generation",
+        "validation error",
+        "validationerror",
+        "value error",
+        "jsondecodeerror",
+        "output parsing error",
+        "did not return a valid json",
+    ]
+    if any(ind in err_str for ind in tool_failures):
+        return (True, False, None, False)
+
+    # 3. Model unavailable / decommissioned / not found error (retryable across models)
     model_unavailable_indicators = [
         "model_not_found",
         "model not found",
@@ -103,7 +119,7 @@ def is_retryable_groq_error(error: Exception) -> Tuple[bool, bool, Optional[floa
     if any(ind in err_str for ind in model_unavailable_indicators):
         return (True, False, None, True)
 
-    # 3. Rate Limit / Quota errors
+    # 4. Rate Limit / Quota errors
     rate_limit_indicators = [
         "429",
         "rate_limit_exceeded",
@@ -121,12 +137,13 @@ def is_retryable_groq_error(error: Exception) -> Tuple[bool, bool, Optional[floa
     if any(ind in err_str for ind in rate_limit_indicators):
         return (True, True, retry_after, False)
 
-    # 4. Server overload / transient network errors
+    # 5. Server overload / transient network errors / bad request from model generation
     server_error_indicators = [
         "500",
         "502",
         "503",
         "504",
+        "400",
         "server overloaded",
         "service unavailable",
         "bad gateway",
@@ -141,12 +158,12 @@ def is_retryable_groq_error(error: Exception) -> Tuple[bool, bool, Optional[floa
     if any(ind in err_str for ind in server_error_indicators):
         return (True, False, retry_after, False)
 
-    # Check for known network exception types
+    # Check for known network or validation exception types
     type_name = type(error).__name__.lower()
-    if any(t in type_name for t in ["timeout", "connectionerror", "ratelimit", "internalserver"]):
+    if any(t in type_name for t in ["timeout", "connectionerror", "ratelimit", "internalserver", "validationerror", "valueerror", "badrequesterror"]):
         return (True, "ratelimit" in type_name, retry_after, False)
 
-    return (False, False, None, False)
+    return (True, False, None, False)
 
 
 class GroqModelPool:
