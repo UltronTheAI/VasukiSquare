@@ -241,9 +241,9 @@ class BookIntent(BaseModel):
         default_factory=list,
         description="Any custom constraints or editorial instructions",
     )
-    target_pages: int = Field(default=30, ge=1)
+    target_pages: Optional[int] = Field(default=None, ge=1)
     is_technical: bool = Field(default=False, description="Whether the book is a software/engineering technical manual")
-    chapter_count: int = Field(default=6, ge=1, le=16)
+    chapter_count: Optional[int] = Field(default=None, description="Explicit chapter count constraint if specified")
     research_intensity: str = Field(default="standard", description="standard, deep, academic")
     code_requirements: bool = Field(default=False)
     diagram_requirements: bool = Field(default=True)

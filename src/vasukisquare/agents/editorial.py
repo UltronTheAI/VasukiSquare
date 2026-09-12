@@ -1,6 +1,7 @@
 """Editorial Planning Agent inferring intent and generating structured BookPlans."""
 
 import logging
+import re
 from typing import List, Optional, Union
 from pydantic import BaseModel, Field
 from vasukisquare.config import Settings, get_settings
@@ -406,6 +407,14 @@ class EditorialPlannerAgent:
             required_topics.extend(["core architecture", "installation & setup", "crud queries", "indexing & performance"])
 
         chapter_count = self.calculate_adaptive_chapter_count(target_pages)
+        # Extract explicit chapter count if specified in prompt (e.g. "5 chapters", "8 chapters")
+        ch_match = re.search(r"(\d+)\s+chapters?", combined)
+        if ch_match:
+            try:
+                chapter_count = int(ch_match.group(1))
+            except ValueError:
+                pass
+
         code_req = is_technical and (any(w in combined for w in tech_indicators) or primary_lang is not None)
         diagram_keywords = [
             "architecture", "system", "distributed", "network", "cloud", "pipeline",
@@ -1266,10 +1275,24 @@ class EditorialPlannerAgent:
             f"covering foundational mental models, progressive practical implementations, and essential strategies."
         )
 
-        if actual_intent and actual_intent.chapter_count and actual_intent.chapter_count != self.calculate_adaptive_chapter_count(actual_intent.target_pages):
+        frontmatter_est = 3 if target_pages <= 12 else 4
+        backmatter_est = 1 if target_pages <= 12 else (2 if target_pages <= 24 else 3)
+        max_possible_chapters = max(1, (target_pages - frontmatter_est - backmatter_est) // 2)
+        adaptive_count = min(self.calculate_adaptive_chapter_count(target_pages), max_possible_chapters)
+
+        if (
+            actual_intent
+            and actual_intent.chapter_count is not None
+            and (actual_intent.target_pages is None or actual_intent.target_pages == target_pages)
+            and 1 <= actual_intent.chapter_count <= max_possible_chapters
+        ):
             calculated_chapter_count = actual_intent.chapter_count
         else:
-            calculated_chapter_count = self.calculate_adaptive_chapter_count(target_pages)
+            calculated_chapter_count = adaptive_count
+
+        if actual_intent:
+            actual_intent.target_pages = target_pages
+            actual_intent.chapter_count = calculated_chapter_count
 
         chapters = await self._plan_chapters_with_llm(book_title, actual_intent, corpus, calculated_chapter_count)
 
