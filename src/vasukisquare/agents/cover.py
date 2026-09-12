@@ -111,140 +111,29 @@ class CoverPlannerAgent:
         self,
         title: str,
         subtitle: Optional[str] = None,
-        category: str = "Computer Science",
+        category: str = "General",
         tone: str = "authoritative",
-        audience: str = "Engineers and Architects",
-        technical_depth: str = "advanced",
+        audience: str = "General Practitioners and Professionals",
+        technical_depth: str = "intermediate",
         seed: Optional[int] = None,
+        author: str = "Vasuki",
         previous_cover: Optional[Union[CoverDesignPlan, dict]] = None,
     ) -> CoverDesignPlan:
-        """Create a tailored, unique CoverDesignPlan using Groq or Ollama LLM with variation seed."""
-        cover_seed = seed if seed is not None else random.randint(100000, 999999)
-
-        if self.settings.vasukisquare_mock_mode:
-            plan = self._heuristic_cover_plan(
-                title=title,
-                subtitle=subtitle,
-                category=category,
-                tone=tone,
-                audience=audience,
-                technical_depth=technical_depth,
-                seed=cover_seed,
-                previous_cover=previous_cover,
-            )
-            self._log_cover_result(plan, previous_cover)
-            return plan
-
-        prev_plan_obj: Optional[CoverDesignPlan] = None
-        if isinstance(previous_cover, CoverDesignPlan):
-            prev_plan_obj = previous_cover
-        elif isinstance(previous_cover, dict):
-            try:
-                prev_plan_obj = CoverDesignPlan(**previous_cover)
-            except Exception:
-                pass
-
-        prev_summary = ""
-        if prev_plan_obj:
-            prev_summary = (
-                f"\n\nPREVIOUS COVER CHARACTERISTICS (DO NOT REUSE):\n"
-                f"- Concept: {prev_plan_obj.concept_name}\n"
-                f"- Composition style: {prev_plan_obj.composition_style}\n"
-                f"- Title alignment: {prev_plan_obj.title_alignment}\n"
-                f"- Title position: {prev_plan_obj.title_position}\n"
-                f"- Icon strategy: {prev_plan_obj.icon_strategy}\n"
-                f"- Border strategy: {prev_plan_obj.border_strategy}\n"
-                f"- Decorative geometry: {prev_plan_obj.decorative_geometry}\n"
-                f"INSTRUCTION: Art-direct a SUBSTANTIALLY DIFFERENT composition from the previous cover.\n"
-            )
-
-        system_prompt = (
-            "You are a world-class executive art director for prestigious technical and editorial books. "
-            "Design a distinctive, high-contrast, professional A4 cover layout following the VasukiSquare DESIGN.md system.\n\n"
-            "DESIGN SPECIFICATIONS:\n"
-            "1. Composition Families: choose one of [asymmetric_left, centered_editorial, bottom_weighted, top_heavy_minimal, "
-            "large_typography, vertical_split, framed_technical, geometric_grid, diagonal_accent, icon_led, typography_only, "
-            "split_panel, sparse_luxury, dense_blueprint, numeric_motif, abstract_lines].\n"
-            "2. Title & Subtitle hierarchy: ensure the title is the commanding focal point. Scale typography according to title length.\n"
-            "3. Icon Strategy: choose from [hero_top, integrated_badge, watermarked_background, bottom_corner, inline_prefix, none]. "
-            "Some covers should be typography-only (icon_strategy='none').\n"
-            "4. Decorative Geometry: choose topic-aligned geometry [database_nodes, circuit_grid, structural_rings, "
-            "abstract_matrix, angular_lines, code_terminal_frame, dense_blueprint, orthogonal_axes, none].\n"
-            "5. Light Theme Canvas: Cover is always rendered in light mode with dark high-contrast typography and calm, restrained accents.\n"
-            "6. Editorial Color Tokens (strictly choose from DESIGN.md):\n"
-            "   - accent_color: must be one of ['#003d4f', '#00684a', '#3d4f9f', '#3d4f5b', '#1c2d38', '#7b3ff2', '#fa6e39', '#f06bb8'] (never neon green)\n"
-            "   - background_color: must be one of ['#ffffff', '#f9fbfa', '#f4f7f6', '#e3fcef', '#fff8e0']"
+        """Create a tailored, unique CoverDesignPlan with 10 cover families with variation seed."""
+        from vasukisquare.cover.planner import CoverPlannerAgent as ModularCoverPlanner
+        modular_planner = ModularCoverPlanner(self.settings, self.llm_client, self.metrics)
+        plan = modular_planner.plan_cover(
+            title=title,
+            subtitle=subtitle,
+            category=category,
+            tone=tone,
+            audience=audience,
+            technical_depth=technical_depth,
+            seed=seed,
+            author=author or "Vasuki",
+            previous_cover=previous_cover,
         )
-
-        user_prompt = (
-            f"Book Title: {title}\n"
-            f"Subtitle: {subtitle or 'None'}\n"
-            f"Category / Genre: {category}\n"
-            f"Tone: {tone}\n"
-            f"Target Audience: {audience}\n"
-            f"Technical Depth: {technical_depth}\n"
-            f"Variation Seed: {cover_seed}\n"
-            f"{prev_summary}\n"
-            f"Create the bespoke CoverDesignPlan for this book."
-        )
-
-        plan = None
-        max_retries = self.settings.cover_max_retries if self.settings.cover_variation_enabled else 0
-
-        for attempt in range(max_retries + 1):
-            try:
-                plan = await self.llm_client.invoke_structured(
-                    schema=CoverDesignPlan,
-                    system_prompt=system_prompt,
-                    user_prompt=user_prompt,
-                    stage="cover_design_planning",
-                    temperature=self.settings.cover_temperature,
-                )
-
-                plan.title = title
-                plan.subtitle = subtitle
-                plan.category = category
-                plan.tone = tone
-                plan.audience = audience
-                plan.cover_seed = cover_seed
-                # Enforce light mode background color selection
-                plan.background_color = COVER_LIGHT_BACKGROUNDS[cover_seed % len(COVER_LIGHT_BACKGROUNDS)]
-                plan.contrast_mode = "high_contrast_light"
-
-                # Diversity check against previous cover
-                if prev_plan_obj and attempt < max_retries:
-                    similarity = self.compute_similarity(plan, prev_plan_obj)
-                    if similarity > 0.60:
-                        logger.warning(
-                            f"Cover plan attempt {attempt + 1} similarity {similarity:.2f} > 0.60 to previous cover. Retrying..."
-                        )
-                        user_prompt += (
-                            f"\n\nFEEDBACK: The previous proposed concept '{plan.concept_name}' with composition '{plan.composition_style}' "
-                            f"is too similar to the prior design (similarity: {similarity:.2f}). "
-                            f"Please select an entirely different composition style and geometry!"
-                        )
-                        continue
-
-                break
-
-            except Exception as e:
-                logger.warning(f"Cover design LLM call attempt {attempt + 1} failed: {e}")
-                if attempt >= max_retries:
-                    break
-
-        if not plan:
-            plan = self._heuristic_cover_plan(
-                title=title,
-                subtitle=subtitle,
-                category=category,
-                tone=tone,
-                audience=audience,
-                technical_depth=technical_depth,
-                seed=cover_seed,
-                previous_cover=previous_cover,
-            )
-
-        self._log_cover_result(plan, prev_plan_obj)
+        self._log_cover_result(plan, previous_cover if isinstance(previous_cover, CoverDesignPlan) else None)
         return plan
 
     def _log_cover_result(self, plan: CoverDesignPlan, prev_plan: Optional[CoverDesignPlan]):

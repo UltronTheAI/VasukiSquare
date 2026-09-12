@@ -156,8 +156,12 @@
     {% endif %}
     <div class="safe-content-area">
       <div class="cover-brand-header">
-        <span class="cover-brand-label">VASUKISQUARE</span>
-        <span class="cover-category-badge">{{ plan.category }}</span>
+        {% if plan.category_badge %}
+        <span class="cover-category-badge">{{ plan.category_badge }}</span>
+        {% else %}
+        <div></div>
+        {% endif %}
+        <div></div>
       </div>
 
       <div class="cover-main-body">
@@ -176,8 +180,8 @@
       </div>
 
       <footer class="cover-footer">
-        <span class="cover-footer-left">{{ plan.author }}</span>
-        <span>VASUKISQUARE TECHNICAL PUBLISHING · FIRST EDITION</span>
+        <span class="cover-footer-left">{{ plan.author or "Vasuki" }}</span>
+        <span>FIRST EDITION</span>
       </footer>
     </div>
   </div>

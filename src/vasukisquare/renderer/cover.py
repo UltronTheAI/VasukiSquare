@@ -41,83 +41,16 @@ class CoverRenderer:
             return 26
 
     def render_source_artwork(self, plan: CoverDesignPlan) -> str:
-        """Render high-resolution 1600x2560 standalone cover HTML with SVG background."""
-        template = self.env.get_template("cover.html")
-
-        # Resolve accent and background tokens
-        accent_token = validate_color_token(plan.accent_color)
-        bg_token = validate_color_token(plan.background_color)
-        sec_token = ColorToken.BRAND_TEAL.value
-
-        # Generate geometric vector pattern
-        geometric_svg = CoverPatternGenerator.generate_pattern(
-            style=plan.decorative_geometry,
-            accent_color=accent_token.value,
-            secondary_color=sec_token,
-            canvas_size=(1600, 2560),
-        )
-
-        hero_icon_svg = ""
-        if plan.icon_strategy != "none" and plan.hero_icon:
-            hero_icon_svg = render_lucide_icon(
-                name=plan.hero_icon,
-                color=accent_token,
-                size=110,
-                stroke_width=2.2,
-            )
-
-        return template.render(
-            plan=plan,
-            geometric_svg=geometric_svg,
-            hero_icon_svg=hero_icon_svg,
-        )
+        """Render high-resolution 1600x2560 standalone cover HTML with SVG vector scenery."""
+        from vasukisquare.cover.renderer import CoverRenderer as ModularCoverRenderer
+        mod_renderer = ModularCoverRenderer(self.templates_dir)
+        return mod_renderer.render_source_artwork(plan)
 
     def render_a4_cover_page(self, plan: CoverDesignPlan, book_id: str) -> Page:
         """Generate an A4 Page representation safely framing the art-directed cover composition."""
-        accent_token = validate_color_token(plan.accent_color)
-        bg_token = validate_color_token(plan.background_color)
-        sec_token = ColorToken.BRAND_TEAL.value
-
-        # Generate geometric vector pattern for A4 canvas (794 x 1123)
-        geometric_svg = CoverPatternGenerator.generate_pattern(
-            style=plan.decorative_geometry,
-            accent_color=accent_token.value,
-            secondary_color=sec_token,
-            canvas_size=(794, 1123),
-        )
-
-        icon_svg = ""
-        if plan.icon_strategy != "none" and plan.hero_icon:
-            icon_size = 72 if plan.composition_style == "icon_led" else 48
-            icon_svg = render_lucide_icon(name=plan.hero_icon, color=accent_token, size=icon_size, stroke_width=2.0)
-
-        title_size = self._get_title_font_size(plan.title)
-        
-        # Check if background is light
-        bg_val = bg_token.value.lower()
-        is_light = bg_val in ("#ffffff", "#fafbfc", "#f8fafc", "#f4f6f8", "#f0fdf4", "#f0fdfa", "#f0f9ff", "#eff6ff", "#eef2ff", "#f5f3ff", "#faf5ff", "#fdf2f8", "#fefce8", "#fffbeb", "#fff7ed", "#f9fbfa", "#f4f7f6") or plan.contrast_mode == "high_contrast_light"
-
-        html_content = self._compose_a4_html(
-            plan=plan,
-            accent=accent_token.value,
-            bg=bg_token.value,
-            geometric_svg=geometric_svg,
-            icon_svg=icon_svg,
-            title_size=title_size,
-            is_light=is_light,
-        )
-
-        return Page(
-            id=generate_id(),
-            book_id=book_id,
-            page_number=1,
-            page_type=LayoutType.COVER.value,
-            layout=LayoutType.COVER.value,
-            theme=Theme.LIGHT if is_light else Theme.DARK,
-            icon=plan.hero_icon if plan.icon_strategy != "none" else None,
-            html=html_content,
-            content=PageContent(headline=plan.title, body=plan.subtitle),
-        )
+        from vasukisquare.cover.renderer import CoverRenderer as ModularCoverRenderer
+        mod_renderer = ModularCoverRenderer(self.templates_dir)
+        return mod_renderer.render_a4_cover_page(plan, book_id)
 
     def _compose_a4_html(
         self,

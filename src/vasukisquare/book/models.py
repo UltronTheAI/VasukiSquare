@@ -51,13 +51,25 @@ class CoverDesignPlan(BaseModel):
         default="Technical Blueprint",
         description="Short descriptive concept name (e.g., 'Cybernetic Blueprint', 'Minimalist Monolith', 'Data Mesh')",
     )
+    cover_style: str = Field(
+        default="editorial_minimal",
+        description="Cover style family: editorial_minimal, mountain_landscape, ocean_horizon, sky_clouds, abstract_geometric, typographic_poster, botanical_organic, terrain_journey, symbolic_object, cinematic_landscape",
+    )
+    visual_subject: str = Field(
+        default="",
+        description="Specific visual subject description for the cover artwork",
+    )
+    mood: str = Field(
+        default="editorial",
+        description="Mood: calm, optimistic, precise, dramatic, reflective, modern",
+    )
     composition_style: str = Field(
         default="asymmetric_left",
-        description="Composition family: centered_editorial, asymmetric_left, bottom_weighted, top_heavy_minimal, large_typography, vertical_split, framed_technical, geometric_grid, diagonal_accent, icon_led, typography_only, split_panel, sparse_luxury, dense_blueprint, numeric_motif, abstract_lines",
+        description="Composition family: asymmetric_left, centered_editorial, bottom_weighted, top_heavy_minimal, large_typography, vertical_split, framed_technical, geometric_grid, diagonal_accent, icon_led, typography_only, split_panel, sparse_luxury, dense_blueprint, numeric_motif, abstract_lines",
     )
     background_style: str = Field(
-        default="solid_dark",
-        description="Background style: solid_dark, subtle_grid, layered_mesh, radial_glow, geometric_matrix, minimal_slate, split_tone",
+        default="solid_light",
+        description="Background style: solid_light, subtle_grid, layered_mesh, radial_glow, geometric_matrix, minimal_slate, split_tone",
     )
     title_alignment: str = Field(
         default="left",
@@ -76,15 +88,15 @@ class CoverDesignPlan(BaseModel):
         description="Typography style: bold_sans, modern_technical, editorial_display, compact_heavy, ultra_light_spaced",
     )
     accent_elements: List[str] = Field(
-        default_factory=lambda: ["vertical_accent_bar"],
+        default_factory=lambda: ["horizontal_rule"],
         description="Accent decorations: vertical_accent_bar, horizontal_rule, corner_brackets, tag_pill, subtle_badge, dot_grid, none",
     )
     icon_strategy: str = Field(
-        default="hero_top",
+        default="none",
         description="Icon placement strategy: hero_top, integrated_badge, watermarked_background, bottom_corner, inline_prefix, none",
     )
     hero_icon: Optional[str] = Field(
-        default="sparkles",
+        default=None,
         description="Lucide icon identifier if icon_strategy != 'none', e.g. sparkles, database, code, layers, cpu, shield-check, terminal, zap, compass",
     )
     border_strategy: str = Field(
@@ -99,36 +111,44 @@ class CoverDesignPlan(BaseModel):
         default="moderate",
         description="Visual density: sparse, moderate, dense",
     )
+    density: str = Field(
+        default="minimal",
+        description="Density alias: minimal, moderate, dense",
+    )
     contrast_mode: str = Field(
-        default="high_contrast_dark",
-        description="Contrast mode: high_contrast_dark, deep_teal_minimal, dark_slate_accent",
+        default="high_contrast_light",
+        description="Contrast mode: high_contrast_light, high_contrast_dark, deep_teal_minimal, dark_slate_accent",
     )
     decorative_geometry: str = Field(
-        default="database_nodes",
+        default="none",
         description="Geometric motif: database_nodes, circuit_grid, structural_rings, abstract_matrix, angular_lines, code_terminal_frame, none",
+    )
+    category_badge: Optional[str] = Field(
+        default=None,
+        description="Optional category badge text derived from BookIntent, e.g. 'PRACTICAL GUIDE', 'TECHNICAL HANDBOOK'",
     )
     rationale: str = Field(
         default="Art-directed composition aligned with technical depth and audience.",
         description="Design rationale for this composition",
     )
     palette_theme: str = Field(
-        default="brand_dark",
-        description="Theme palette: brand_dark, deep_teal, accent_purple, accent_orange, accent_blue",
+        default="editorial_calm",
+        description="Theme palette: editorial_calm, deep_teal, accent_purple, accent_orange, accent_blue",
     )
-    accent_color: str = Field(default=ColorToken.BRAND_GREEN.value)
-    background_color: str = Field(default=ColorToken.BRAND_TEAL_DEEP.value)
+    accent_color: str = Field(default=ColorToken.BRAND_TEAL.value)
+    background_color: str = Field(default=ColorToken.CANVAS.value)
     title: str = ""
     subtitle: Optional[str] = None
-    category: str = Field(default="Software Engineering", description="Domain classification")
+    category: str = Field(default="General", description="Domain classification")
     tone: str = Field(default="authoritative", description="Editorial tone")
-    audience: str = Field(default="Engineers and Architects", description="Target readership")
-    author: str = Field(default="VasukiSquare AI")
+    audience: str = Field(default="General Practitioners and Professionals", description="Target readership")
+    author: str = Field(default="Vasuki")
     cover_seed: int = Field(default=42)
 
     @property
     def layout_style(self) -> str:
         """Backward compatibility alias for layout_style."""
-        return self.composition_style
+        return self.composition_style or self.cover_style
 
     @property
     def geometry_seed(self) -> int:
@@ -457,6 +477,7 @@ class Book(BaseModel):
     title: str
     subtitle: Optional[str] = None
     running_title: Optional[str] = None
+    author: str = Field(default="Vasuki")
     prompt: str = ""
     description: str = ""
     status: str = "draft"

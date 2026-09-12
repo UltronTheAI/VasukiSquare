@@ -194,7 +194,9 @@ class EbookGenerationPipeline:
                 logger.info("Resumed from checkpoint: Cover Plan loaded.")
             except Exception as e:
                 logger.warning(f"Failed to load cover plan checkpoint: {e}. Re-planning cover.")
-                state.cover_plan = await self.cover_agent.plan_cover(
+                from vasukisquare.cover.planner import CoverPlannerAgent as ModularCoverPlanner
+                cover_planner = ModularCoverPlanner(self.settings, self.llm_client, self.metrics)
+                state.cover_plan = cover_planner.plan_cover(
                     title=state.book_plan.title,
                     subtitle=state.book_plan.subtitle,
                     category=state.intent.book_type.replace("_", " ").title(),
@@ -202,10 +204,14 @@ class EbookGenerationPipeline:
                     audience=state.intent.target_audience,
                     technical_depth=state.intent.technical_depth,
                     seed=book_seed,
+                    intent=state.intent,
+                    author="Vasuki",
                 )
                 cover_ckpt.write_text(state.cover_plan.model_dump_json(indent=2), encoding="utf-8")
         else:
-            state.cover_plan = await self.cover_agent.plan_cover(
+            from vasukisquare.cover.planner import CoverPlannerAgent as ModularCoverPlanner
+            cover_planner = ModularCoverPlanner(self.settings, self.llm_client, self.metrics)
+            state.cover_plan = cover_planner.plan_cover(
                 title=state.book_plan.title,
                 subtitle=state.book_plan.subtitle,
                 category=state.intent.book_type.replace("_", " ").title(),
@@ -213,6 +219,8 @@ class EbookGenerationPipeline:
                 audience=state.intent.target_audience,
                 technical_depth=state.intent.technical_depth,
                 seed=book_seed,
+                intent=state.intent,
+                author="Vasuki",
             )
             cover_ckpt.write_text(state.cover_plan.model_dump_json(indent=2), encoding="utf-8")
 
@@ -235,6 +243,11 @@ class EbookGenerationPipeline:
         )
         if not a4_cover_page or not a4_cover_page.html:
             raise RuntimeError("Book cover is missing or failed to render.")
+
+        from vasukisquare.cover.validator import CoverValidator
+        cover_report = CoverValidator.validate_cover(state.cover_plan, a4_cover_page.html)
+        if not cover_report.valid:
+            logger.warning(f"Cover validation warnings/errors: {cover_report.errors}")
 
         # Stage 5: Page Writing & HTML Generation (with targeted validation)
         logger.info(f"Stage 5/7: Writing {len(state.book_plan.all_planned_pages)} Pages...")
@@ -459,6 +472,13 @@ class EbookGenerationPipeline:
             "topic": topic,
             "title": state.book_plan.title if state.book_plan else (state.intent.title if state.intent else topic),
             "subtitle": state.book_plan.subtitle if state.book_plan else (state.intent.subtitle if state.intent else None),
+            "author": state.cover_plan.author if state.cover_plan else "Vasuki",
+            "cover": {
+                "style": state.cover_plan.cover_style if state.cover_plan else "editorial_minimal",
+                "seed": state.cover_plan.cover_seed if state.cover_plan else book_seed,
+                "background": state.cover_plan.background_color if state.cover_plan else "#faf8f5",
+                "concept": state.cover_plan.concept_name if state.cover_plan else "Editorial Minimal",
+            },
             "prompt": prompt,
             "target_pages": target_pages,
             "actual_pages": len(state.pages),
