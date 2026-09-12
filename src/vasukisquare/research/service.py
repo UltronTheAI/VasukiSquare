@@ -28,6 +28,9 @@ from vasukisquare.llm.metrics import BookGenerationMetrics
 logger = logging.getLogger(__name__)
 
 
+from vasukisquare.book.models import BookIntent
+
+
 class ResearchGenerationError(Exception):
     """Raised when research collection fails to meet minimum quality or source requirements."""
     pass
@@ -58,24 +61,23 @@ class ResearchService:
         if search_tool:
             self.search_tool = search_tool
         elif self.settings.tavily_api_key:
-            self.search_tool = WebSearchTool(TavilySearchProvider(self.settings.tavily_api_key), provider_name="tavily")
+            self.search_tool = WebSearchTool(TavilySearchProvider(self.settings.tavily_api_key))
         elif self.settings.serper_api_key:
-            self.search_tool = WebSearchTool(SerperSearchProvider(self.settings.serper_api_key), provider_name="serper")
+            self.search_tool = WebSearchTool(SerperSearchProvider(self.settings.serper_api_key))
         elif self.settings.brave_search_api_key:
-            self.search_tool = WebSearchTool(BraveSearchProvider(self.settings.brave_search_api_key), provider_name="brave")
+            self.search_tool = WebSearchTool(BraveSearchProvider(self.settings.brave_search_api_key))
         else:
-            self.search_tool = WebSearchTool(MockSearchProvider(), provider_name="mock")
+            self.search_tool = WebSearchTool(MockSearchProvider())
 
         self.wikipedia_tool = wikipedia_tool or WikipediaTool()
 
-    async def execute_query(self, query_text: str, target_types: Optional[List[Any]] = None) -> List[SourceDocument]:
-        """Execute a single query across appropriate tools."""
+    async def execute_query(self, query_text: str, source_types: List[SourceType]) -> List[SourceDocument]:
+        """Execute a single query against multiple providers concurrently."""
         collected: List[SourceDocument] = []
         tasks = []
-        types_list = target_types or ["web"]
 
-        # Wikipedia orientation
-        if any("wiki" in str(t).lower() for t in types_list):
+        # Wikipedia search
+        if SourceType.WIKIPEDIA in source_types or SourceType.ACADEMIC in source_types:
             self.metrics.record_wikipedia_call(1)
             tasks.append(self.wikipedia_tool.execute(WikipediaParams(query=query_text, max_results=2)))
 
@@ -121,10 +123,10 @@ class ResearchService:
 
         return docs
 
-    async def research_topic(self, topic: str) -> ResearchCorpus:
+    async def research_topic(self, topic: str, intent: Optional[BookIntent] = None) -> ResearchCorpus:
         """Run full deep research pipeline on a topic."""
         # 1. Plan queries
-        plan: ResearchPlan = await self.planner.plan_research(topic)
+        plan: ResearchPlan = await self.planner.plan_research(topic, intent=intent)
 
         # 2. Ingest documents across queries
         all_raw_docs: List[SourceDocument] = []

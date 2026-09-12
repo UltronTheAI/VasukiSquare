@@ -146,32 +146,78 @@ class CoverDesignPlan(BaseModel):
 CoverPlan = CoverDesignPlan
 
 
+def validate_book_title(title: Optional[str]) -> bool:
+    """Validate that a book title meets strict publishing constraints: non-empty, clean, and <= 50 chars."""
+    if not title or not isinstance(title, str):
+        return False
+    clean = title.strip().strip('"\'`')
+    if not clean:
+        return False
+    if len(clean) > 50:
+        return False
+    if "\n" in clean or "\r" in clean:
+        return False
+    # Reject obvious LLM chatter or malformed commentary
+    lower = clean.lower()
+    if lower.startswith("here is") or lower.startswith("title:") or lower.startswith("book title:"):
+        return False
+    if clean.startswith("{") or clean.startswith("["):
+        return False
+    return True
+
+
 class BookIntent(BaseModel):
     """Inferred user intent, technical scope, and editorial parameters."""
 
+    topic: str = Field(default="", description="The core subject of the book")
+    title: Optional[str] = Field(default=None, description="Explicit or resolved book title (<= 50 chars)")
+    subtitle: Optional[str] = Field(default=None, description="Optional book subtitle (<= 90 chars)")
+    original_prompt: Optional[str] = Field(default=None, description="Original user editorial brief/prompt")
     book_type: str = Field(
-        default="technical_deep_dive",
-        description="Type of book: technical_deep_dive, handbook, architecture_guide, tutorial_manual, executive_briefing",
+        default="practical_guide",
+        description="Type of book: practical_guide, technical_deep_dive, handbook, tutorial_manual, beginner_guide, executive_briefing",
     )
     target_audience: str = Field(
-        default="Software Engineers and Architects",
+        default="General Practitioners and Professionals",
         description="Target readership",
     )
-    technical_depth: str = Field(
-        default="advanced",
-        description="Technical depth: introductory, intermediate, advanced, expert",
+    purpose: str = Field(
+        default="Provide an actionable, comprehensive guide to the subject.",
+        description="Primary educational or practical objective of the book",
     )
     tone: str = Field(
-        default="authoritative",
-        description="Editorial tone: authoritative, practical, analytical, educational",
+        default="practical",
+        description="Editorial tone: practical, authoritative, clear, encouraging, analytical",
+    )
+    technical_depth: str = Field(
+        default="intermediate",
+        description="Technical depth: introductory, intermediate, advanced, expert",
     )
     approximate_length: str = Field(
         default="standard",
         description="Length: short (20-40 pages), standard (40-70 pages), comprehensive (70-120 pages)",
     )
+    required_topics: List[str] = Field(
+        default_factory=list,
+        description="Specific topics or subjects that MUST be covered in the book",
+    )
+    avoid_topics: List[str] = Field(
+        default_factory=list,
+        description="Topics, cliches, or filler to explicitly avoid",
+    )
+    desired_elements: List[str] = Field(
+        default_factory=list,
+        description="Specific structural elements wanted: exercises, checklists, 30-day plan, code examples, case studies",
+    )
+    special_instructions: List[str] = Field(
+        default_factory=list,
+        description="Any custom constraints or editorial instructions",
+    )
+    target_pages: int = Field(default=30, ge=1)
+    is_technical: bool = Field(default=False, description="Whether the book is a software/engineering technical manual")
     chapter_count: int = Field(default=6, ge=1, le=16)
-    research_intensity: str = Field(default="deep", description="standard, deep, academic")
-    code_requirements: bool = Field(default=True)
+    research_intensity: str = Field(default="standard", description="standard, deep, academic")
+    code_requirements: bool = Field(default=False)
     diagram_requirements: bool = Field(default=True)
     primary_programming_language: Optional[str] = Field(
         default=None,
@@ -179,7 +225,7 @@ class BookIntent(BaseModel):
     )
     domain_topic: Optional[str] = Field(
         default=None,
-        description="Main subject domain (e.g. python_basics, distributed_systems, machine_learning)",
+        description="Main subject domain (e.g. habits, productivity, distributed_systems)",
     )
 
 

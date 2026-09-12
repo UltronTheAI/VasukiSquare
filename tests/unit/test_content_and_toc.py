@@ -23,9 +23,12 @@ from vasukisquare.renderer.validator import ContentValidator
 from vasukisquare.design.theme import Theme
 
 
+from vasukisquare.config import Settings
+
+
 @pytest.mark.asyncio
 async def test_writer_generates_python_code():
-    writer = PageWriterAgent()
+    writer = PageWriterAgent(settings=Settings(vasukisquare_mock_mode=True))
     intent = BookIntent(
         book_type="beginner_guide",
         target_audience="Beginners",

@@ -14,6 +14,8 @@ class VisualAnchorType(str, Enum):
     COMPARISON = "comparison"
     STATISTIC = "statistic"
     TEXT = "text"
+    CHECKLIST = "checklist"
+    EXERCISE = "exercise"
 
 
 class TechnicalPageType(str, Enum):

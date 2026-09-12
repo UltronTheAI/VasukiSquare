@@ -24,7 +24,25 @@ def parse_args():
         "--topic",
         type=str,
         required=True,
-        help="The topic or detailed description of the ebook to generate.",
+        help="The core topic or subject of the ebook to generate.",
+    )
+    parser.add_argument(
+        "--title",
+        type=str,
+        default=None,
+        help="Optional explicit public-facing title (must be <= 50 characters).",
+    )
+    parser.add_argument(
+        "--prompt",
+        type=str,
+        default=None,
+        help="Editorial instructions/brief specifying audience, purpose, tone, required elements.",
+    )
+    parser.add_argument(
+        "--prompt-file",
+        type=str,
+        default=None,
+        help="Path to a text file containing the editorial brief (mutually exclusive with --prompt).",
     )
     parser.add_argument(
         "--pages",
@@ -53,12 +71,27 @@ def parse_args():
         action="store_true",
         help="Resume generation from latest stage/page checkpoints in output directory.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+
+    # Validate mutual exclusivity between --prompt and --prompt-file
+    if args.prompt and args.prompt_file:
+        parser.error("Arguments --prompt and --prompt-file are mutually exclusive. Please provide only one.")
+
+    return args
 
 
 async def main_async():
     args = parse_args()
     settings = get_settings()
+
+    # Resolve prompt text from --prompt-file if specified
+    prompt_text = args.prompt
+    if args.prompt_file:
+        prompt_path = Path(args.prompt_file)
+        if not prompt_path.exists():
+            print(f"Error: Prompt file not found at: {prompt_path.resolve()}", file=sys.stderr)
+            sys.exit(1)
+        prompt_text = prompt_path.read_text(encoding="utf-8").strip()
 
     pipeline = EbookGenerationPipeline(settings=settings)
     out_dir = Path(args.output_dir)
@@ -66,7 +99,12 @@ async def main_async():
     print(f"\n==========================================")
     print(f" VasukiSquare Ebook Generation Engine")
     print(f" Topic: {args.topic}")
+    if args.title:
+        print(f" Title: {args.title}")
     print(f" Target Pages: {args.pages}")
+    if prompt_text:
+        preview = prompt_text[:120] + "..." if len(prompt_text) > 120 else prompt_text
+        print(f" Editorial Brief: {preview}")
     print(f" Output Directory: {out_dir.resolve()}")
     if args.resume:
         print(f" Mode: RESUME from checkpoints")
@@ -74,6 +112,8 @@ async def main_async():
 
     state = await pipeline.run(
         topic=args.topic,
+        title=args.title,
+        prompt=prompt_text,
         target_pages=args.pages,
         output_dir=out_dir,
         generate_pdf=not args.no_pdf,

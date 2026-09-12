@@ -1,7 +1,7 @@
 """Editorial Planning Agent inferring intent and generating structured BookPlans."""
 
 import logging
-from typing import List, Optional
+from typing import List, Optional, Union
 from pydantic import BaseModel, Field
 from vasukisquare.config import Settings, get_settings
 from vasukisquare.book.layout import LayoutType
@@ -57,6 +57,56 @@ class GeneratedBookOutline(BaseModel):
     chapters: List[GeneratedChapterPlan] = Field(description="Sequential list of chapters")
 
 
+def clean_and_resolve_title(
+    topic: str,
+    prompt: Optional[str] = None,
+    explicit_title: Optional[str] = None,
+) -> str:
+    """Resolve and enforce strict title constraints: non-empty, clean, and <= 50 chars."""
+    if explicit_title and explicit_title.strip():
+        t = explicit_title.strip()
+        for q in ['"', "'", "“", "”", "`"]:
+            if t.startswith(q) and t.endswith(q):
+                t = t[1:-1].strip()
+        for pfx in ["Title:", "Book Title:", "title:"]:
+            if t.startswith(pfx):
+                t = t[len(pfx):].strip()
+        if len(t) <= 50:
+            return t
+        return t[:47].rstrip() + "..."
+
+    clean_topic = topic.strip()
+    for q in ['"', "'", "“", "”", "`"]:
+        if clean_topic.startswith(q) and clean_topic.endswith(q):
+            clean_topic = clean_topic[1:-1].strip()
+    for pfx in ["Title:", "Book Title:", "title:"]:
+        if clean_topic.startswith(pfx):
+            clean_topic = clean_topic[len(pfx):].strip()
+
+    if len(clean_topic) <= 50:
+        return clean_topic
+
+    if ":" in clean_topic:
+        first_part = clean_topic.split(":", 1)[0].strip()
+        if 8 <= len(first_part) <= 50:
+            return first_part
+    if " - " in clean_topic:
+        first_part = clean_topic.split(" - ", 1)[0].strip()
+        if 8 <= len(first_part) <= 50:
+            return first_part
+
+    words = clean_topic.split()
+    cand = ""
+    for w in words:
+        if len(cand) + len(w) + 1 <= 47:
+            cand = f"{cand} {w}".strip() if cand else w
+        else:
+            break
+    if cand and len(cand) >= 8:
+        return cand + "..."
+    return clean_topic[:47].rstrip() + "..."
+
+
 class EditorialPlannerAgent:
     """Agent responsible for intent inference and structural editorial book planning."""
 
@@ -72,24 +122,40 @@ class EditorialPlannerAgent:
 
     async def infer_intent(
         self,
-        prompt: str,
+        topic: str,
+        prompt: Optional[str] = None,
+        title: Optional[str] = None,
+        target_pages: int = 30,
         corpus: Optional[ResearchCorpus] = None,
     ) -> BookIntent:
-        """Infer editorial intent, target audience, depth, and requirements from prompt."""
+        """Infer editorial intent, target audience, depth, and requirements from topic and prompt."""
+        resolved_title = clean_and_resolve_title(topic, prompt=prompt, explicit_title=title)
+
         if self.settings.vasukisquare_mock_mode:
-            return self._heuristic_intent(prompt)
+            return self._heuristic_intent(topic, prompt=prompt, title=resolved_title, target_pages=target_pages)
 
         system_prompt = (
             "You are an executive book editor and educational curriculum architect. "
-            "Analyze the user's book topic and research findings. "
-            "Infer the book_type (e.g. beginner_guide, tutorial_manual, technical_deep_dive, architecture_guide), "
-            "target_audience, technical_depth (introductory, intermediate, advanced, expert), tone, "
-            "approximate_length, chapter_count (5 to 10), code_requirements, diagram_requirements, "
-            "primary_programming_language (e.g. python, typescript, rust, go, or null if language-agnostic), and domain_topic."
+            "Analyze the user's book topic, editorial prompt/instructions, and research findings. "
+            "Infer the book_type (e.g. practical_guide, beginner_guide, tutorial_manual, technical_deep_dive, handbook), "
+            "is_technical (boolean: true if software/programming/technical systems, false if self-help, habits, finance, lifestyle, general knowledge), "
+            "target_audience, technical_depth (introductory, intermediate, advanced, expert), purpose, tone, "
+            "required_topics (list of subtopics that must be covered), "
+            "avoid_topics (list of topics or filler to avoid), "
+            "desired_elements (e.g. exercises, checklists, 30-day plan, case studies, code examples, comparison tables), "
+            "special_instructions, chapter_count (adaptive, default 6), code_requirements, diagram_requirements, "
+            "primary_programming_language (null if non-technical or language-agnostic), and domain_topic."
         )
 
         findings_summary = "\n".join([f"- {d.title} ({d.domain}): {d.summary[:200]}" for d in corpus.documents[:5]]) if corpus and corpus.documents else "None"
-        user_prompt = f"Topic prompt: {prompt}\n\nResearch dossier findings:\n{findings_summary}\n\nInfer the structured BookIntent."
+        user_prompt = (
+            f"Topic: {topic}\n"
+            f"Explicit Title: {title or 'None'}\n"
+            f"Editorial Brief / Prompt: {prompt or 'None'}\n"
+            f"Target Pages: {target_pages}\n\n"
+            f"Research dossier findings:\n{findings_summary}\n\n"
+            f"Infer the complete structured BookIntent."
+        )
 
         try:
             result = await self.llm_client.invoke_structured(
@@ -99,13 +165,23 @@ class EditorialPlannerAgent:
                 stage="intent_inference",
                 temperature=0.2,
             )
-            if not result.primary_programming_language:
-                result.primary_programming_language = self._detect_language(prompt)
+            result.topic = topic
+            result.title = resolved_title
+            result.original_prompt = prompt
+            result.target_pages = target_pages
+
+            if not result.is_technical:
+                result.code_requirements = False
+                result.primary_programming_language = None
+            elif not result.primary_programming_language:
+                combined_text = f"{topic} {prompt or ''}"
+                result.primary_programming_language = self._detect_language(combined_text)
+
             return result
         except Exception as e:
             if self.settings.vasukisquare_mock_mode:
                 logger.warning(f"LLM Intent inference failed in mock mode, falling back to heuristic: {e}")
-                return self._heuristic_intent(prompt)
+                return self._heuristic_intent(topic, prompt=prompt, title=resolved_title, target_pages=target_pages)
             raise GroqGenerationError(f"Book intent inference failed via Groq: {e}") from e
 
     def _detect_language(self, prompt: str) -> Optional[str]:
@@ -130,70 +206,98 @@ class EditorialPlannerAgent:
                 return lang
         return None
 
-    def _heuristic_intent(self, prompt: str) -> BookIntent:
-        """Deterministic heuristic intent inference based on prompt keywords."""
-        p_lower = prompt.lower()
-        primary_lang = self._detect_language(prompt)
+    def _heuristic_intent(
+        self,
+        topic: str,
+        prompt: Optional[str] = None,
+        title: Optional[str] = None,
+        target_pages: int = 30,
+    ) -> BookIntent:
+        """Deterministic heuristic intent inference based on topic and prompt keywords."""
+        resolved_title = clean_and_resolve_title(topic, prompt=prompt, explicit_title=title)
+        combined = f"{topic} {prompt or ''}".lower()
+        primary_lang = self._detect_language(combined)
 
-        # Technical depth & Audience
-        if any(w in p_lower for w in ["beginner", "zero to", "getting started", "from scratch", "basics", "introduction", "intro", "noob", "noobs"]):
-            depth = "introductory"
-            audience = "Absolute Beginners, Self-Taught Learners, and New Practitioners"
-            book_type = "beginner_guide"
-            tone = "educational and encouraging"
-        elif any(w in p_lower for w in ["expert", "internals", "under the hood", "advanced architecture"]):
-            depth = "expert"
-            audience = "Principal Engineers, System Architects, and Technical Leaders"
-            book_type = "technical_deep_dive"
-            tone = "authoritative and analytical"
-        elif any(w in p_lower for w in ["advanced", "deep dive", "performance"]):
-            depth = "advanced"
-            audience = "Senior Software Engineers and Architects"
-            book_type = "technical_deep_dive"
-            tone = "authoritative"
-        else:
-            depth = "intermediate"
-            audience = "Software Developers and Engineering Practitioners"
-            book_type = "technical_handbook"
-            tone = "practical and comprehensive"
-
-        # Length & Chapter count
-        if any(w in p_lower for w in ["comprehensive", "in-depth", "complete", "definitive"]):
-            length = "comprehensive"
-            chapter_count = 8
-        elif any(w in p_lower for w in ["short", "brief", "quick", "pocket"]):
-            length = "short"
-            chapter_count = 5
-        else:
-            length = "standard"
-            chapter_count = 6
-
-        code_keywords = [
+        tech_indicators = [
             "code", "programming", "python", "rust", "go", "java", "c++", "typescript",
             "javascript", "framework", "algorithm", "developer", "api", "database",
-            "concurrency", "memory", "async", "backend", "programs", "building", "liorandb", "db"
+            "concurrency", "memory", "async", "backend", "programs", "building", "liorandb",
+            "db", "software", "devops", "kubernetes", "linux", "cloud", "react", "sql"
         ]
+        is_technical = any(w in combined for w in tech_indicators) or (primary_lang is not None)
+
+        # Technical depth & Audience
+        if any(w in combined for w in ["beginner", "zero to", "getting started", "from scratch", "basics", "introduction", "intro", "noob", "noobs", "student", "young professional"]):
+            depth = "introductory"
+            audience = "Students, Young Professionals, and Beginners" if not is_technical else "Absolute Beginners, Self-Taught Learners, and New Practitioners"
+            book_type = "practical_guide" if not is_technical else "beginner_guide"
+            tone = "encouraging, practical, and structured"
+        elif any(w in combined for w in ["expert", "internals", "under the hood", "advanced architecture"]):
+            depth = "expert"
+            audience = "Domain Specialists and Senior Leaders" if not is_technical else "Principal Engineers, System Architects, and Technical Leaders"
+            book_type = "executive_briefing" if not is_technical else "technical_deep_dive"
+            tone = "authoritative and analytical"
+        elif any(w in combined for w in ["advanced", "deep dive", "performance"]):
+            depth = "advanced"
+            audience = "Experienced Practitioners and Strategists" if not is_technical else "Senior Software Engineers and Architects"
+            book_type = "handbook" if not is_technical else "technical_deep_dive"
+            tone = "authoritative and comprehensive"
+        else:
+            depth = "intermediate"
+            audience = "Practitioners, Students, and Enthusiasts" if not is_technical else "Software Developers and Engineering Practitioners"
+            book_type = "practical_guide" if not is_technical else "technical_handbook"
+            tone = "practical, actionable, and clear"
+
+        desired_elements = []
+        if "exercise" in combined or "exercises" in combined:
+            desired_elements.append("exercises")
+        if "checklist" in combined or "checklists" in combined:
+            desired_elements.append("checklists")
+        if "30-day" in combined or "action plan" in combined or "plan" in combined:
+            desired_elements.append("30-day improvement plan")
+        if "mistake" in combined or "common mistakes" in combined:
+            desired_elements.append("common mistakes and solutions")
+        if "example" in combined or "examples" in combined:
+            desired_elements.append("realistic practical examples")
+        if is_technical and ("code" in combined or "snippet" in combined):
+            desired_elements.append("code examples")
+
+        required_topics = []
+        if "habit" in combined or "routine" in combined:
+            required_topics.extend(["habit loops and psychology", "small daily wins", "tracking and systems", "breaking bad habits", "30-day roadmap"])
+        elif "liorandb" in combined:
+            required_topics.extend(["core architecture", "installation & setup", "crud queries", "indexing & performance"])
+
+        chapter_count = self.calculate_adaptive_chapter_count(target_pages)
+        code_req = is_technical and (any(w in combined for w in tech_indicators) or primary_lang is not None)
         diagram_keywords = [
             "architecture", "system", "distributed", "network", "cloud", "pipeline",
-            "design", "protocol", "concurrency", "memory", "management", "workflow"
+            "design", "protocol", "concurrency", "memory", "management", "workflow",
+            "cycle", "loop", "framework", "model", "mindset"
         ]
-
-        code_req = any(w in p_lower for w in code_keywords) or (primary_lang is not None)
-        diagram_req = any(w in p_lower for w in diagram_keywords)
-
-        domain_topic = "programming_guide" if primary_lang else "systems_architecture"
+        diagram_req = any(w in combined for w in diagram_keywords)
+        domain_topic = "personal_development" if not is_technical else ("programming_guide" if primary_lang else "systems_architecture")
 
         return BookIntent(
+            topic=topic,
+            title=resolved_title,
+            original_prompt=prompt,
             book_type=book_type,
             target_audience=audience,
-            technical_depth=depth,
+            purpose=f"Provide a comprehensive, actionable guide to {topic}." if not prompt else prompt[:150],
             tone=tone,
-            approximate_length=length,
+            technical_depth=depth,
+            approximate_length="standard",
+            required_topics=required_topics,
+            avoid_topics=["generic fluff", "unverified claims"],
+            desired_elements=desired_elements,
+            target_pages=target_pages,
+            is_technical=is_technical,
             chapter_count=chapter_count,
-            research_intensity="deep",
+            research_intensity="standard",
             code_requirements=code_req,
             diagram_requirements=diagram_req,
-            primary_programming_language=primary_lang,
+            primary_programming_language=primary_lang if is_technical else None,
             domain_topic=domain_topic,
         )
 
@@ -208,24 +312,36 @@ class EditorialPlannerAgent:
         if self.settings.vasukisquare_mock_mode:
             return None
 
-        # Format research evidence to ground the outline
         findings = []
         if corpus and corpus.documents:
             for d in corpus.documents[:8]:
                 findings.append(f"Source: {d.title} ({d.url})\nSummary: {d.summary}")
         findings_text = "\n\n".join(findings) if findings else "No external research available."
 
-        system_prompt = (
-            f"You are a master technical author and book architect. "
-            f"Create a logically structured, progressive Table of Contents for an ebook titled: '{title}'.\n"
-            f"Target Audience: {intent.target_audience} (Depth: {intent.technical_depth}).\n"
-            f"Primary Language / Ecosystem: {intent.primary_programming_language or 'Domain Standard'}.\n\n"
-            f"CRITICAL INSTRUCTIONS:\n"
-            f"1. Generate EXACTLY {chapter_count} sequential chapters that take the reader from zero knowledge to building real applications.\n"
-            f"2. Ground the chapter titles directly in the research dossier provided (e.g. if researching LioranDB, include chapters on its core concepts, installation, drivers/SDKs, collection models, CRUD queries, indexes, and real-world project deployment).\n"
-            f"3. For EACH chapter, specify 3 to 4 distinct key_sections covering concrete subtopics.\n"
-            f"4. Assign a relevant Lucide icon (e.g. terminal, code, database, layers, cpu, shield-check, zap, compass) to each chapter."
-        )
+        if intent.is_technical:
+            system_prompt = (
+                f"You are a master technical author and book architect. "
+                f"Create a logically structured, progressive Table of Contents for an ebook titled: '{title}'.\n"
+                f"Target Audience: {intent.target_audience} (Depth: {intent.technical_depth}).\n"
+                f"Primary Language / Ecosystem: {intent.primary_programming_language or 'Domain Standard'}.\n\n"
+                f"CRITICAL INSTRUCTIONS:\n"
+                f"1. Generate EXACTLY {chapter_count} sequential chapters that take the reader from zero knowledge to building real applications.\n"
+                f"2. Ground the chapter titles directly in the research dossier provided.\n"
+                f"3. For EACH chapter, specify 3 to 4 distinct key_sections covering concrete subtopics.\n"
+                f"4. Assign a relevant Lucide icon (e.g. terminal, code, database, layers, cpu, shield-check, zap, compass) to each chapter."
+            )
+        else:
+            system_prompt = (
+                f"You are a master author and educational book architect. "
+                f"Create a logically structured, progressive Table of Contents for a practical guide titled: '{title}'.\n"
+                f"Target Audience: {intent.target_audience} (Tone: {intent.tone}).\n"
+                f"Desired Elements: {', '.join(intent.desired_elements) if intent.desired_elements else 'exercises, checklists, action plans'}.\n\n"
+                f"CRITICAL INSTRUCTIONS:\n"
+                f"1. Generate EXACTLY {chapter_count} sequential chapters that take the reader from foundational concepts to lasting practical mastery.\n"
+                f"2. Include dedicated chapters/sections for practical exercises, checklists, and step-by-step action plans.\n"
+                f"3. Do NOT include software code or developer terminal blocks.\n"
+                f"4. Assign a relevant Lucide icon (e.g. sparkles, compass, shield-check, layers, zap, book-open, heart) to each chapter."
+            )
 
         user_prompt = f"Research Dossier:\n{findings_text}\n\nGenerate the complete GeneratedBookOutline."
 
@@ -250,13 +366,12 @@ class EditorialPlannerAgent:
                 icon = gen_ch.icon if gen_ch.icon in MOTIF_ICONS else MOTIF_ICONS[i % len(MOTIF_ICONS)]
                 ch_sources = source_urls[i * 2 : (i + 1) * 2] if source_urls else []
 
-                # Build sections with visual anchors
                 sections: List[SectionPlan] = []
                 raw_sections = gen_ch.key_sections if len(gen_ch.key_sections) >= 3 else [
                     f"Understanding {gen_ch.title}",
-                    f"Core Concepts and Mechanics of {gen_ch.title}",
-                    f"Practical Workflows and Code Examples",
-                    f"Best Practices and Troubleshooting",
+                    f"Core Concepts and Framework of {gen_ch.title}",
+                    f"Practical Workflows and Real-World Examples",
+                    f"Actionable Exercises and Summary",
                 ]
 
                 for sec_idx, sec_title in enumerate(raw_sections):
@@ -266,6 +381,15 @@ class EditorialPlannerAgent:
                             anchors.append(VisualAnchorType.CODE)
                         else:
                             anchors.append(VisualAnchorType.TABLE)
+                    else:
+                        if sec_idx == 0:
+                            anchors.append(VisualAnchorType.DIAGRAM)
+                        elif sec_idx == 1:
+                            anchors.append(VisualAnchorType.COMPARISON)
+                        elif sec_idx == 2:
+                            anchors.append(VisualAnchorType.CHECKLIST if "checklist" in (intent.desired_elements or []) else VisualAnchorType.TABLE)
+                        else:
+                            anchors.append(VisualAnchorType.EXERCISE if "exercises" in (intent.desired_elements or []) else VisualAnchorType.TIMELINE)
                     sections.append(SectionPlan(title=sec_title, visual_anchors=anchors))
 
                 chapters.append(
@@ -299,8 +423,48 @@ class EditorialPlannerAgent:
         t_lower = title.lower()
         p_lang = (intent.primary_programming_language or "").lower()
 
-        # Domain 1: Python for Beginners / Zero to Real Programs
-        if "python" in t_lower or p_lang == "python":
+        # Domain 1: Habits / Personal Development / Productivity (Non-technical)
+        if any(w in t_lower for w in ["habit", "routine", "productivity", "mindset", "discipline", "daily", "life", "health", "time management", "goal"]):
+            chapter_topics = [
+                ("The Science & Psychology of Habit Formation", "Understanding the habit loop: cue, craving, response, and reward with cognitive neuroscience insights.", "sparkles", [
+                    SectionPlan(title="The Habit Loop: Cue, Routine & Reward", visual_anchors=[VisualAnchorType.DIAGRAM, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Identity-Based Habits vs Outcome Goals", visual_anchors=[VisualAnchorType.COMPARISON, VisualAnchorType.TEXT]),
+                    SectionPlan(title="The Cognitive Energy Equation & Willpower Limits", visual_anchors=[VisualAnchorType.TABLE, VisualAnchorType.STATISTIC]),
+                    SectionPlan(title="Foundational Mindset & Self-Assessment", visual_anchors=[VisualAnchorType.CHECKLIST, VisualAnchorType.QUOTE]),
+                ]),
+                ("Designing Micro-Habits & Daily Environmental Cues", "Strategies for habit stacking, friction reduction, environmental design, and starting absurdly small.", "compass", [
+                    SectionPlan(title="The 2-Minute Rule & Micro-Commitments", visual_anchors=[VisualAnchorType.TABLE, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Environmental Architecture: Cues That Work", visual_anchors=[VisualAnchorType.DIAGRAM, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Habit Stacking & Trigger Sequencing", visual_anchors=[VisualAnchorType.TIMELINE, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Daily Routine Design Worksheet", visual_anchors=[VisualAnchorType.EXERCISE, VisualAnchorType.CHECKLIST]),
+                ]),
+                ("Overcoming Resistance, Plateaus & Breaking Bad Habits", "Inverting the habit loop to dissolve destructive patterns, resist temptation, and recover from slip-ups.", "shield-check", [
+                    SectionPlan(title="Deconstructing Bad Habits: Root Cause Inversion", visual_anchors=[VisualAnchorType.COMPARISON, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Overcoming the Valley of Disappointment", visual_anchors=[VisualAnchorType.STATISTIC, VisualAnchorType.QUOTE]),
+                    SectionPlan(title="The Never Miss Twice Recovery Protocol", visual_anchors=[VisualAnchorType.CHECKLIST, VisualAnchorType.TABLE]),
+                    SectionPlan(title="Coping with Plateaus, Stress & Burnout", visual_anchors=[VisualAnchorType.TEXT, VisualAnchorType.EXERCISE]),
+                ]),
+                ("Tracking Systems, Accountability & Measurable Progress", "Using habit scorecards, visual trackers, accountability partners, and positive reinforcement loops.", "layers", [
+                    SectionPlan(title="Visual Tracking: The Power of the Streak", visual_anchors=[VisualAnchorType.STATISTIC, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Accountability Systems & Social Contracts", visual_anchors=[VisualAnchorType.TABLE, VisualAnchorType.QUOTE]),
+                    SectionPlan(title="Weekly Review Cadence & Habit Audits", visual_anchors=[VisualAnchorType.CHECKLIST, VisualAnchorType.TIMELINE]),
+                    SectionPlan(title="Metrics That Matter vs Vanity Tracking", visual_anchors=[VisualAnchorType.COMPARISON, VisualAnchorType.TABLE]),
+                ]),
+                ("The 30-Day Practical Habit Action Plan", "A structured day-by-day implementation roadmap to lock in sustainable compounding behaviors.", "zap", [
+                    SectionPlan(title="Phase 1 (Days 1–10): Establishing the Micro-Foundation", visual_anchors=[VisualAnchorType.TIMELINE, VisualAnchorType.CHECKLIST]),
+                    SectionPlan(title="Phase 2 (Days 11–20): Overcoming Resistance & Reinforcing", visual_anchors=[VisualAnchorType.TABLE, VisualAnchorType.EXERCISE]),
+                    SectionPlan(title="Phase 3 (Days 21–30): Automation & Compounding Gains", visual_anchors=[VisualAnchorType.TIMELINE, VisualAnchorType.STATISTIC]),
+                    SectionPlan(title="30-Day Completion Audit & Milestone Review", visual_anchors=[VisualAnchorType.CHECKLIST, VisualAnchorType.QUOTE]),
+                ]),
+                ("Long-Term Sustainability, Mastery & Continuous Evolution", "Evolving routines through life transitions, preventing habit decay, and lifelong compounding.", "book-open", [
+                    SectionPlan(title="Upgrading Habits as Your Life Evolves", visual_anchors=[VisualAnchorType.TIMELINE, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Avoiding Rigidity: Flexible Habit Systems", visual_anchors=[VisualAnchorType.COMPARISON, VisualAnchorType.QUOTE]),
+                    SectionPlan(title="Mastery Through Deliberate Compounding", visual_anchors=[VisualAnchorType.STATISTIC, VisualAnchorType.TABLE]),
+                    SectionPlan(title="Lifelong Habit Maintenance Checklist", visual_anchors=[VisualAnchorType.CHECKLIST, VisualAnchorType.TEXT]),
+                ]),
+            ]
+        # Domain 2: Python for Beginners / Zero to Real Programs
+        elif "python" in t_lower or p_lang == "python":
             chapter_topics = [
                 ("Introduction to Python & Setting Up Your Environment", "Installing Python, understanding the interpreter, running your first script, and configuring VS Code.", "terminal", [
                     SectionPlan(title="Why Python & How the Interpreter Works", visual_anchors=[VisualAnchorType.DIAGRAM, VisualAnchorType.TEXT]),
@@ -351,7 +515,7 @@ class EditorialPlannerAgent:
                     SectionPlan(title="Developer Roadmap: From Beginner to Professional", visual_anchors=[VisualAnchorType.TIMELINE, VisualAnchorType.TEXT]),
                 ]),
             ]
-        # Domain 2: Distributed Systems / Databases
+        # Domain 3: Distributed Systems / Databases
         elif any(w in t_lower for w in ["database", "distributed", "raft", "storage", "consensus", "kv"]):
             chapter_topics = [
                 ("Foundations of Distributed Storage Systems", "Theoretical baselines, consistency models, and the evolution of data architectures.", "sparkles", [
@@ -378,7 +542,7 @@ class EditorialPlannerAgent:
                     SectionPlan(title="Two-Phase Commit & Distributed Transactions", visual_anchors=[VisualAnchorType.TIMELINE, VisualAnchorType.TEXT]),
                     SectionPlan(title="Optimistic vs Pessimistic Concurrency Trade-offs", visual_anchors=[VisualAnchorType.COMPARISON, VisualAnchorType.TABLE]),
                 ]),
-                ("Performance Benchmarks & Architectural Trade-offs", "Empirical evaluations of throughput, tail latency, and hardware tiering.", "activity", [
+                ("Performance Benchmarks & Architectural Trade-offs", "Empirical evaluations of throughput, tail latency, and hardware tiering.", "sparkles", [
                     SectionPlan(title="Ingestion Throughput & Latency Profiles", visual_anchors=[VisualAnchorType.STATISTIC, VisualAnchorType.COMPARISON]),
                     SectionPlan(title="Hardware Offloading & NVMe Tiering", visual_anchors=[VisualAnchorType.TABLE, VisualAnchorType.TEXT]),
                     SectionPlan(title="Tail Latency Mitigation & Read Amplification", visual_anchors=[VisualAnchorType.DIAGRAM, VisualAnchorType.CODE]),
@@ -391,7 +555,50 @@ class EditorialPlannerAgent:
                     SectionPlan(title="Production Readiness Checklist & Runbooks", visual_anchors=[VisualAnchorType.TABLE, VisualAnchorType.TEXT]),
                 ]),
             ]
-        # Domain 3: General Technical & Software Engineering
+        # Domain 4: General Non-technical
+        elif not intent.is_technical:
+            words = [w.capitalize() for w in title.replace(":", " ").replace("-", " ").split() if len(w) > 2]
+            key_subject = " ".join(words[:4]) if words else title
+
+            chapter_topics = [
+                (f"Core Principles & Mental Models of {key_subject}", "Fundamental principles, cognitive frameworks, and orientation.", "sparkles", [
+                    SectionPlan(title="Core Concepts & Definitions", visual_anchors=[VisualAnchorType.TABLE, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Guiding Principles & Frameworks", visual_anchors=[VisualAnchorType.DIAGRAM, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Key Mindsets & Common Misconceptions", visual_anchors=[VisualAnchorType.COMPARISON, VisualAnchorType.QUOTE]),
+                    SectionPlan(title="Self-Assessment & Baseline Diagnostic", visual_anchors=[VisualAnchorType.CHECKLIST, VisualAnchorType.TEXT]),
+                ]),
+                ("Practical Strategies & Actionable Methods", "Step-by-step techniques, workflows, and implementation strategies.", "compass", [
+                    SectionPlan(title="Primary Frameworks in Practice", visual_anchors=[VisualAnchorType.TABLE, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Step-by-Step Implementation Guide", visual_anchors=[VisualAnchorType.TIMELINE, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Actionable Exercises & Worksheets", visual_anchors=[VisualAnchorType.EXERCISE, VisualAnchorType.CHECKLIST]),
+                    SectionPlan(title="Optimizing Your Daily Workflow", visual_anchors=[VisualAnchorType.STATISTIC, VisualAnchorType.TABLE]),
+                ]),
+                ("Navigating Challenges, Pitfalls & Solutions", "Analyzing common bottlenecks, mitigating obstacles, and resilient problem-solving.", "shield-check", [
+                    SectionPlan(title="Most Common Mistakes & How to Avoid Them", visual_anchors=[VisualAnchorType.COMPARISON, VisualAnchorType.TABLE]),
+                    SectionPlan(title="Troubleshooting & Resilience Strategies", visual_anchors=[VisualAnchorType.CHECKLIST, VisualAnchorType.QUOTE]),
+                    SectionPlan(title="Real-World Case Studies & Lessons Learned", visual_anchors=[VisualAnchorType.TIMELINE, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Diagnostic Checklist for Plateaus", visual_anchors=[VisualAnchorType.CHECKLIST, VisualAnchorType.TABLE]),
+                ]),
+                ("Frameworks for Measurement & Continuous Progress", "Tracking results, performance indicators, and iterative improvements.", "layers", [
+                    SectionPlan(title="Key Performance Metrics & Tracking", visual_anchors=[VisualAnchorType.STATISTIC, VisualAnchorType.TABLE]),
+                    SectionPlan(title="Review Cadence & Feedback Loops", visual_anchors=[VisualAnchorType.TIMELINE, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Comparative Analysis & Benchmarks", visual_anchors=[VisualAnchorType.COMPARISON, VisualAnchorType.QUOTE]),
+                    SectionPlan(title="Continuous Improvement Checklist", visual_anchors=[VisualAnchorType.CHECKLIST, VisualAnchorType.TEXT]),
+                ]),
+                ("The Step-by-Step Implementation Roadmap", "Structured execution plan and milestone-based progression.", "zap", [
+                    SectionPlan(title="Phase 1: Foundation & Quick Wins", visual_anchors=[VisualAnchorType.TIMELINE, VisualAnchorType.CHECKLIST]),
+                    SectionPlan(title="Phase 2: Deepening the Practice", visual_anchors=[VisualAnchorType.TABLE, VisualAnchorType.EXERCISE]),
+                    SectionPlan(title="Phase 3: Scaling & Integration", visual_anchors=[VisualAnchorType.TIMELINE, VisualAnchorType.STATISTIC]),
+                    SectionPlan(title="Milestone Evaluation & Scorecard", visual_anchors=[VisualAnchorType.CHECKLIST, VisualAnchorType.QUOTE]),
+                ]),
+                ("Long-Term Mastery & Strategic Outlook", "Sustaining success, adapting to change, and long-term vision.", "book-open", [
+                    SectionPlan(title="Sustaining Long-Term Momentum", visual_anchors=[VisualAnchorType.QUOTE, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Advanced Strategies for Mastery", visual_anchors=[VisualAnchorType.TABLE, VisualAnchorType.TEXT]),
+                    SectionPlan(title="Future Trends & Ongoing Evolution", visual_anchors=[VisualAnchorType.TIMELINE, VisualAnchorType.DIAGRAM]),
+                    SectionPlan(title="Mastery Checklist & Next Steps", visual_anchors=[VisualAnchorType.CHECKLIST, VisualAnchorType.TEXT]),
+                ]),
+            ]
+        # Domain 5: General Technical & Software Engineering
         else:
             words = [w.capitalize() for w in title.replace(":", " ").replace("-", " ").split() if len(w) > 2]
             key_subject = " ".join(words[:4]) if words else title
@@ -511,7 +718,6 @@ class EditorialPlannerAgent:
         curr_page_num += 1
 
         if target_total_pages <= 12:
-            # Compact frontmatter for short books: Title/Imprint & Notice (1 page) + TOC (1 page)
             p_title = PlannedPage(
                 page_number=curr_page_num,
                 page_type="imprint",
@@ -534,7 +740,6 @@ class EditorialPlannerAgent:
             all_pages.append(p_toc)
             curr_page_num += 1
         else:
-            # Full frontmatter: Imprint (1 page), Copyright (1 page), TOC (1 page)
             p_imprint = PlannedPage(
                 page_number=curr_page_num,
                 page_type="imprint",
@@ -568,21 +773,19 @@ class EditorialPlannerAgent:
             all_pages.append(p_toc)
             curr_page_num += 1
 
-        # Determine backmatter page budget
         if target_total_pages <= 12:
-            backmatter_count = 1  # References only
+            backmatter_count = 1
         elif target_total_pages <= 24:
-            backmatter_count = 2  # References + Thank You
+            backmatter_count = 2
         else:
-            backmatter_count = 3  # References + Acknowledgements + Thank You
+            backmatter_count = 3
 
         # 2. Proportional Page Budgeting for Chapters
-        structural_pages = len(all_pages) + backmatter_count + len(chapters)  # cover + front + back + chapter openers
+        structural_pages = len(all_pages) + backmatter_count + len(chapters)
         available_content_pages = max(len(chapters), target_total_pages - structural_pages)
 
         num_chapters = len(chapters)
         
-        # Calculate chapter weights based on depth, section complexity, and role
         weights = []
         is_conclusion_list = []
         for i, ch in enumerate(chapters):
@@ -605,14 +808,13 @@ class EditorialPlannerAgent:
                     w += 1.0
             weights.append(w)
 
-        # Allocate pages ensuring minimum 1 content page and capping conclusion chapters
         allocated_content = [1] * num_chapters
         remaining_pages = max(0, available_content_pages - num_chapters)
 
         conclusion_caps = {}
         for i in range(num_chapters):
             if is_conclusion_list[i] and num_chapters > 2:
-                conclusion_caps[i] = 2  # max 2 content pages for conclusion/summary
+                conclusion_caps[i] = 2
             else:
                 conclusion_caps[i] = 9999
 
@@ -626,11 +828,10 @@ class EditorialPlannerAgent:
             remaining_pages -= 1
 
         for i, ch in enumerate(chapters):
-            ch.page_budget = 1 + allocated_content[i]  # 1 opener + allocated content pages
+            ch.page_budget = 1 + allocated_content[i]
 
         # 3. Chapters
         for ch in chapters:
-            # Opener page (Page 1 of chapter budget)
             p_opener = PlannedPage(
                 page_number=curr_page_num,
                 page_type=LayoutType.CHAPTER_OPENER.value,
@@ -644,7 +845,6 @@ class EditorialPlannerAgent:
             all_pages.append(p_opener)
             curr_page_num += 1
 
-            # Content pages in chapter budget (page_budget - 1)
             content_page_count = ch.page_budget - 1
             for cp_idx in range(content_page_count):
                 if ch.sections and cp_idx < len(ch.sections):
@@ -670,6 +870,10 @@ class EditorialPlannerAgent:
                     layout_type = LayoutType.QUOTE.value
                 elif anchor == VisualAnchorType.TIMELINE:
                     layout_type = LayoutType.TIMELINE.value
+                elif anchor == VisualAnchorType.EXERCISE:
+                    layout_type = LayoutType.EDITORIAL.value
+                elif anchor == VisualAnchorType.CHECKLIST:
+                    layout_type = LayoutType.EDITORIAL.value
 
                 p_content = PlannedPage(
                     page_number=curr_page_num,
@@ -685,7 +889,6 @@ class EditorialPlannerAgent:
                 curr_page_num += 1
 
         # 4. Backmatter
-        # References Page
         p_refs = PlannedPage(
             page_number=curr_page_num,
             page_type=LayoutType.REFERENCES.value,
@@ -698,7 +901,6 @@ class EditorialPlannerAgent:
         curr_page_num += 1
 
         if backmatter_count >= 3:
-            # Acknowledgement Page
             p_ack = PlannedPage(
                 page_number=curr_page_num,
                 page_type=LayoutType.ACKNOWLEDGEMENT.value,
@@ -712,7 +914,6 @@ class EditorialPlannerAgent:
             curr_page_num += 1
 
         if backmatter_count >= 2:
-            # Thank You Page
             p_thanks = PlannedPage(
                 page_number=curr_page_num,
                 page_type=LayoutType.THANK_YOU.value,
@@ -725,7 +926,7 @@ class EditorialPlannerAgent:
             all_pages.append(p_thanks)
 
         # Log detailed Page Budget
-        frontmatter_count_clean = len(frontmatter) - 1  # excluding cover
+        frontmatter_count_clean = len(frontmatter) - 1
         content_count = sum(ch.page_budget - 1 for ch in chapters)
         logger.info(
             f"Page Budget:\n"
@@ -738,7 +939,6 @@ class EditorialPlannerAgent:
             f"  Planned total: {len(all_pages)}"
         )
 
-        # Hard validation guard: ensure planned pages stay strictly within allowed variance
         max_variance = 1 if target_total_pages <= 20 else 2
         if abs(len(all_pages) - target_total_pages) > max_variance:
             raise ValueError(
@@ -750,51 +950,59 @@ class EditorialPlannerAgent:
 
     async def generate_book_plan(
         self,
-        prompt: str,
-        intent: Optional[BookIntent] = None,
+        topic: str,
+        intent: Optional[Union[BookIntent, str]] = None,
         corpus: Optional[ResearchCorpus] = None,
         target_pages: int = 40,
+        prompt: Optional[str] = None,
+        title: Optional[str] = None,
     ) -> BookPlan:
-        """Create a complete editorial BookPlan from prompt, intent, and research corpus."""
-        if intent is None:
-            intent = await self.infer_intent(prompt, corpus)
+        """Create a complete editorial BookPlan from topic/prompt, intent, and research corpus."""
+        actual_intent: Optional[BookIntent] = None
+        if isinstance(intent, BookIntent):
+            actual_intent = intent
+        elif isinstance(intent, str) and prompt is None:
+            prompt = intent
 
-        title = prompt.strip().title()
+        if actual_intent is None:
+            actual_intent = await self.infer_intent(topic=topic, prompt=prompt, title=title, target_pages=target_pages, corpus=corpus)
+
+        book_title = actual_intent.title or clean_and_resolve_title(topic, prompt=prompt, explicit_title=title)
         
         # Format subtitle
-        if intent.book_type == "beginner_guide":
+        if actual_intent.subtitle:
+            subtitle = actual_intent.subtitle
+        elif actual_intent.book_type == "beginner_guide":
             subtitle = "A Practical, Hands-On Guide from Zero to Mastery"
-        elif intent.book_type == "tutorial_manual":
+        elif actual_intent.book_type == "tutorial_manual":
             subtitle = "A Step-by-Step Developer Tutorial and Code Reference"
+        elif not actual_intent.is_technical:
+            subtitle = "A Practical, Step-by-Step Guide to Lasting Change"
         else:
-            subtitle = f"A Definitive {intent.book_type.replace('_', ' ').title()}"
+            subtitle = f"A Definitive {actual_intent.book_type.replace('_', ' ').title()}"
 
         description = (
-            f"An authoritative, {intent.technical_depth} guide tailored for {intent.target_audience}, "
-            f"covering foundational mental models, progressive code implementations, and practical patterns."
+            f"An actionable, {actual_intent.technical_depth} guide tailored for {actual_intent.target_audience}, "
+            f"covering foundational mental models, progressive practical implementations, and essential strategies."
         )
 
-        calculated_chapter_count = intent.chapter_count
-        # Adapt chapter count to requested target page budget
-        if target_pages <= 14:
-            calculated_chapter_count = self.calculate_adaptive_chapter_count(target_pages)
-        elif intent and intent.chapter_count and intent.chapter_count != 6:
-            calculated_chapter_count = intent.chapter_count
+        if actual_intent and actual_intent.chapter_count and actual_intent.chapter_count != self.calculate_adaptive_chapter_count(actual_intent.target_pages):
+            calculated_chapter_count = actual_intent.chapter_count
         else:
             calculated_chapter_count = self.calculate_adaptive_chapter_count(target_pages)
 
-        chapters = await self._plan_chapters_with_llm(title, intent, corpus, calculated_chapter_count)
+        chapters = await self._plan_chapters_with_llm(book_title, actual_intent, corpus, calculated_chapter_count)
 
         if not chapters:
-            chapters = self._build_deterministic_chapters(title, intent, corpus, calculated_chapter_count)
+            chapters = self._build_deterministic_chapters(book_title, actual_intent, corpus, calculated_chapter_count)
 
-        frontmatter, backmatter, all_pages = self._assemble_pages(title, chapters, target_total_pages=target_pages)
+        frontmatter, backmatter, all_pages = self._assemble_pages(book_title, chapters, target_total_pages=target_pages)
 
         return BookPlan(
-            title=title,
+            title=book_title,
             subtitle=subtitle,
             description=description,
-            intent=intent,
+            intent=actual_intent,
             frontmatter_pages=frontmatter,
             chapters=chapters,
             backmatter_pages=backmatter,

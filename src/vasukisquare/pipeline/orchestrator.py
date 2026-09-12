@@ -63,6 +63,8 @@ class EbookGenerationPipeline:
     async def run(
         self,
         topic: str,
+        title: Optional[str] = None,
+        prompt: Optional[str] = None,
         target_pages: Optional[int] = None,
         output_dir: Optional[Union[str, Path]] = None,
         generate_pdf: bool = True,
@@ -96,14 +98,19 @@ class EbookGenerationPipeline:
         if resume and intent_ckpt.exists():
             try:
                 from vasukisquare.book.models import BookIntent
-                state.intent = BookIntent.model_validate_json(intent_ckpt.read_text(encoding="utf-8"))
-                logger.info("Resumed from checkpoint: Book Intent loaded.")
+                cached_intent = BookIntent.model_validate_json(intent_ckpt.read_text(encoding="utf-8"))
+                if cached_intent.topic and cached_intent.topic != topic:
+                    logger.warning(f"Checkpoint intent topic '{cached_intent.topic}' differs from requested '{topic}'. Re-inferring intent.")
+                    state.intent = await self.editorial_agent.infer_intent(topic=topic, prompt=prompt, title=title, target_pages=target_pages)
+                else:
+                    state.intent = cached_intent
+                    logger.info("Resumed from checkpoint: Book Intent loaded.")
             except Exception as e:
                 logger.warning(f"Failed to load intent checkpoint: {e}. Re-inferring intent.")
-                state.intent = await self.editorial_agent.infer_intent(topic)
+                state.intent = await self.editorial_agent.infer_intent(topic=topic, prompt=prompt, title=title, target_pages=target_pages)
                 intent_ckpt.write_text(state.intent.model_dump_json(indent=2), encoding="utf-8")
         else:
-            state.intent = await self.editorial_agent.infer_intent(topic)
+            state.intent = await self.editorial_agent.infer_intent(topic=topic, prompt=prompt, title=title, target_pages=target_pages)
             intent_ckpt.write_text(state.intent.model_dump_json(indent=2), encoding="utf-8")
 
         # Stage 2: Deep Research
@@ -116,10 +123,10 @@ class EbookGenerationPipeline:
                 logger.info("Resumed from checkpoint: Research Corpus loaded.")
             except Exception as e:
                 logger.warning(f"Failed to load research checkpoint: {e}. Re-running research.")
-                state.research_corpus = await self.research_service.research_topic(topic)
+                state.research_corpus = await self.research_service.research_topic(topic, intent=state.intent)
                 research_ckpt.write_text(state.research_corpus.model_dump_json(indent=2), encoding="utf-8")
         else:
-            state.research_corpus = await self.research_service.research_topic(topic)
+            state.research_corpus = await self.research_service.research_topic(topic, intent=state.intent)
             research_ckpt.write_text(state.research_corpus.model_dump_json(indent=2), encoding="utf-8")
 
         research_json_path = out_dir / "research.json"
@@ -145,7 +152,9 @@ class EbookGenerationPipeline:
             except Exception as e:
                 logger.warning(f"Failed to load book plan checkpoint: {e}. Re-generating book plan.")
                 state.book_plan = await self.editorial_agent.generate_book_plan(
-                    prompt=topic,
+                    topic=topic,
+                    prompt=prompt,
+                    title=title,
                     intent=state.intent,
                     corpus=state.research_corpus,
                     target_pages=target_pages,
@@ -153,7 +162,9 @@ class EbookGenerationPipeline:
                 plan_ckpt.write_text(state.book_plan.model_dump_json(indent=2), encoding="utf-8")
         else:
             state.book_plan = await self.editorial_agent.generate_book_plan(
-                prompt=topic,
+                topic=topic,
+                prompt=prompt,
+                title=title,
                 intent=state.intent,
                 corpus=state.research_corpus,
                 target_pages=target_pages,
@@ -441,6 +452,31 @@ class EbookGenerationPipeline:
         metrics_json_path = out_dir / "generation_metrics.json"
         metrics_json_path.write_text(self.metrics.model_dump_json(indent=2), encoding="utf-8")
         state.artifacts["generation_metrics_json"] = str(metrics_json_path)
+
+        # Save Book Manifest canonical record
+        from datetime import datetime, timezone
+        manifest_data = {
+            "topic": topic,
+            "title": state.book_plan.title if state.book_plan else (state.intent.title if state.intent else topic),
+            "subtitle": state.book_plan.subtitle if state.book_plan else (state.intent.subtitle if state.intent else None),
+            "prompt": prompt,
+            "target_pages": target_pages,
+            "actual_pages": len(state.pages),
+            "book_type": state.intent.book_type if state.intent else "practical_guide",
+            "is_technical": state.intent.is_technical if state.intent else False,
+            "target_audience": state.intent.target_audience if state.intent else "General Readers",
+            "tone": state.intent.tone if state.intent else "practical",
+            "technical_depth": state.intent.technical_depth if state.intent else "introductory",
+            "required_topics": state.intent.required_topics if state.intent else [],
+            "desired_elements": state.intent.desired_elements if state.intent else [],
+            "chapter_count": len(state.book_plan.chapters) if state.book_plan else 0,
+            "theme_palette": book_theme.palette_name if hasattr(book_theme, "palette_name") else "editorial_calm",
+            "artifacts": dict(state.artifacts),
+            "generation_timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+        manifest_json_path = out_dir / "book_manifest.json"
+        manifest_json_path.write_text(json.dumps(manifest_data, indent=2), encoding="utf-8")
+        state.artifacts["book_manifest_json"] = str(manifest_json_path)
 
         # Enforce Production Non-Negotiable Contract
         if not self.settings.vasukisquare_mock_mode:
