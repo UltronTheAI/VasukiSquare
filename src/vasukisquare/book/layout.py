@@ -35,6 +35,7 @@ class TechnicalPageType(str, Enum):
     HISTORY = "history"
     FEATURES = "features"
     INSTALLATION = "installation"
+    PROCEDURE_SETUP = "procedure_setup"
     CONFIGURATION = "configuration"
     TERMINAL_TUTORIAL = "terminal_tutorial"
     CODE_TUTORIAL = "code_tutorial"
@@ -76,6 +77,18 @@ class TechnicalPageSpec(BaseModel):
     requires_facts: bool = Field(default=True)
     suggested_layout: str = Field(default="editorial")
     content_budget: ContentBudget = Field(default_factory=ContentBudget)
+
+    @property
+    def minimum_content_units(self) -> int:
+        return self.content_budget.minimum_content_units
+
+    @property
+    def target_utilization(self) -> float:
+        return self.content_budget.target_utilization
+
+    @property
+    def min_utilization(self) -> float:
+        return self.content_budget.min_utilization
 
 
 PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
@@ -132,6 +145,21 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
         suggested_layout="editorial",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.INSTALLATION,
+            target_density=ContentDensity.CODE_HEAVY,
+            target_utilization=0.75,
+            min_utilization=0.65,
+            minimum_content_units=3,
+            required_components=["heading", "text", "terminal", "callout"],
+        ),
+    ),
+    TechnicalPageType.PROCEDURE_SETUP: TechnicalPageSpec(
+        page_type=TechnicalPageType.PROCEDURE_SETUP,
+        required_components=["heading", "text", "terminal", "callout"],
+        requires_terminal=True,
+        target_word_count_min=150,
+        suggested_layout="editorial",
+        content_budget=ContentBudget(
+            page_type=TechnicalPageType.PROCEDURE_SETUP,
             target_density=ContentDensity.CODE_HEAVY,
             target_utilization=0.75,
             min_utilization=0.65,
@@ -331,6 +359,7 @@ COMPONENT_ELIGIBILITY: Dict[TechnicalPageType, List[str]] = {
     TechnicalPageType.HISTORY: ["heading", "text", "timeline", "callout", "quote", "definition"],
     TechnicalPageType.FEATURES: ["heading", "text", "callout", "code", "comparison", "definition"],
     TechnicalPageType.INSTALLATION: ["heading", "text", "terminal", "output", "step", "callout", "troubleshooting"],
+    TechnicalPageType.PROCEDURE_SETUP: ["heading", "text", "terminal", "output", "step", "callout", "troubleshooting"],
     TechnicalPageType.CONFIGURATION: ["heading", "text", "code", "table", "callout"],
     TechnicalPageType.TERMINAL_TUTORIAL: ["heading", "text", "terminal", "output", "step", "callout"],
     TechnicalPageType.CODE_TUTORIAL: ["heading", "text", "code", "output", "callout", "exercise", "mistake"],
