@@ -4,9 +4,15 @@ from vasukisquare.tools.base import BaseTool, SearchProvider
 from vasukisquare.tools.search import (
     WebSearchTool,
     SearchParams,
+    SearchResult,
     MockSearchProvider,
+    SearxngSearchProvider,
     TavilySearchProvider,
     SerperSearchProvider,
+    BraveSearchProvider,
+    check_searxng_health,
+    create_search_provider,
+    create_search_tool,
 )
 from vasukisquare.tools.wikipedia import WikipediaTool, WikipediaParams
 from vasukisquare.tools.fetcher import WebpageFetcherTool, FetchParams
@@ -18,9 +24,15 @@ __all__ = [
     "SearchProvider",
     "WebSearchTool",
     "SearchParams",
+    "SearchResult",
     "MockSearchProvider",
+    "SearxngSearchProvider",
     "TavilySearchProvider",
     "SerperSearchProvider",
+    "BraveSearchProvider",
+    "check_searxng_health",
+    "create_search_provider",
+    "create_search_tool",
     "WikipediaTool",
     "WikipediaParams",
     "WebpageFetcherTool",

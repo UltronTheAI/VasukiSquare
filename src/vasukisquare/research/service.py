@@ -60,14 +60,9 @@ class ResearchService:
         # Configure search tool provider based on settings
         if search_tool:
             self.search_tool = search_tool
-        elif self.settings.tavily_api_key:
-            self.search_tool = WebSearchTool(TavilySearchProvider(self.settings.tavily_api_key))
-        elif self.settings.serper_api_key:
-            self.search_tool = WebSearchTool(SerperSearchProvider(self.settings.serper_api_key))
-        elif self.settings.brave_search_api_key:
-            self.search_tool = WebSearchTool(BraveSearchProvider(self.settings.brave_search_api_key))
         else:
-            self.search_tool = WebSearchTool(MockSearchProvider())
+            from vasukisquare.tools.search import create_search_tool
+            self.search_tool = create_search_tool(self.settings)
 
         self.wikipedia_tool = wikipedia_tool or WikipediaTool()
 

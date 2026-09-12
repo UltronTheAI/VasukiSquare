@@ -61,6 +61,11 @@ class Settings(BaseSettings):
     mongodb_database: str = Field(default="vasukisquare", alias="MONGODB_DATABASE")
 
     # Search & Retrieval
+    search_provider: str = Field(default="auto", alias="SEARCH_PROVIDER")
+    searxng_url: str = Field(default="http://localhost:8080", alias="SEARXNG_URL")
+    searxng_enabled: bool = Field(default=True, alias="SEARXNG_ENABLED")
+    searxng_timeout: float = Field(default=20.0, alias="SEARXNG_TIMEOUT")
+    searxng_max_results: int = Field(default=10, alias="SEARXNG_MAX_RESULTS")
     tavily_api_key: Optional[str] = Field(default=None, alias="TAVILY_API_KEY")
     serper_api_key: Optional[str] = Field(default=None, alias="SERPER_API_KEY")
     brave_search_api_key: Optional[str] = Field(default=None, alias="BRAVE_SEARCH_API_KEY")
@@ -91,21 +96,83 @@ class Settings(BaseSettings):
         if self.app_env == "test":
             self.vasukisquare_mock_mode = True
 
+    def resolve_search_provider(self) -> tuple[str, str]:
+        """Resolve active search provider and rationale description.
+        
+        Returns:
+            (provider_name, reason_description)
+        """
+        prov = (self.search_provider or "auto").strip().lower()
+
+        if prov == "searxng":
+            if not self.searxng_enabled:
+                raise EnvironmentConfigurationError(
+                    "SEARCH_PROVIDER is explicitly set to 'searxng' but SEARXNG_ENABLED is false."
+                )
+            return ("searxng", f"Explicitly set via SEARCH_PROVIDER=searxng ({self.searxng_url})")
+
+        if prov == "tavily":
+            if not self.tavily_api_key or not self.tavily_api_key.strip():
+                raise EnvironmentConfigurationError(
+                    "SEARCH_PROVIDER is set to 'tavily' but TAVILY_API_KEY is missing or empty."
+                )
+            return ("tavily", "Explicitly set via SEARCH_PROVIDER=tavily")
+
+        if prov == "serper":
+            if not self.serper_api_key or not self.serper_api_key.strip():
+                raise EnvironmentConfigurationError(
+                    "SEARCH_PROVIDER is set to 'serper' but SERPER_API_KEY is missing or empty."
+                )
+            return ("serper", "Explicitly set via SEARCH_PROVIDER=serper")
+
+        if prov == "brave":
+            if not self.brave_search_api_key or not self.brave_search_api_key.strip():
+                raise EnvironmentConfigurationError(
+                    "SEARCH_PROVIDER is set to 'brave' but BRAVE_SEARCH_API_KEY is missing or empty."
+                )
+            return ("brave", "Explicitly set via SEARCH_PROVIDER=brave")
+
+        if prov == "mock":
+            return ("mock", "Explicitly set via SEARCH_PROVIDER=mock")
+
+        if prov == "auto":
+            # Auto order: 1. SearXNG (if enabled and healthy), 2. Tavily, 3. Serper, 4. Brave, 5. SearXNG fallback, 6. Mock
+            if self.searxng_enabled and self.searxng_url:
+                from vasukisquare.tools.search import check_searxng_health
+                if check_searxng_health(self.searxng_url, timeout=3.0):
+                    return ("searxng", f"SearXNG is available at {self.searxng_url}")
+                else:
+                    import logging
+                    logging.getLogger(__name__).debug(
+                        f"[Search] SearXNG unavailable at {self.searxng_url}, trying configured fallback provider."
+                    )
+
+            if self.tavily_api_key and self.tavily_api_key.strip():
+                return ("tavily", "TAVILY_API_KEY configured")
+            if self.serper_api_key and self.serper_api_key.strip():
+                return ("serper", "SERPER_API_KEY configured")
+            if self.brave_search_api_key and self.brave_search_api_key.strip():
+                return ("brave", "BRAVE_SEARCH_API_KEY configured")
+            if self.searxng_enabled and self.searxng_url:
+                return ("searxng", f"SearXNG configured at {self.searxng_url}")
+            return ("mock", "No external search provider configured")
+
+        raise EnvironmentConfigurationError(
+            f"Unsupported SEARCH_PROVIDER '{self.search_provider}'. Supported values: 'auto', 'searxng', 'tavily', 'serper', 'brave', 'mock'."
+        )
+
     @property
     def has_web_search_provider(self) -> bool:
         """Check if at least one general web search provider is configured."""
+        if self.searxng_enabled and self.searxng_url:
+            return True
         return bool(self.tavily_api_key or self.serper_api_key or self.brave_search_api_key)
 
     @property
     def active_search_provider_name(self) -> str:
         """Return the name of the active search provider."""
-        if self.tavily_api_key:
-            return "tavily"
-        if self.serper_api_key:
-            return "serper"
-        if self.brave_search_api_key:
-            return "brave"
-        return "mock"
+        provider_name, _ = self.resolve_search_provider()
+        return provider_name
 
     def get_groq_models(self, group: Optional[str] = None) -> list[str]:
         """Parse and return ordered list of unique Groq models for a given task group or general pool."""
@@ -195,11 +262,21 @@ class Settings(BaseSettings):
             return
 
         # 1. Search provider check
-        if not self.has_web_search_provider:
+        provider_name, reason = self.resolve_search_provider()
+        if provider_name == "mock" and not self.has_web_search_provider:
             raise EnvironmentConfigurationError(
-                "Production generation configuration check failed: missing Web Search Provider Key. "
-                "Set TAVILY_API_KEY, SERPER_API_KEY, or BRAVE_SEARCH_API_KEY in .env/.env.local."
+                "Production generation configuration check failed: missing Web Search Provider Key or Local SearXNG instance. "
+                "Set SEARXNG_URL (with SEARXNG_ENABLED=true), TAVILY_API_KEY, SERPER_API_KEY, or BRAVE_SEARCH_API_KEY in .env/.env.local."
             )
+
+        if provider_name == "searxng":
+            from vasukisquare.tools.search import check_searxng_health
+            if not check_searxng_health(self.searxng_url, timeout=4.0):
+                raise EnvironmentConfigurationError(
+                    f"SearXNG was selected ({reason}), but SearXNG is unavailable at {self.searxng_url}.\n"
+                    "Ensure your local SearXNG instance is running (e.g. docker run -d -p 8080:8080 searxng/searxng) "
+                    "or configure an alternative provider like TAVILY_API_KEY / SERPER_API_KEY."
+                )
 
         # 2. LLM Provider and Model Check
         provider, model, reason = self.resolve_llm_provider()
