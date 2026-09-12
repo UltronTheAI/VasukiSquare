@@ -23,14 +23,14 @@ COVER_LIGHT_BACKGROUNDS = [
 ]
 
 COVER_ACCENT_TOKENS = [
-    ColorToken.BRAND_GREEN_DARK.value,
-    ColorToken.BRAND_GREEN_MID.value,
-    ColorToken.BRAND_TEAL_DEEP.value,
-    ColorToken.BRAND_TEAL.value,
-    ColorToken.ACCENT_PURPLE.value,
-    ColorToken.ACCENT_ORANGE.value,
-    ColorToken.ACCENT_PINK.value,
-    ColorToken.ACCENT_BLUE.value,
+    ColorToken.BRAND_TEAL.value,       # Deep Teal (#003d4f)
+    ColorToken.BRAND_GREEN_DARK.value,  # Forest Dark (#00684a)
+    ColorToken.ACCENT_BLUE.value,        # Navy / Blue (#3d4f9f)
+    ColorToken.SLATE.value,              # Slate (#3d4f5b)
+    ColorToken.CHARCOAL.value,           # Charcoal (#1c2d38)
+    ColorToken.ACCENT_PURPLE.value,      # Muted Purple (#7b3ff2)
+    ColorToken.ACCENT_ORANGE.value,      # Terracotta / Amber (#fa6e39)
+    ColorToken.ACCENT_PINK.value,        # Burgundy / Rose (#f06bb8)
 ]
 
 
@@ -170,10 +170,10 @@ class CoverPlannerAgent:
             "Some covers should be typography-only (icon_strategy='none').\n"
             "4. Decorative Geometry: choose topic-aligned geometry [database_nodes, circuit_grid, structural_rings, "
             "abstract_matrix, angular_lines, code_terminal_frame, dense_blueprint, orthogonal_axes, none].\n"
-            "5. Light Theme Canvas: Cover is always rendered in light mode with dark high-contrast typography and clean accents.\n"
-            "6. Color Tokens (strictly choose from DESIGN.md):\n"
-            "   - accent_color: must be one of ['#00ed64', '#00684a', '#00a35c', '#001e2b', '#003d4f', '#7b3ff2', '#fa6e39', '#f06bb8', '#3d4f9f']\n"
-            "   - background_color: must be one of ['#ffffff', '#f9fbfa', '#f4f7f6', '#e3fcef', '#c3f0d2', '#fff8e0']"
+            "5. Light Theme Canvas: Cover is always rendered in light mode with dark high-contrast typography and calm, restrained accents.\n"
+            "6. Editorial Color Tokens (strictly choose from DESIGN.md):\n"
+            "   - accent_color: must be one of ['#003d4f', '#00684a', '#3d4f9f', '#3d4f5b', '#1c2d38', '#7b3ff2', '#fa6e39', '#f06bb8'] (never neon green)\n"
+            "   - background_color: must be one of ['#ffffff', '#f9fbfa', '#f4f7f6', '#e3fcef', '#fff8e0']"
         )
 
         user_prompt = (

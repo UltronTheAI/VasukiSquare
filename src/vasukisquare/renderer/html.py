@@ -222,9 +222,9 @@ class HtmlPageRenderer:
         if p_type in ("chapter_opener", "cover", "thank_you", "toc", "copyright", "imprint"):
             return ""
 
-        # Only render watermark if page is not overfilled
+        # Only render watermark if page has ample negative space (utilization <= 0.85)
         util = estimate_page_utilization(page)
-        if util.estimated_ratio > 0.90:
+        if util.estimated_ratio > 0.85:
             return ""
 
         topic_str = f"{book_topic} {book_title} {page.chapter_title or ''} {getattr(page.content, 'headline', '')}"

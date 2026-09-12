@@ -144,7 +144,7 @@ class CoverRenderer:
         # 1. Asymmetric Left Heavy Composition
         if style == "asymmetric_left":
             return f"""
-            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden; border-left: 10px solid {accent};">
+            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden; border-left: 4px solid {accent};">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.18; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>

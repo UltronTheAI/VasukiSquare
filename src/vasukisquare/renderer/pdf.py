@@ -95,7 +95,17 @@ class PdfRenderer:
         book_title: str = "VasukiSquare Book",
         book_topic: str = "",
     ) -> Path:
-        """Render a list of Page models directly into an assembled A4 PDF document."""
+        """Render a list of Page models directly into an assembled A4 PDF document with preflight validation."""
+        from vasukisquare.renderer.preflight import preflight_book
+        
+        preflight_report = preflight_book(pages)
+        if not preflight_report.all_valid:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(
+                f"[PREFLIGHT] {preflight_report.invalid_pages}/{preflight_report.total_pages} pages failed preflight checks. Proceeding with repaired render."
+            )
+
         html_content = self.html_renderer.render_book(
             pages=pages,
             book_title=book_title,

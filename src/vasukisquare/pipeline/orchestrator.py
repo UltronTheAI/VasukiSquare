@@ -409,6 +409,12 @@ class EbookGenerationPipeline:
 
         # Stage 7: Final HTML Assembly & PDF Rendering
         logger.info("Stage 7/7: Assembling Final Book HTML and Exporting PDF...")
+        from vasukisquare.renderer.preflight import preflight_book
+        preflight_report = preflight_book(state.pages, book_theme=book_theme)
+        preflight_json_path = out_dir / "preflight_report.json"
+        preflight_json_path.write_text(preflight_report.model_dump_json(indent=2), encoding="utf-8")
+        state.artifacts["preflight_report_json"] = str(preflight_json_path)
+
         state.assembled_html = self.html_renderer.render_book(
             pages=state.pages,
             book_title=state.book_plan.title,

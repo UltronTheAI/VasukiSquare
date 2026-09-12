@@ -177,8 +177,9 @@ html, body {
   --theme-card-bg: var(--color-surface);
   --theme-border: var(--color-hairline);
   --theme-border-strong: var(--color-hairline-strong);
-  --theme-accent: var(--color-brand-green-dark);
-  --theme-accent-soft: var(--color-surface-feature);
+  --theme-accent: var(--color-brand-teal);
+  --theme-accent-soft: var(--color-surface-soft);
+  --theme-decorative: rgba(15, 23, 42, 0.04);
 }
 
 .page.theme-dark {
@@ -189,11 +190,12 @@ html, body {
   --theme-text-secondary: var(--text-secondary-dark);
   --theme-text-muted: var(--text-muted-dark);
   --theme-text-subtle: var(--text-subtle-dark);
-  --theme-card-bg: var(--color-brand-teal);
+  --theme-card-bg: rgba(255, 255, 255, 0.05);
   --theme-border: var(--color-hairline-dark);
-  --theme-border-strong: #2a4050;
-  --theme-accent: var(--color-brand-green);
-  --theme-accent-soft: rgba(0, 237, 100, 0.12);
+  --theme-border-strong: rgba(255, 255, 255, 0.28);
+  --theme-accent: #38bdf8;
+  --theme-accent-soft: rgba(56, 189, 248, 0.12);
+  --theme-decorative: rgba(255, 255, 255, 0.04);
 }
 
 /* Header & Footer Chrome (High-Contrast, Clean Layout, Zero Overflow) */
@@ -2269,6 +2271,91 @@ sub { vertical-align: sub; font-size: 0.75em; line-height: 0; }
   flex-direction: column;
   gap: var(--spacing-lg);
 }
+
+/* ==========================================================================
+   EXPLICIT LAYER CONTRACT (LAYERS 0 - 4) & SAFE FLOW BOUNDARIES
+   ========================================================================== */
+
+/* Layer 0: Page Canvas & Background */
+.page {
+  z-index: 0;
+}
+
+/* Layer 1: Subtle Watermarks & Decorative Background Icons */
+.decorative-watermark-icon {
+  position: absolute;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.04;
+  color: var(--theme-decorative, rgba(0, 0, 0, 0.04));
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.decorative-watermark-icon.pos-bottom-right {
+  bottom: 24mm;
+  right: 20mm;
+}
+
+.decorative-watermark-icon.pos-bottom-left {
+  bottom: 24mm;
+  left: 20mm;
+}
+
+.decorative-watermark-icon.pos-top-right {
+  top: 24mm;
+  right: 20mm;
+}
+
+/* Layer 2: Surfaces, Panels, Cards, Callouts */
+.component-card,
+.step-card,
+.component-callout,
+.component-statistic,
+.component-comparison,
+.component-timeline,
+.component-checklist,
+.component-definition,
+.component-exercise {
+  position: relative;
+  z-index: 2;
+  background-color: var(--theme-card-bg);
+}
+
+/* Layer 3: Normal Document Flow Text, Code, Tables */
+.content-headline,
+.content-body,
+.component-code-figure,
+.component-terminal-window,
+.component-table-container,
+.component-diagram,
+.component-chart {
+  position: relative;
+  z-index: 3;
+}
+
+/* Table Bottom Safety Breathing Gap */
+.component-table-container {
+  margin-bottom: var(--spacing-md);
+}
+
+/* Sibling card flow gaps */
+.step-list,
+.card-grid,
+.comparison-grid {
+  gap: var(--spacing-md);
+}
+
+/* Layer 4: Protected Header & Footer Chrome */
+.page-header,
+.page-footer {
+  position: relative;
+  z-index: 4;
+  flex-shrink: 0;
+}
+
 
 
 

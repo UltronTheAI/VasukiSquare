@@ -347,3 +347,92 @@ def test_proportional_chapter_budgeting():
     # Technical core chapter (Chapter 2) should receive more content pages than conclusion
     ch2 = chapters[1]
     assert ch2.page_budget > ch4.page_budget
+
+
+def test_page_geometry_and_safe_zones():
+    """Verify central A4 physical geometry constants and safe zones."""
+    from vasukisquare.renderer.geometry import (
+        PAGE_WIDTH_MM,
+        PAGE_HEIGHT_MM,
+        HEADER_SAFE_ZONE_MM,
+        FOOTER_SAFE_ZONE_MM,
+        USABLE_PAGE_HEIGHT_MM,
+        CONTENT_SAFE_HEIGHT_MM,
+        BoundingBox,
+    )
+
+    assert PAGE_WIDTH_MM == 210.0
+    assert PAGE_HEIGHT_MM == 297.0
+    assert HEADER_SAFE_ZONE_MM == 18.0
+    assert FOOTER_SAFE_ZONE_MM == 16.0
+    assert USABLE_PAGE_HEIGHT_MM == 249.0
+    assert CONTENT_SAFE_HEIGHT_MM == 215.0
+
+    # Test bounding box intersection
+    box1 = BoundingBox(x=10, y=10, width=50, height=30)
+    box2 = BoundingBox(x=40, y=20, width=50, height=30)
+    box3 = BoundingBox(x=100, y=100, width=20, height=20)
+
+    assert box1.intersects(box2) is True
+    assert box1.intersects(box3) is False
+
+
+def test_preflight_validation_and_reporting():
+    """Verify preflight checks detect overflow and validate safe page boundaries."""
+    from vasukisquare.renderer.preflight import preflight_page, preflight_book
+    from vasukisquare.design.themes import generate_book_theme
+
+    # Normal valid page
+    valid_page = Page(
+        book_id="test-book",
+        page_number=2,
+        chapter_number=1,
+        page_type="chapter_content",
+        layout="editorial_standard",
+        theme=Theme.DARK,
+        content=PageContent(
+            headline="Safe Content Section",
+            body="Short introductory explanation with adequate vertical margin.",
+            blocks=[
+                TextBlock(text="This paragraph is appropriately budgeted inside safe boundaries."),
+                CalloutBlock(variant="tip", title="Note", content="Tips and notes stay in flow."),
+            ],
+        ),
+    )
+
+    rep = preflight_page(valid_page)
+    assert rep.valid is True
+    assert rep.overflow is False
+    assert rep.footer_collision is False
+
+    # Overfilled overflowing page
+    huge_blocks = [
+        TextBlock(text="A" * 600) for _ in range(10)
+    ]
+    overflow_page = Page(
+        book_id="test-book",
+        page_number=3,
+        chapter_number=1,
+        page_type="chapter_content",
+        layout="editorial_standard",
+        theme=Theme.DARK,
+        content=PageContent(
+            headline="Massive Section",
+            blocks=huge_blocks,
+        ),
+    )
+
+    bad_rep = preflight_page(overflow_page)
+    assert bad_rep.valid is False
+    assert bad_rep.overflow is True
+    assert bad_rep.footer_collision is True
+    assert len(bad_rep.errors) >= 1
+
+    # Book preflight
+    theme_map = generate_book_theme(num_chapters=2, seed=123)
+    book_rep = preflight_book([valid_page, overflow_page], book_theme=theme_map)
+    assert book_rep.total_pages == 2
+    assert book_rep.valid_pages == 1
+    assert book_rep.invalid_pages == 1
+    assert book_rep.all_valid is False
+

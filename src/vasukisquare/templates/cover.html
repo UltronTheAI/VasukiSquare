@@ -17,8 +17,8 @@
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background-color: {{ plan.background_color or "#001e2b" }};
-      color: #ffffff;
+      background-color: {{ plan.background_color or "#f8fafc" }};
+      color: #001e2b;
       font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
@@ -29,12 +29,23 @@
       width: 1600px;
       height: 2560px;
       overflow: hidden;
-      background-color: {{ plan.background_color or "#001e2b" }};
+      background-color: {{ plan.background_color or "#f8fafc" }};
       display: flex;
       flex-direction: column;
     }
 
-    /* Safe Content Area for physical A4 crop (200px top/bottom, 180px left/right) */
+    .cover-pattern-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      opacity: 0.16;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Safe Content Area for physical A4 crop (220px top/bottom, 180px left/right) */
     .safe-content-area {
       position: absolute;
       top: 220px;
@@ -44,6 +55,7 @@
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      z-index: 2;
     }
 
     .cover-brand-header {
@@ -51,7 +63,7 @@
       justify-content: space-between;
       align-items: center;
       padding-bottom: 24px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      border-bottom: 1px solid rgba(0, 30, 43, 0.12);
     }
 
     .cover-brand-label {
@@ -59,15 +71,18 @@
       font-weight: 700;
       letter-spacing: 3px;
       text-transform: uppercase;
-      color: {{ plan.accent_color or "#00ed64" }};
+      color: {{ plan.accent_color or "#003d4f" }};
     }
 
     .cover-category-badge {
-      font-size: 18px;
+      font-size: 16px;
       font-weight: 600;
       letter-spacing: 1.5px;
       text-transform: uppercase;
-      color: #a8b3bc;
+      color: #5c6c7a;
+      background: rgba(0, 30, 43, 0.05);
+      padding: 6px 14px;
+      border-radius: 4px;
     }
 
     .cover-main-body {
@@ -75,11 +90,11 @@
       margin-bottom: auto;
       display: flex;
       flex-direction: column;
-      gap: 36px;
+      gap: 32px;
     }
 
     .cover-icon-wrapper {
-      margin-bottom: 20px;
+      margin-bottom: 12px;
     }
 
     .cover-icon-wrapper svg {
@@ -89,29 +104,29 @@
     }
 
     .cover-title {
-      font-size: 92px;
+      font-size: 88px;
       font-weight: 700;
       line-height: 1.08;
       letter-spacing: -2px;
-      color: #ffffff;
+      color: #001e2b;
       max-width: 1200px;
       word-break: break-word;
     }
 
     .cover-subtitle {
-      font-size: 32px;
+      font-size: 30px;
       font-weight: 400;
       line-height: 1.40;
-      color: #c1ccd6;
+      color: #3d4f5b;
       max-width: 1100px;
       word-break: break-word;
     }
 
     .cover-divider {
-      width: 120px;
+      width: 100px;
       height: 4px;
-      background-color: {{ plan.accent_color or "#00ed64" }};
-      margin: 10px 0;
+      background-color: {{ plan.accent_color or "#003d4f" }};
+      margin: 8px 0;
     }
 
     .cover-footer {
@@ -119,21 +134,26 @@
       justify-content: space-between;
       align-items: center;
       padding-top: 32px;
-      border-top: 1px solid rgba(255, 255, 255, 0.15);
-      font-size: 20px;
-      color: #a8b3bc;
+      border-top: 1px solid rgba(0, 30, 43, 0.12);
+      font-size: 18px;
+      color: #5c6c7a;
       font-weight: 500;
       letter-spacing: 1px;
     }
 
     .cover-footer-left {
-      color: #e1e5e8;
+      color: #001e2b;
       font-weight: 600;
     }
   </style>
 </head>
 <body>
   <div class="cover-canvas">
+    {% if geometric_svg %}
+    <div class="cover-pattern-layer">
+      {{ geometric_svg | safe }}
+    </div>
+    {% endif %}
     <div class="safe-content-area">
       <div class="cover-brand-header">
         <span class="cover-brand-label">VASUKISQUARE</span>
