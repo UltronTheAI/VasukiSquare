@@ -111,6 +111,18 @@ class SectionTheme(BaseModel):
     def text_color(self) -> str:
         return self.foreground
 
+    @property
+    def border_color(self) -> str:
+        return self.border
+
+    @property
+    def surface_bg(self) -> str:
+        return self.surface
+
+    @property
+    def decorative_color(self) -> str:
+        return self.decorative
+
 
 class BookThemeMap(BaseModel):
     """Deterministic theme map for the entire book, generated once before rendering."""
