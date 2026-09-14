@@ -82,7 +82,7 @@
             </div>
           {% endif %}
         {% else %}
-          {% if item.page.content and item.page.content.headline and item.page.layout_type.value not in ["copyright", "acknowledgement"] %}
+          {% if item.page.content and item.page.content.headline and item.page.layout_type.value not in ["copyright", "acknowledgement", "toc"] and item.page.page_type not in ["copyright", "acknowledgement", "toc"] %}
           <h2 class="content-headline">{{ item.page.content.headline }}</h2>
           {% endif %}
           

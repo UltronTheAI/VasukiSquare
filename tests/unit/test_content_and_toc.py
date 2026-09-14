@@ -88,6 +88,44 @@ def test_toc_component_rendering():
     assert "13" in html_out
 
 
+def test_toc_page_no_duplicate_title_in_html():
+    """TOC page must render exactly one 'Table of Contents' title and avoid duplicate headline."""
+    from vasukisquare.renderer.html import HTMLRenderer
+
+    entries = [
+        TocEntry(chapter_number=1, title="Introduction to Good Habits", page_number=4, icon="sparkles"),
+        TocEntry(chapter_number=2, title="Building Blocks of Good Habits", page_number=7, icon="compass"),
+    ]
+    toc_block = TocBlock(
+        title="Table of Contents",
+        subtitle="A Guide to Good Habits",
+        entries=entries,
+    )
+    page = Page(
+        id="toc-page-id",
+        book_id="habits-101",
+        page_number=2,
+        page_type="toc",
+        layout="toc",
+        theme=Theme.LIGHT,
+        content=PageContent(headline="Table of Contents", blocks=[toc_block]),
+    )
+
+    renderer = HTMLRenderer()
+    html_single = renderer.render_page(page, book_title="Good Habits", running_title="GOOD HABITS")
+    assert '<h2 class="content-headline">' not in html_single
+    assert '<h1 class="toc-title">Table of Contents</h1>' in html_single
+    assert '<div class="typo-eyebrow">Contents</div>' in html_single
+    assert '<p class="toc-subtitle">A Guide to Good Habits</p>' in html_single
+    assert "GOOD HABITS" in html_single
+
+    html_book = renderer.render_book([page], book_title="Good Habits", running_title="GOOD HABITS")
+    assert '<h2 class="content-headline">' not in html_book
+    assert '<h1 class="toc-title">Table of Contents</h1>' in html_book
+    assert '<div class="typo-eyebrow">Contents</div>' in html_book
+
+
+
 def test_validator_detects_topic_relevance():
     intent = BookIntent(primary_programming_language="python")
 

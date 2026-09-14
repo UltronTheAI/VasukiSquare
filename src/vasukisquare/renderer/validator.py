@@ -188,9 +188,10 @@ class ContentValidator:
 
             if util.is_hard_fail:
                 severely_underfilled += 1
+                band_str = getattr(util.density_band, "value", str(util.density_band))
                 err = (
                     f"Page {p.page_number} ('{p.content.headline}') is severely underfilled: "
-                    f"utilization {util.estimated_ratio:.1%} < {util.hard_fail_ratio:.1%} threshold ({util.density_band.value})."
+                    f"utilization {util.estimated_ratio:.1%} < {util.hard_fail_ratio:.1%} threshold ({band_str})."
                 )
                 errors.append(err)
                 logger.error(err)

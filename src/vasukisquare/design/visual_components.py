@@ -183,7 +183,7 @@ def render_comparison_block(
 ) -> str:
     """Render side-by-side comparison block (Do vs Don't, Option A vs Option B)."""
     left_color = "#00a35c" if theme == Theme.LIGHT else "#00ed64"
-    right_color = "#fa6e39" if theme == Theme.LIGHT else "#ff8a50"
+    right_color = "#fa6e39"
     l_icon = render_lucide_icon(left_icon, color=left_color, size=16)
     r_icon = render_lucide_icon(right_icon, color=right_color, size=16)
 
@@ -258,7 +258,7 @@ def render_checklist_block(
     title_html = f'<h4 class="checklist-title">{html.escape(title)}</h4>' if title else ""
     color = "#00a35c" if theme == Theme.LIGHT else "#00ed64"
     check_svg = render_lucide_icon("check-square", color=color, size=16)
-    uncheck_svg = render_lucide_icon("square", color="var(--theme-text-muted)", size=16)
+    uncheck_svg = render_lucide_icon("square", color="#a8b3bc", size=16)
 
     rows = []
     for item in items:

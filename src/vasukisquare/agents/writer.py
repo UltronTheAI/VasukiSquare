@@ -4,6 +4,8 @@ import logging
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
 
+logger = logging.getLogger(__name__)
+
 from vasukisquare.config import Settings, get_settings
 from vasukisquare.book.layout import (
     LayoutType,
@@ -17,6 +19,7 @@ from vasukisquare.book.layout import (
 from vasukisquare.book.models import (
     Page,
     PageContent,
+    PageStyle,
     PlannedPage,
     BookPlan,
     PageCompletenessScore,
@@ -37,6 +40,12 @@ from vasukisquare.book.components import (
     StatisticBlock,
     QuoteBlock,
     ExerciseBlock,
+    TocBlock,
+    TocEntry,
+    HeadingBlock,
+    CopyrightBlock,
+    SourceBlock,
+    AcknowledgementBlock,
 )
 from vasukisquare.research.models import ResearchCorpus
 from vasukisquare.llm.client import LLMClient, GroqGenerationError
@@ -1801,15 +1810,21 @@ class PageWriterAgent:
                 title="Behavioral Strategy Comparison",
                 left_title="Ineffective Approach (High Friction)",
                 right_title="Sustainable Strategy (Low Friction)",
-                rows=[
-                    ("Trigger", "Relying on random daily motivation", "Anchored to an existing permanent habit"),
-                    ("Execution Scope", "Vague, overwhelming multi-step targets", "Micro-action designed for consistency"),
-                    ("Environment", "High distraction, high temptation", "Curated space with visual friction removed"),
-                    ("Evaluation", "Guilt over missed days", "Objective tracking and immediate reset"),
+                left_items=[
+                    "Relying on random daily motivation",
+                    "Vague, overwhelming multi-step targets",
+                    "High distraction, high temptation environment",
+                    "Guilt over missed days",
+                ],
+                right_items=[
+                    "Anchored to an existing permanent habit",
+                    "Micro-action designed for consistency",
+                    "Curated space with visual friction removed",
+                    "Objective tracking and immediate reset",
                 ],
             ),
             CalloutBlock(
-                variant="info",
+                variant="insight",
                 title="Reflection & Action Exercise",
                 content=f"Take five minutes today to isolate one small aspect of {brief}. Write down the exact time, location, and preceding habit "
                 f"that will trigger this action tomorrow, and prepare your environment tonight to guarantee success.",

@@ -73,7 +73,7 @@
           <span>FIRST EDITION</span>
         </div>
         {% else %}
-          {% if page.content and page.content.headline and page.layout_type.value not in ["copyright", "acknowledgement"] %}
+          {% if page.content and page.content.headline and page.layout_type.value not in ["copyright", "acknowledgement", "toc"] and page.page_type not in ["copyright", "acknowledgement", "toc"] %}
           <h2 class="content-headline">{{ page.content.headline }}</h2>
           {% endif %}
           

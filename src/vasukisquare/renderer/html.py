@@ -331,3 +331,8 @@ class HtmlPageRenderer:
         return rendered
 
 
+# Backward-compatible alias
+HTMLRenderer = HtmlPageRenderer
+
+
+
