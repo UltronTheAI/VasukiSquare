@@ -32,6 +32,8 @@ class Settings(BaseSettings):
 
     # Groq & Cloud LLM Model Pool
     groq_api_key: Optional[str] = Field(default=None, alias="GROQ_API_KEY")
+    groq_key_strategy: str = Field(default="preferred", alias="GROQ_KEY_STRATEGY")
+    groq_key_cooldown_seconds: float = Field(default=60.0, alias="GROQ_KEY_COOLDOWN_SECONDS")
     groq_model: str = Field(default="openai/gpt-oss-120b", alias="GROQ_MODEL")
     groq_models: Optional[str] = Field(default=None, alias="GROQ_MODELS")
     groq_model_strategy: str = Field(default="ordered", alias="GROQ_MODEL_STRATEGY")
@@ -174,6 +176,19 @@ class Settings(BaseSettings):
         provider_name, _ = self.resolve_search_provider()
         return provider_name
 
+    def get_groq_api_keys(self) -> list[str]:
+        """Parse comma-separated GROQ_API_KEY into ordered list of unique trimmed keys."""
+        if not self.groq_api_key or not self.groq_api_key.strip():
+            return []
+        keys: list[str] = []
+        seen: set[str] = set()
+        for item in self.groq_api_key.split(","):
+            cleaned = item.strip()
+            if cleaned and cleaned not in seen:
+                seen.add(cleaned)
+                keys.append(cleaned)
+        return keys
+
     def get_groq_models(self, group: Optional[str] = None) -> list[str]:
         """Parse and return ordered list of unique Groq models for a given task group or general pool."""
         raw_val = None
@@ -213,19 +228,21 @@ class Settings(BaseSettings):
         groq_models = self.get_groq_models()
         active_groq_model = groq_models[0]
         model_count_str = f" (pool of {len(groq_models)} models)" if len(groq_models) > 1 else ""
+        groq_keys = self.get_groq_api_keys()
+        key_count_str = f" ({len(groq_keys)} keys)" if len(groq_keys) > 1 else ""
 
         if prov == "auto":
-            if self.groq_api_key and self.groq_api_key.strip():
-                return ("groq", active_groq_model, f"GROQ_API_KEY configured{model_count_str}")
+            if groq_keys:
+                return ("groq", active_groq_model, f"GROQ_API_KEY configured{key_count_str}{model_count_str}")
             return ("ollama", self.ollama_model, "GROQ_API_KEY missing or empty")
 
         if prov == "groq":
-            if not self.groq_api_key or not self.groq_api_key.strip():
+            if not groq_keys:
                 raise EnvironmentConfigurationError(
                     "LLM_PROVIDER is set to 'groq' but GROQ_API_KEY is missing or empty. "
                     "Set GROQ_API_KEY in .env/.env.local or set LLM_PROVIDER=auto / LLM_PROVIDER=ollama."
                 )
-            return ("groq", active_groq_model, f"Explicitly set via LLM_PROVIDER=groq{model_count_str}")
+            return ("groq", active_groq_model, f"Explicitly set via LLM_PROVIDER=groq{key_count_str}{model_count_str}")
 
         if prov == "ollama":
             return ("ollama", self.ollama_model, "Explicitly set via LLM_PROVIDER=ollama")
@@ -282,7 +299,8 @@ class Settings(BaseSettings):
         provider, model, reason = self.resolve_llm_provider()
 
         if provider == "groq":
-            if not self.groq_api_key or self.groq_api_key.startswith("gsk_test_key"):
+            groq_keys = self.get_groq_api_keys()
+            if not groq_keys or all(k.startswith("gsk_test_key") for k in groq_keys):
                 raise EnvironmentConfigurationError(
                     "Valid GROQ_API_KEY required when Groq is the active provider."
                 )

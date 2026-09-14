@@ -66,7 +66,9 @@ def test_research_service_end_to_end():
             )
         ])
 
+        settings = Settings(vasukisquare_mock_mode=True)
         service = ResearchService(
+            settings=settings,
             search_tool=search_tool,
             wikipedia_tool=wikipedia_tool,
         )

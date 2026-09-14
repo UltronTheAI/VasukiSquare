@@ -8,7 +8,9 @@ VasukiSquare uses `pydantic-settings` to load and validate configuration from en
 |---|---|---|---|
 | `APP_ENV` | `str` | `development` | Application runtime environment (`development`, `production`, `test`) |
 | `LOG_LEVEL` | `str` | `INFO` | Logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `GROQ_API_KEY` | `str` | None | API key for Groq LLM services |
+| `GROQ_API_KEY` | `str` | None | Single API key or comma-separated list of keys (`"key1,key2,key3"`) for Groq key rotation |
+| `GROQ_KEY_STRATEGY` | `str` | `preferred` | Groq API key selection strategy (`preferred`, `round_robin`) |
+| `GROQ_KEY_COOLDOWN_SECONDS` | `float` | `60.0` | Cooldown duration for a rate-limited Groq API key |
 | `GROQ_MODEL` | `str` | `openai/gpt-oss-120b` | Single default model or fallback model name |
 | `GROQ_MODELS` | `str` | None | Comma-separated list of Groq models for automatic failover pool |
 | `GROQ_MODEL_STRATEGY` | `str` | `ordered` | Model selection strategy (`ordered`, `random`, `rotate`) |

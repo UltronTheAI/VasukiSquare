@@ -2,6 +2,7 @@
 
 from vasukisquare.llm.client import LLMClient, GroqGenerationError
 from vasukisquare.llm.metrics import BookGenerationMetrics, GroqMetrics, ResearchMetrics
+from vasukisquare.llm.pool import GroqKeyPool, GroqKeyState, GroqModelPool
 
 __all__ = [
     "LLMClient",
@@ -9,5 +10,9 @@ __all__ = [
     "BookGenerationMetrics",
     "GroqMetrics",
     "ResearchMetrics",
+    "GroqKeyPool",
+    "GroqKeyState",
+    "GroqModelPool",
 ]
+
 

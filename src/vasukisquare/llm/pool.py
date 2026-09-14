@@ -61,7 +61,7 @@ def parse_retry_after(error: Exception) -> Optional[float]:
     return None
 
 
-class GroqErrorClassification(Tuple[bool, bool, Optional[float], bool, bool, bool]):
+class GroqErrorClassification(Tuple[bool, bool, Optional[float], bool, bool, bool, bool]):
     """Classified error info for Groq LLM invocations."""
 
     is_retryable: bool
@@ -70,6 +70,7 @@ class GroqErrorClassification(Tuple[bool, bool, Optional[float], bool, bool, boo
     is_model_unavailable: bool
     is_structured_error: bool
     is_impossible_limit: bool
+    is_auth_error: bool
 
     def __new__(
         cls,
@@ -79,10 +80,11 @@ class GroqErrorClassification(Tuple[bool, bool, Optional[float], bool, bool, boo
         is_model_unavailable: bool,
         is_structured_error: bool = False,
         is_impossible_limit: bool = False,
+        is_auth_error: bool = False,
     ):
         return super().__new__(
             cls,
-            (is_retryable, is_rate_limit, retry_after, is_model_unavailable, is_structured_error, is_impossible_limit),
+            (is_retryable, is_rate_limit, retry_after, is_model_unavailable, is_structured_error, is_impossible_limit, is_auth_error),
         )
 
     @property
@@ -109,12 +111,16 @@ class GroqErrorClassification(Tuple[bool, bool, Optional[float], bool, bool, boo
     def is_impossible_limit(self) -> bool:
         return self[5]
 
+    @property
+    def is_auth_error(self) -> bool:
+        return self[6]
+
 
 def is_retryable_groq_error(error: Exception) -> GroqErrorClassification:
-    """Classify an exception to determine if it should trigger a model failover, wait, or retry.
+    """Classify an exception to determine if it should trigger a key/model failover, wait, or retry.
     
     Returns:
-        GroqErrorClassification named 6-tuple
+        GroqErrorClassification named 7-tuple
     """
     err_str = str(error).lower()
     retry_after = parse_retry_after(error)
@@ -136,9 +142,10 @@ def is_retryable_groq_error(error: Exception) -> GroqErrorClassification:
             is_model_unavailable=False,
             is_structured_error=False,
             is_impossible_limit=True,
+            is_auth_error=False,
         )
 
-    # 2. Non-retryable authentication / access errors (strictly invalid credentials)
+    # 2. Authentication / access errors (invalid credentials -> rotatable across keys if other keys exist)
     auth_errors = [
         "invalid_api_key",
         "invalid api key",
@@ -156,6 +163,7 @@ def is_retryable_groq_error(error: Exception) -> GroqErrorClassification:
             is_model_unavailable=False,
             is_structured_error=False,
             is_impossible_limit=False,
+            is_auth_error=True,
         )
 
     # 3. Tool calling / schema validation failures (model capability failure -> retryable on same model / across models without cooldown)
@@ -183,6 +191,7 @@ def is_retryable_groq_error(error: Exception) -> GroqErrorClassification:
             is_model_unavailable=False,
             is_structured_error=True,
             is_impossible_limit=False,
+            is_auth_error=False,
         )
 
     # 4. Model unavailable / decommissioned / not found error (retryable across models)
@@ -208,6 +217,7 @@ def is_retryable_groq_error(error: Exception) -> GroqErrorClassification:
             is_model_unavailable=True,
             is_structured_error=False,
             is_impossible_limit=False,
+            is_auth_error=False,
         )
 
     # 5. Rate Limit / Quota errors
@@ -233,6 +243,7 @@ def is_retryable_groq_error(error: Exception) -> GroqErrorClassification:
             is_model_unavailable=False,
             is_structured_error=False,
             is_impossible_limit=False,
+            is_auth_error=False,
         )
 
     # 6. Server overload / transient network errors / bad request from model generation
@@ -261,6 +272,7 @@ def is_retryable_groq_error(error: Exception) -> GroqErrorClassification:
             is_model_unavailable=False,
             is_structured_error=False,
             is_impossible_limit=False,
+            is_auth_error=False,
         )
 
     # Check for known network or validation exception types
@@ -273,6 +285,7 @@ def is_retryable_groq_error(error: Exception) -> GroqErrorClassification:
             is_model_unavailable=False,
             is_structured_error="validationerror" in type_name or "valueerror" in type_name,
             is_impossible_limit=False,
+            is_auth_error=False,
         )
 
     return GroqErrorClassification(
@@ -282,7 +295,176 @@ def is_retryable_groq_error(error: Exception) -> GroqErrorClassification:
         is_model_unavailable=False,
         is_structured_error=False,
         is_impossible_limit=False,
+        is_auth_error=False,
     )
+
+
+class GroqKeyState:
+    """State tracking for a single Groq API Key."""
+
+    def __init__(self, index: int, api_key: str):
+        self.index: int = index  # 1-indexed (e.g., 1 for Key #1)
+        self.api_key: str = api_key
+        self.cooldown_until: float = 0.0
+        self.is_invalid: bool = False  # Set to True on 401 Unauthorized
+        self.requests: int = 0
+        self.successes: int = 0
+        self.rate_limits: int = 0
+        self.failures: int = 0
+        self.consecutive_rate_limits: int = 0
+        self.last_used_at: float = 0.0
+        self.last_success_at: float = 0.0
+
+    @property
+    def label(self) -> str:
+        """Safe human-readable label for logging without leaking the secret."""
+        return f"Groq Key #{self.index}"
+
+    def is_in_cooldown(self) -> bool:
+        """Check whether this key is currently in temporary cooldown."""
+        return time.time() < self.cooldown_until
+
+    def get_cooldown_remaining(self) -> float:
+        """Return remaining cooldown seconds for this key."""
+        return max(0.0, self.cooldown_until - time.time())
+
+    def is_available(self) -> bool:
+        """Check if this key is valid and not in cooldown."""
+        return not self.is_invalid and not self.is_in_cooldown()
+
+    def __repr__(self) -> str:
+        status = "invalid" if self.is_invalid else ("cooldown" if self.is_in_cooldown() else "available")
+        return f"<GroqKeyState {self.label} status={status}>"
+
+
+class GroqKeyPool:
+    """Centralized Groq API Key pool managing rotation, cooldowns, invalidation, and safety."""
+
+    def __init__(
+        self,
+        api_keys: List[str],
+        strategy: str = "preferred",
+        cooldown_seconds: float = 60.0,
+    ):
+        clean_keys: List[str] = []
+        seen: set[str] = set()
+        for k in api_keys:
+            c = k.strip()
+            if c and c not in seen:
+                seen.add(c)
+                clean_keys.append(c)
+
+        self.strategy: str = (strategy or "preferred").strip().lower()
+        if self.strategy not in ("preferred", "round_robin", "rotate"):
+            self.strategy = "preferred"
+
+        self.cooldown_seconds: float = float(cooldown_seconds)
+        self.current_index: int = 0
+        self._lock = asyncio.Lock()
+
+        self.keys: List[GroqKeyState] = [
+            GroqKeyState(index=i + 1, api_key=k)
+            for i, k in enumerate(clean_keys)
+        ]
+
+        logger.info(
+            f"[GroqKeyPool] Configured {len(self.keys)} API keys (strategy={self.strategy})"
+        )
+
+    def has_keys(self) -> bool:
+        """Check if the pool has any configured keys."""
+        return len(self.keys) > 0
+
+    def active_key_count(self) -> int:
+        """Return count of keys that are not permanently invalid."""
+        return sum(1 for k in self.keys if not k.is_invalid)
+
+    def get_candidate_keys(self) -> List[GroqKeyState]:
+        """Return an ordered list of candidate keys to attempt for a request failover cycle."""
+        valid_keys = [k for k in self.keys if not k.is_invalid]
+        if not valid_keys:
+            return []
+
+        if self.strategy in ("round_robin", "rotate"):
+            num_keys = len(valid_keys)
+            base_candidates: List[GroqKeyState] = []
+            for i in range(num_keys):
+                idx = (self.current_index + i) % num_keys
+                base_candidates.append(valid_keys[idx])
+        else:
+            # "preferred" strategy: always try Key #1 first, then Key #2, Key #3
+            base_candidates = list(valid_keys)
+
+        # Prioritize available keys (not in cooldown); then keys in cooldown sorted by remaining time
+        available = [k for k in base_candidates if not k.is_in_cooldown()]
+        in_cooldown = [k for k in base_candidates if k.is_in_cooldown()]
+        in_cooldown.sort(key=lambda k: k.get_cooldown_remaining())
+
+        return available + in_cooldown
+
+    def advance_for_new_request(self) -> Optional[GroqKeyState]:
+        """Prepare key selection at the start of a new logical request (for round_robin)."""
+        valid_keys = [k for k in self.keys if not k.is_invalid]
+        if not valid_keys:
+            return None
+        if self.strategy in ("round_robin", "rotate") and len(valid_keys) > 1:
+            self.current_index = (self.current_index + 1) % len(valid_keys)
+        return valid_keys[self.current_index % len(valid_keys)]
+
+    def mark_rate_limited(self, key_state: GroqKeyState, retry_after: Optional[float] = None) -> None:
+        """Mark a key in temporary cooldown following HTTP 429 rate limit."""
+        key_state.last_used_at = time.time()
+        key_state.requests += 1
+        key_state.rate_limits += 1
+        key_state.failures += 1
+        key_state.consecutive_rate_limits += 1
+
+        cd = retry_after if retry_after is not None and retry_after > 0 else self.cooldown_seconds
+        key_state.cooldown_until = time.time() + cd
+        logger.warning(
+            f"[GroqKeyPool] {key_state.label} rate limited. Marked in cooldown for {cd:.1f}s."
+        )
+
+    def mark_invalid(self, key_state: GroqKeyState) -> None:
+        """Permanently mark a key as invalid (e.g. 401 Unauthorized)."""
+        key_state.last_used_at = time.time()
+        key_state.requests += 1
+        key_state.failures += 1
+        key_state.is_invalid = True
+        logger.error(
+            f"[GroqKeyPool] {key_state.label} marked permanently invalid (401 Unauthorized / Invalid API Key)."
+        )
+
+    def mark_success(self, key_state: GroqKeyState) -> None:
+        """Record a successful invocation using this key."""
+        key_state.last_used_at = time.time()
+        key_state.last_success_at = time.time()
+        key_state.requests += 1
+        key_state.successes += 1
+        key_state.consecutive_rate_limits = 0
+        key_state.cooldown_until = 0.0
+
+    def get_earliest_cooldown_wait(self) -> Tuple[Optional[GroqKeyState], float]:
+        """Find the key among valid keys with the earliest availability and return (key, wait_seconds)."""
+        valid_keys = [k for k in self.keys if not k.is_invalid]
+        if not valid_keys:
+            return None, 0.0
+        earliest_key = min(valid_keys, key=lambda k: k.cooldown_until)
+        wait = max(0.0, earliest_key.cooldown_until - time.time())
+        return earliest_key, wait
+
+    def get_summary(self) -> str:
+        """Format an execution summary of API key usage without leaking key values."""
+        lines = [
+            "Groq API Key Usage:",
+        ]
+        for k in self.keys:
+            status = "INVALID (401)" if k.is_invalid else ("cooldown" if k.is_in_cooldown() else "healthy")
+            lines.append(
+                f"  {k.label}: {k.requests} requests, {k.successes} successes, "
+                f"{k.rate_limits} rate limits ({status})"
+            )
+        return "\n".join(lines)
 
 
 class GroqModelPool:
