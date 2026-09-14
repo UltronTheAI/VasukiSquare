@@ -1,27 +1,39 @@
-"""Overflow detection, density estimation, and controlled page repair for physical A4 layout constraints."""
-
+import logging
 import re
-from typing import List, Optional, Tuple, Dict, Any
+from typing import List, Optional, Tuple, Dict, Any, Union
 from pydantic import BaseModel, Field
 from vasukisquare.book.layout import LayoutType, PublicationProfile
 from vasukisquare.book.models import (
     Page,
     PageContent,
+    PageStyle,
     PageCompletenessScore,
     generate_id,
 )
 from vasukisquare.book.components import (
     CalloutBlock,
     ChartBlock,
+    ChecklistBlock,
+    ChecklistItem,
     CodeBlock,
+    CommonMistakeBlock,
+    ComparisonBlock,
     DiagramBlock,
+    ExerciseBlock,
     HeadingBlock,
+    IconTextBlock,
+    OutputBlock,
     QuoteBlock,
     SourceBlock,
     StatisticBlock,
+    StepBlock,
+    StepItem,
     TableBlock,
     TerminalBlock,
     TextBlock,
+    TimelineBlock,
+    TocBlock,
+    TocEntry,
     ContentBlock,
 )
 
@@ -29,6 +41,8 @@ from vasukisquare.renderer.geometry import (
     CONTENT_SAFE_HEIGHT_MM,
     USABLE_PAGE_HEIGHT_MM as GEOMETRY_USABLE_HEIGHT_MM,
 )
+
+logger = logging.getLogger(__name__)
 
 # Maximum content thresholds for an individual A4 page with safe padding
 MAX_PAGE_CHARACTERS = 2800
@@ -65,7 +79,7 @@ class PageUtilization(BaseModel):
 
     @property
     def is_overflow(self) -> bool:
-        return self.estimated_ratio > 0.98
+        return self.estimated_ratio > 0.98 or self.total_content_height_mm > USABLE_PAGE_HEIGHT_MM
 
 
 class DensityEstimator:
@@ -97,12 +111,12 @@ class DensityEstimator:
             return header_h + (code_lines * 4.8) + caption_h + 12.0
 
         elif b_type == "output":
-            lines = (getattr(block, "content", "") or "").split("\n")
+            lines = (getattr(block, "content", "") or getattr(block, "output", "") or "").split("\n")
             return 12.0 + (len(lines) * 4.8) + 8.0
 
         elif b_type == "mistake":
-            wrong = getattr(block, "wrong_code", "") or ""
-            correct = getattr(block, "correct_code", "") or ""
+            wrong = getattr(block, "wrong_code", "") or getattr(block, "mistake_code", "") or ""
+            correct = getattr(block, "correct_code", "") or getattr(block, "corrected_code", "") or ""
             exp = getattr(block, "explanation", "") or ""
             w_lines = len(wrong.split("\n"))
             c_lines = len(correct.split("\n"))
@@ -295,11 +309,6 @@ class DensityEstimator:
         ratio = round(total_height_mm / USABLE_PAGE_HEIGHT_MM, 3)
 
         # Target minimum ratios based on specific content archetype:
-        # DIAGRAM / VISUAL PAGE: target 0.80–0.95
-        # CODE / TERMINAL HEAVY: target 0.85–0.95
-        # COMPARISON / FRAMEWORK: target 0.85–0.95
-        # EXERCISE / PRACTICE: target 0.80–0.95
-        # NORMAL CONTENT PAGE: target 0.90–0.95
         has_code = any("code" in k or "terminal" in k for k in breakdown.keys())
         has_diagram = any("diagram" in k or "chart" in k for k in breakdown.keys())
         has_comparison = any("comparison" in k or "table" in k for k in breakdown.keys())
@@ -315,13 +324,6 @@ class DensityEstimator:
             min_target = 0.90
 
         # Categorize density bands:
-        # < 0.60: HARD FAILURE
-        # 0.60–0.75: SEVERELY UNDERFILLED
-        # 0.75–0.85: UNDERFILLED
-        # 0.85–0.90: ENRICH IF SAFE
-        # 0.90–0.95: HEALTHY
-        # 0.95–0.98: DENSE
-        # > 0.98: OVERFLOW RISK
         if ratio < 0.60:
             density_band = "HARD_FAILURE"
             status = "hard_failure"
@@ -543,7 +545,7 @@ class ContentSplitter:
     """Splits long text, paragraphs, or code blocks cleanly at natural sentence/statement boundaries."""
 
     @staticmethod
-    def split_body_text(text: str, max_chars: int = 2000) -> Tuple[str, str]:
+    def split_body_text(text: str, max_chars: int = 2200) -> Tuple[str, str]:
         """Split text cleanly into two portions avoiding mid-sentence cuts."""
         if len(text) <= max_chars:
             return text, ""
@@ -577,90 +579,429 @@ class ContentSplitter:
         return part1, part2
 
 
+# =========================================================================
+# SEMANTIC COMPONENT SUB-SPLITTING UTILITIES
+# =========================================================================
+
+def split_table_block(table: TableBlock, max_rows: int) -> Tuple[TableBlock, TableBlock]:
+    """Split a TableBlock across pages, repeating columns/headers and adding '(Cont.)' caption."""
+    rows1 = table.rows[:max_rows]
+    rows2 = table.rows[max_rows:]
+    
+    t1 = TableBlock(
+        caption=table.caption,
+        columns=table.columns,
+        headers=table.headers,
+        header_icons=table.header_icons,
+        rows=rows1,
+        alignment=table.alignment,
+        icons=table.icons[:max_rows] if table.icons else None,
+        highlight_first_column=table.highlight_first_column,
+        source_note=None,
+    )
+    
+    t2_caption = f"{table.caption} (Cont.)" if table.caption else "Table (Cont.)"
+    t2 = TableBlock(
+        caption=t2_caption,
+        columns=table.columns,
+        headers=table.headers,
+        header_icons=table.header_icons,
+        rows=rows2,
+        alignment=table.alignment,
+        icons=table.icons[max_rows:] if table.icons else None,
+        highlight_first_column=table.highlight_first_column,
+        source_note=table.source_note,
+    )
+    return t1, t2
+
+
+def split_checklist_block(block: ChecklistBlock, max_items: int) -> Tuple[ChecklistBlock, ChecklistBlock]:
+    """Split a ChecklistBlock across pages."""
+    items1 = block.items[:max_items]
+    items2 = block.items[max_items:]
+    
+    b1 = ChecklistBlock(title=block.title, items=items1)
+    b2_title = f"{block.title} (Cont.)" if block.title else "Checklist (Cont.)"
+    b2 = ChecklistBlock(title=b2_title, items=items2)
+    return b1, b2
+
+
+def split_step_block(block: StepBlock, max_steps: int) -> Tuple[StepBlock, StepBlock]:
+    """Split a StepBlock across pages."""
+    steps1 = block.steps[:max_steps]
+    steps2 = block.steps[max_steps:]
+    
+    b1 = StepBlock(title=block.title, steps=steps1)
+    b2_title = f"{block.title} (Cont.)" if block.title else "Steps (Cont.)"
+    b2 = StepBlock(title=b2_title, steps=steps2)
+    return b1, b2
+
+
+def split_text_block(block: TextBlock, available_height_mm: float) -> Tuple[TextBlock, TextBlock]:
+    """Split a TextBlock cleanly across paragraph boundaries to fit available vertical space."""
+    paras = block.paragraphs or ([p for p in block.text.split("\n\n") if p.strip()] if "\n\n" in block.text else [block.text])
+    
+    if len(paras) > 1:
+        accum_h = 0.0
+        paras1: List[str] = []
+        paras2: List[str] = []
+        
+        for p in paras:
+            p_lines = max(1, len(p) // 65 + 1)
+            p_h = p_lines * 5.5 + 3.5
+            if accum_h + p_h <= available_height_mm or not paras1:
+                paras1.append(p)
+                accum_h += p_h
+            else:
+                paras2.append(p)
+                
+        b1 = TextBlock(
+            text="\n\n".join(paras1),
+            paragraphs=paras1,
+            typography_role=block.typography_role,
+        )
+        b2 = TextBlock(
+            text="\n\n".join(paras2),
+            paragraphs=paras2 if paras2 else None,
+            typography_role=block.typography_role,
+        )
+        return b1, b2
+    else:
+        max_chars = max(300, int(available_height_mm * 11))
+        t1, t2 = ContentSplitter.split_body_text(block.text, max_chars=max_chars)
+        b1 = TextBlock(text=t1, typography_role=block.typography_role)
+        b2 = TextBlock(text=t2, typography_role=block.typography_role)
+        return b1, b2
+
+
+def split_comparison_block(block: ComparisonBlock, max_items: int) -> Tuple[ComparisonBlock, ComparisonBlock]:
+    """Split a ComparisonBlock across pages if item lists are long."""
+    left1 = block.left_items[:max_items]
+    left2 = block.left_items[max_items:]
+    right1 = block.right_items[:max_items]
+    right2 = block.right_items[max_items:]
+    
+    b1 = ComparisonBlock(
+        title=block.title,
+        left_title=block.left_title,
+        left_items=left1,
+        right_title=block.right_title,
+        right_items=right1,
+        left_icon=block.left_icon,
+        right_icon=block.right_icon,
+    )
+    b2_title = f"{block.title} (Cont.)" if block.title else "Comparison (Cont.)"
+    b2 = ComparisonBlock(
+        title=b2_title,
+        left_title=block.left_title,
+        left_items=left2,
+        right_title=block.right_title,
+        right_items=right2,
+        left_icon=block.left_icon,
+        right_icon=block.right_icon,
+    )
+    return b1, b2
+
+
+# =========================================================================
+# DYNAMIC PAGE SPLITTING AND CONTINUATION CREATION
+# =========================================================================
+
+def find_safe_page_split(
+    page: Page,
+    max_height_mm: float = USABLE_PAGE_HEIGHT_MM,
+    target_ratio: float = 0.95,
+) -> Tuple[PageContent, PageContent]:
+    """Evaluate cumulative component heights and partition page content into safe fit and overflow portions.
+    
+    Returns (fit_content, overflow_content).
+    """
+    safe_limit_mm = max_height_mm * target_ratio
+    clean_hl = (page.content.headline or page.chapter_name or "Section")
+    clean_hl = re.sub(r"\s*\(Cont\.?\s*\d*\)", "", clean_hl).strip()
+
+    # 1. Handle Structured Blocks
+    if page.content and page.content.blocks:
+        total_block_h = 0.0
+        if page.content.headline:
+            total_block_h += 14.0
+        for b in page.content.blocks:
+            total_block_h += DensityEstimator.estimate_block_height_mm(b)
+
+        if total_block_h <= safe_limit_mm:
+            return page.content, PageContent()
+
+        current_h = 0.0
+        if page.content.headline:
+            current_h += 14.0
+
+        fit_blocks: List[ContentBlock] = []
+        overflow_blocks: List[ContentBlock] = []
+        has_overflowed = False
+
+        for idx, block in enumerate(page.content.blocks):
+            if has_overflowed:
+                overflow_blocks.append(block)
+                continue
+
+            b_h = DensityEstimator.estimate_block_height_mm(block)
+
+            if current_h + b_h <= safe_limit_mm:
+                fit_blocks.append(block)
+                current_h += b_h
+            else:
+                # Component exceeds remaining budget
+                rem_space = safe_limit_mm - current_h
+
+                # Attempt sub-splitting for multi-item components
+                sub_split_success = False
+
+                if isinstance(block, TableBlock) and len(block.rows) >= 4 and rem_space >= 35.0:
+                    row_h = 9.5
+                    fit_rows_count = int((rem_space - 18.0) // row_h)
+                    if 2 <= fit_rows_count < len(block.rows):
+                        t1, t2 = split_table_block(block, fit_rows_count)
+                        fit_blocks.append(t1)
+                        overflow_blocks.append(t2)
+                        has_overflowed = True
+                        sub_split_success = True
+
+                elif isinstance(block, ChecklistBlock) and len(block.items) >= 4 and rem_space >= 25.0:
+                    item_h = 7.0
+                    fit_items_count = int((rem_space - 10.0) // item_h)
+                    if 2 <= fit_items_count < len(block.items):
+                        c1, c2 = split_checklist_block(block, fit_items_count)
+                        fit_blocks.append(c1)
+                        overflow_blocks.append(c2)
+                        has_overflowed = True
+                        sub_split_success = True
+
+                elif isinstance(block, StepBlock) and len(block.steps) >= 4 and rem_space >= 35.0:
+                    step_h = 11.0
+                    fit_steps_count = int((rem_space - 12.0) // step_h)
+                    if 2 <= fit_steps_count < len(block.steps):
+                        s1, s2 = split_step_block(block, fit_steps_count)
+                        fit_blocks.append(s1)
+                        overflow_blocks.append(s2)
+                        has_overflowed = True
+                        sub_split_success = True
+
+                elif isinstance(block, TextBlock) and (len(getattr(block, "paragraphs", []) or []) > 1 or "\n\n" in block.text) and rem_space >= 25.0:
+                    txt1, txt2 = split_text_block(block, rem_space)
+                    if txt1.text and txt2.text:
+                        fit_blocks.append(txt1)
+                        overflow_blocks.append(txt2)
+                        has_overflowed = True
+                        sub_split_success = True
+
+                if not sub_split_success:
+                    if not fit_blocks:
+                        # Even the first block alone exceeds budget: force sub-split or keep first block
+                        if isinstance(block, TableBlock) and len(block.rows) >= 2:
+                            mid = max(1, len(block.rows) // 2)
+                            t1, t2 = split_table_block(block, mid)
+                            fit_blocks.append(t1)
+                            overflow_blocks.append(t2)
+                        elif isinstance(block, ChecklistBlock) and len(block.items) >= 2:
+                            mid = max(1, len(block.items) // 2)
+                            c1, c2 = split_checklist_block(block, mid)
+                            fit_blocks.append(c1)
+                            overflow_blocks.append(c2)
+                        elif isinstance(block, StepBlock) and len(block.steps) >= 2:
+                            mid = max(1, len(block.steps) // 2)
+                            s1, s2 = split_step_block(block, mid)
+                            fit_blocks.append(s1)
+                            overflow_blocks.append(s2)
+                        elif isinstance(block, TextBlock):
+                            txt1, txt2 = split_text_block(block, safe_limit_mm)
+                            fit_blocks.append(txt1)
+                            if txt2.text:
+                                overflow_blocks.append(txt2)
+                        else:
+                            fit_blocks.append(block)
+                    else:
+                        overflow_blocks.append(block)
+                    has_overflowed = True
+
+        fit_content = PageContent(
+            headline=page.content.headline,
+            blocks=fit_blocks,
+        )
+        overflow_content = PageContent(
+            headline=f"{clean_hl} (Cont.)",
+            blocks=overflow_blocks,
+        )
+        return fit_content, overflow_content
+
+    # 2. Fallback Prose Body
+    body = page.content.body or ""
+    part1, part2 = ContentSplitter.split_body_text(body, max_chars=2200)
+    
+    fit_content = PageContent(
+        headline=page.content.headline,
+        body=part1,
+    )
+    overflow_content = PageContent(
+        headline=f"{clean_hl} (Cont.)",
+        body=part2,
+        key_points=page.content.key_points,
+    )
+    return fit_content, overflow_content
+
+
+def create_continuation_page(
+    source_page: Page,
+    overflow_content: PageContent,
+    continuation_index: int = 1,
+) -> Page:
+    """Create a new physical continuation Page inheriting chapter metadata, theme, and style."""
+    clean_hl = (source_page.content.headline or source_page.chapter_name or "Section")
+    clean_hl = re.sub(r"\s*\(Cont\.?\s*\d*\)", "", clean_hl).strip()
+
+    if continuation_index > 1:
+        headline = f"{clean_hl} (Cont. {continuation_index})"
+    else:
+        headline = f"{clean_hl} (Cont.)"
+
+    overflow_content.headline = headline
+    style_copy = source_page.style.model_copy() if source_page.style else PageStyle()
+
+    continuation_page = Page(
+        id=generate_id(),
+        book_id=source_page.book_id,
+        page_number=source_page.page_number + 1,
+        page_type=source_page.page_type if source_page.page_type not in ("cover", "chapter_opener", "toc") else "chapter_content",
+        chapter_number=source_page.chapter_number,
+        chapter_name=source_page.chapter_name,
+        theme=source_page.theme,
+        layout=source_page.layout if source_page.layout not in ("cover", "chapter_opener", "toc") else LayoutType.EDITORIAL.value,
+        content=overflow_content,
+        style=style_copy,
+        sources=list(source_page.sources),
+        validation={
+            "repaired_overflow": True,
+            "is_continuation": True,
+            "continuation_index": continuation_index,
+            "parent_page_id": source_page.id,
+        },
+        previous_page_id=source_page.id,
+        next_page_id=source_page.next_page_id,
+    )
+    return continuation_page
+
+
+def regenerate_toc_pages(pages: List[Page], book_plan: Optional[Any] = None) -> List[Page]:
+    """Dynamically resolve and update Table of Contents physical starting page numbers."""
+    chapter_start_pages: dict[int, int] = {}
+    for p in pages:
+        p_type = getattr(p, "page_type", "") or p.layout
+        if (p_type == LayoutType.CHAPTER_OPENER.value or p.layout == LayoutType.CHAPTER_OPENER.value) and p.chapter_number is not None:
+            if p.chapter_number not in chapter_start_pages:
+                chapter_start_pages[p.chapter_number] = p.page_number
+        elif p.chapter_number is not None and p.chapter_number not in chapter_start_pages:
+            chapter_start_pages[p.chapter_number] = p.page_number
+
+    for p in pages:
+        p_type = getattr(p, "page_type", "") or p.layout
+        if p_type == LayoutType.TOC.value or p.layout == LayoutType.TOC.value:
+            if p.content and p.content.blocks:
+                for b in p.content.blocks:
+                    if isinstance(b, TocBlock) or getattr(b, "type", "") == "toc":
+                        entries = getattr(b, "entries", [])
+                        for entry in entries:
+                            ch_num = getattr(entry, "chapter_number", None)
+                            if ch_num in chapter_start_pages:
+                                entry.page_number = chapter_start_pages[ch_num]
+            elif p.content and getattr(p.content, "key_points", None):
+                updated_kp = []
+                for kp in p.content.key_points:
+                    m = re.match(r"(Chapter\s+(\d+):.*?)\s*\.{3,}\s*(\d+)", kp, re.IGNORECASE)
+                    if m:
+                        ch_prefix = m.group(1)
+                        ch_num = int(m.group(2))
+                        if ch_num in chapter_start_pages:
+                            resolved_pnum = chapter_start_pages[ch_num]
+                            updated_kp.append(f"{ch_prefix} ....... {resolved_pnum}")
+                        else:
+                            updated_kp.append(kp)
+                    else:
+                        updated_kp.append(kp)
+                p.content.key_points = updated_kp
+    return pages
+
+
 class PageRepairEngine:
-    """Applies controlled page splitting and re-links adjacent page pointers."""
+    """Dynamic page insertion and pagination engine for physical A4 layout constraints."""
 
     def __init__(self, detector: Optional[OverflowDetector] = None, splitter: Optional[ContentSplitter] = None):
         self.detector = detector or OverflowDetector()
         self.splitter = splitter or ContentSplitter()
 
     def repair_pages(self, pages: List[Page]) -> List[Page]:
-        """Inspect all pages in a book, splitting overflowing pages and updating graph links."""
+        """Inspect all pages in a book, dynamically inserting physical continuation pages when content overflows."""
         repaired_pages: List[Page] = []
+        pages_inserted_count = 0
 
         for page in pages:
+            # Dedicated full-page structural layouts are not split
+            p_type = getattr(page, "page_type", "") or page.layout
+            if p_type in ("cover", "chapter_opener", "copyright", "thank_you", "toc", "acknowledgement", "imprint"):
+                repaired_pages.append(page)
+                continue
+
+            # Check if this page overflows safe physical bounds
             if not self.detector.is_overflowing(page):
-                repaired_pages.append(page)
+                repaired_pages.append(page.model_copy(deep=True))
                 continue
 
-            # Check if page has structured blocks
-            if page.content and page.content.blocks and len(page.content.blocks) > 1:
-                # Split blocks across pages preserving atomic blocks
-                mid = len(page.content.blocks) // 2
-                blocks_1 = page.content.blocks[:mid]
-                blocks_2 = page.content.blocks[mid:]
+            # Dynamic pagination loop: split page recursively/iteratively until all fragments fit
+            curr_page = page.model_copy(deep=True)
+            continuation_idx = 1
 
-                page.content.blocks = blocks_1
-                page.validation["repaired_overflow"] = True
-                repaired_pages.append(page)
+            while self.detector.is_overflowing(curr_page):
+                fit_content, overflow_content = find_safe_page_split(curr_page)
 
-                continuation_page = Page(
-                    id=generate_id(),
-                    book_id=page.book_id,
-                    page_number=page.page_number + 1,
-                    page_type=page.page_type,
-                    chapter_number=page.chapter_number,
-                    chapter_name=page.chapter_name,
-                    theme=page.theme,
-                    layout=page.layout,
-                    content=PageContent(
-                        headline=f"{page.content.headline or 'Section'} (Cont.)",
-                        blocks=blocks_2,
-                    ),
-                    previous_page_id=page.id,
-                    next_page_id=page.next_page_id,
+                has_overflow = bool(overflow_content.blocks or (overflow_content.body and overflow_content.body.strip()))
+                if not has_overflow:
+                    break
+
+                curr_page.content = fit_content
+                curr_page.validation["repaired_overflow"] = True
+                curr_page.html = ""
+                repaired_pages.append(curr_page)
+                pages_inserted_count += 1
+
+                logger.info(
+                    f"[PAGINATION] Page {curr_page.page_number} ('{curr_page.content.headline}') exceeded safe A4 height -> "
+                    f"split at semantic boundary and created continuation physical page."
                 )
-                repaired_pages.append(continuation_page)
-                continue
 
-            # Controlled Repair: Split body content across two pages
-            body = page.content.body or ""
-            part1, part2 = self.splitter.split_body_text(body, max_chars=1800)
-
-            # Update first page
-            page.content.body = part1
-            if not page.content.blocks:
-                page.html = f"<p>{part1}</p>"
-            page.validation["repaired_overflow"] = True
-            repaired_pages.append(page)
-
-            if part2:
-                # Create continuation page
-                continuation_page = Page(
-                    id=generate_id(),
-                    book_id=page.book_id,
-                    page_number=page.page_number + 1,
-                    page_type=page.page_type,
-                    chapter_number=page.chapter_number,
-                    chapter_name=page.chapter_name,
-                    theme=page.theme,
-                    layout=page.layout,
-                    content=PageContent(
-                        headline=f"{page.content.headline or 'Section'} (Cont.)",
-                        body=part2,
-                        key_points=page.content.key_points,
-                    ),
-                    html=f"<p>{part2}</p>",
-                    previous_page_id=page.id,
-                    next_page_id=page.next_page_id,
+                continuation_page = create_continuation_page(
+                    source_page=curr_page,
+                    overflow_content=overflow_content,
+                    continuation_index=continuation_idx,
                 )
-                repaired_pages.append(continuation_page)
+                continuation_idx += 1
+                curr_page = continuation_page
 
-        # Re-number and re-link the entire chain sequentially
+            repaired_pages.append(curr_page)
+
+        # Re-number and re-link all physical pages sequentially
         for i, p in enumerate(repaired_pages):
             p.page_number = i + 1
             p.previous_page_id = repaired_pages[i - 1].id if i > 0 else None
             p.next_page_id = repaired_pages[i + 1].id if i < len(repaired_pages) - 1 else None
 
+        if pages_inserted_count > 0:
+            logger.info(
+                f"[PAGINATION SUMMARY] Dynamic pagination completed: {len(repaired_pages)} physical pages "
+                f"(original: {len(pages)}, inserted: {pages_inserted_count})"
+            )
+
         return repaired_pages
+
+
+# DynamicPaginator alias
+DynamicPaginator = PageRepairEngine
+
 

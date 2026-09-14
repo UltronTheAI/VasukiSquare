@@ -137,27 +137,41 @@ def preflight_page(page: Page, theme: Optional[SectionTheme] = None) -> PagePref
                 f"Table is within {remaining_space:.1f}mm of footer safe zone (recommended >= {MIN_FOOTER_BREATHING_GAP_MM:.1f}mm)."
             )
 
-    # 3. Utilization Target Verification (90-95% for normal pages)
-    if util.is_hard_fail:
-        errors.append(
-            f"Hard Fail: Page {page.page_number} content utilization ({util.estimated_ratio:.1%}) is below the critical quality threshold ({util.hard_fail_ratio:.1%})."
-        )
-    elif is_underfilled:
-        warnings.append(
-            f"Page underfilled: utilization is {util.estimated_ratio:.1%} (target min {util.target_min_ratio:.1%})."
-        )
-    elif util.estimated_ratio > 0.98:
-        is_overflow = True
-        errors.append(
-            f"Page overfilled: utilization is {util.estimated_ratio:.1%} (> 98.0% overflow threshold)."
-        )
-    elif util.estimated_ratio > 0.95:
-        warnings.append(
-            f"Page is dense: utilization is {util.estimated_ratio:.1%} (95.0-98.0% band)."
-        )
+    is_continuation = bool(getattr(page, "validation", {}).get("is_continuation") or (page.content and "(Cont" in (page.content.headline or "")))
 
-    # 4. Content Units Count Check (Must have at least 2 distinct educational components)
-    if util.content_units < 2:
+    # 3. Utilization Target Verification (90-95% for normal pages, flexible for continuation pages)
+    if is_continuation:
+        if util.estimated_ratio < 0.25:
+            errors.append(
+                f"Hard Fail: Continuation page {page.page_number} content utilization ({util.estimated_ratio:.1%}) is severely deficient (< 25.0%)."
+            )
+        elif util.estimated_ratio > 0.98:
+            is_overflow = True
+            errors.append(
+                f"Continuation page overfilled: utilization is {util.estimated_ratio:.1%} (> 98.0% overflow threshold)."
+            )
+    else:
+        if util.is_hard_fail:
+            errors.append(
+                f"Hard Fail: Page {page.page_number} content utilization ({util.estimated_ratio:.1%}) is below the critical quality threshold ({util.hard_fail_ratio:.1%})."
+            )
+        elif is_underfilled:
+            warnings.append(
+                f"Page underfilled: utilization is {util.estimated_ratio:.1%} (target min {util.target_min_ratio:.1%})."
+            )
+        elif util.estimated_ratio > 0.98:
+            is_overflow = True
+            errors.append(
+                f"Page overfilled: utilization is {util.estimated_ratio:.1%} (> 98.0% overflow threshold)."
+            )
+        elif util.estimated_ratio > 0.95:
+            warnings.append(
+                f"Page is dense: utilization is {util.estimated_ratio:.1%} (95.0-98.0% band)."
+            )
+
+    # 4. Content Units Count Check
+    min_units_required = 1 if is_continuation else 2
+    if util.content_units < min_units_required:
         errors.append(
             f"Page {page.page_number} is incomplete: contains only {util.content_units} educational content unit(s)."
         )

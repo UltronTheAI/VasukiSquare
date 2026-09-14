@@ -32,16 +32,33 @@ Every rendered page conforms strictly to the physical A4 print specification:
 
 ---
 
-## 3. Overflow Detection & Controlled Repair
+## 3. Dynamic Page Insertion & Semantic Overflow Pagination
 
-Instead of applying arbitrary CSS scaling or font-size shrinking when content exceeds page capacity, VasukiSquare uses a **Controlled Repair Engine**:
+Instead of shrinking font sizes, compressing spacing, clipping components, or dropping content, VasukiSquare decouples logical pages from physical pages using **Dynamic Page Insertion**:
 
-1. **Detection (`OverflowDetector`)**:
-   - Analyzes total character counts, paragraph density, and code line lengths against calibrated A4 page thresholds (`MAX_PAGE_CHARACTERS = 2800`).
-2. **Controlled Splitting (`ContentSplitter`)**:
-   - Splits overflowing paragraphs at sentence or natural paragraph boundaries.
-3. **Graph Repair (`PageRepairEngine`)**:
-   - Creates a continuation page (e.g. `Section (Cont.)`), inserts it into the page sequence, re-links `previous_page_id` and `next_page_id` bidirectional pointers, and re-indexes downstream page numbers.
+$$\text{Logical Content Page} \ne \text{Always One Physical Page}$$
+
+1. **Vertical Geometry & Safe Content Limits**:
+   - Usable safe content height: `CONTENT_SAFE_HEIGHT_MM = 215.0mm`
+   - Content target ratio: $0.85 - 0.95$ of safe usable height.
+   - Any content exceeding `CONTENT_SAFE_HEIGHT_MM` triggers dynamic page splitting.
+
+2. **Component-Level Semantic Splitting (`find_safe_page_split`)**:
+   - Partitions components at natural structural boundaries (between `TextBlock`, `CalloutBlock`, `ComparisonBlock`, `TableBlock`, `StepBlock`, etc.).
+   - Multi-item components sub-split cleanly when needed:
+     - `TableBlock`: splits rows with repeated column headers and `(Cont.)` caption.
+     - `ChecklistBlock`: splits items with continuous numbering.
+     - `StepBlock`: splits steps across pages with `(Cont.)` title.
+     - `TextBlock`: splits paragraphs without orphan sentences.
+
+3. **Recursive Continuation Page Generation (`create_continuation_page`)**:
+   - Continuation pages inherit chapter number, chapter title, theme, and layout styling.
+   - Headlines are cleanly suffixed: `"<Headline> (Cont.)"`, `"<Headline> (Cont. 2)"`, etc.
+   - If an inserted continuation page itself contains excess content, the pagination engine recursively splits it until all physical pages satisfy safe A4 height constraints.
+
+4. **Dynamic Table of Contents & Sequential Pointer Linking**:
+   - All physical pages in the book are re-indexed $1 \dots M$ with bidirectional MongoDB linked list pointers (`previous_page_id`, `next_page_id`).
+   - `regenerate_toc_pages` dynamically resolves the actual physical starting page numbers of all chapters and updates TOC entries automatically.
 
 ---
 

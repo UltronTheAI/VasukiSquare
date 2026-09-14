@@ -6,7 +6,12 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from vasukisquare.book.models import Page
 from vasukisquare.design.icons import IconColorResolver, render_lucide_icon, resolve_topic_decorative_icon
 from vasukisquare.renderer.components import ComponentRenderer
-from vasukisquare.renderer.overflow import PageRepairEngine, OverflowDetector, estimate_page_utilization
+from vasukisquare.renderer.overflow import (
+    PageRepairEngine,
+    OverflowDetector,
+    estimate_page_utilization,
+    regenerate_toc_pages,
+)
 
 
 class HtmlPageRenderer:
@@ -287,7 +292,11 @@ class HtmlPageRenderer:
         auto_repair: bool = True,
     ) -> str:
         """Assemble and render a sequence of pages into a single cohesive multi-page HTML document."""
-        processed_pages = self.repair_engine.repair_pages(pages) if auto_repair else pages
+        if auto_repair:
+            processed_pages = self.repair_engine.repair_pages(pages)
+            processed_pages = regenerate_toc_pages(processed_pages)
+        else:
+            processed_pages = pages
         template = self.env.get_template("book.html")
         calc_running_title = running_title or (book_title.split(":", 1)[0].strip() if ":" in book_title else book_title)
 
