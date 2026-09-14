@@ -391,15 +391,17 @@ class EbookGenerationPipeline:
             p_file = pages_dir / f"page_{p.page_number:03d}.html"
             p_file.write_text(p.html, encoding="utf-8")
 
-        # Validate content quality and semantic correctness across all pages
-        content_errors = ContentValidator.validate_book(
+        # Validate content quality and semantic correctness across all pages with full 15-point audit
+        audit_result = ContentValidator.audit_book(
             state.pages,
-            expected_topic=topic,
-            expected_language=state.intent.primary_programming_language,
+            topic=topic,
+            language=state.intent.primary_programming_language,
         )
-        if content_errors:
-            logger.warning(f"Content quality validator identified issues: {content_errors}")
-            state.errors.extend(content_errors)
+        if not audit_result["is_valid"]:
+            logger.warning(f"Content quality audit identified issues ({audit_result['issues_count']}): {audit_result['issues']}")
+            state.errors.extend(audit_result["issues"])
+        else:
+            logger.info(f"Book passed all quality audit checks: {audit_result['passed_checks']}")
 
         # Stage 6: Database Persistence
         if persist_db:

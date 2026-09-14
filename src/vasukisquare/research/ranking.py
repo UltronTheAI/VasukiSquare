@@ -36,11 +36,12 @@ AUTHORITY_DOMAIN_PATTERNS = [
     ".gov",
 ]
 
-# SEO / Consulting / Marketing domains that should not dictate outline or rank top
+# SEO / Consulting / Marketing domains or synthetic academic proceedings that should not dictate outline or rank top
 LOW_AUTHORITY_PATTERNS = [
     "uvik.net",
     "software.uvik",
     "clickbait",
+    "acm.org/publications/proceedings",
 ]
 
 
@@ -54,10 +55,23 @@ class SourceRanker:
         # Domain bonus
         domain_bonus = 0.0
         domain_lower = (doc.domain or "").lower()
+        url_lower = (doc.url or "").lower()
+        title_lower = (doc.title or "").lower()
+
         for pattern in AUTHORITY_DOMAIN_PATTERNS:
-            if pattern in domain_lower:
+            if pattern in domain_lower or pattern in url_lower:
                 domain_bonus = 0.15
                 break
+
+        # Penalty for low authority or synthetic proceedings
+        penalty = 0.0
+        for pattern in LOW_AUTHORITY_PATTERNS:
+            if pattern in domain_lower or pattern in url_lower:
+                penalty = 0.4
+                break
+
+        if "primary specification" in title_lower and "acm.org" in url_lower:
+            penalty = 0.5
 
         # Content length factor (penalize stub documents < 200 chars, reward rich docs)
         text_len = len(doc.extracted_text)
@@ -70,7 +84,7 @@ class SourceRanker:
         else:
             length_factor = 1.0
 
-        raw_score = (base_weight + domain_bonus) * length_factor
+        raw_score = (base_weight + domain_bonus - penalty) * length_factor
         return min(max(round(raw_score, 3), 0.1), 1.0)
 
     def rank(self, documents: List[SourceDocument]) -> List[SourceDocument]:

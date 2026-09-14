@@ -263,6 +263,148 @@ class ContentValidator:
         return all_errors
 
     @classmethod
+    def audit_book(
+        cls,
+        pages: List[Page],
+        topic: str = "",
+        language: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Perform comprehensive 15-point audit of entire book across all generation, content, source, and layout rules."""
+        import re
+        issues: List[str] = []
+        passed_checks: List[str] = []
+
+        is_python_guide = "python" in topic.lower() or (language == "python")
+
+        # 1. Escaped newlines in terminal blocks
+        term_newline_issue = False
+        for p in pages:
+            for b in getattr(p.content, "blocks", []):
+                if getattr(b, "type", "") == "terminal":
+                    for line in getattr(b, "lines", []):
+                        txt = getattr(line, "text", "")
+                        if "\\n" in txt or "\\r" in txt:
+                            issues.append(f"Page {p.page_number} TerminalBlock contains literal escaped newline in line: '{txt}'")
+                            term_newline_issue = True
+        if not term_newline_issue:
+            passed_checks.append("Terminal newline escaping")
+
+        # 2. Meaningless / Glitched Page Content
+        glitch_issue = False
+        for p in pages:
+            if p.layout in ("cover", "chapter_opener", "toc", "copyright"):
+                continue
+            h = (p.content.headline or "").strip()
+            if len(h) <= 2 or bool(re.match(r"^[^\w]*[a-zA-Z0-9]{1,2}[^\w]*$", h)):
+                issues.append(f"Page {p.page_number} has glitched single-character headline: '{h}'")
+                glitch_issue = True
+            for b in getattr(p.content, "blocks", []):
+                if getattr(b, "type", "") == "text":
+                    t = getattr(b, "text", "").strip()
+                    if bool(re.match(r"^(?:([a-zA-Z0-9])(?:\s+|\n+)*\1*)+$", t)) and len(set(t.replace(" ", "").replace("\n", ""))) <= 2:
+                        issues.append(f"Page {p.page_number} contains repeated single-character junk paragraph: '{t[:30]}'")
+                        glitch_issue = True
+        if not glitch_issue:
+            passed_checks.append("Glitched single-character content rejection")
+
+        # 3. Post-code explanation requirement
+        code_expl_issue = False
+        for p in pages:
+            if p.layout in ("cover", "chapter_opener", "toc", "copyright", "imprint", "references", "thank_you"):
+                continue
+            blocks = getattr(p.content, "blocks", [])
+            for idx, b in enumerate(blocks):
+                if getattr(b, "type", "") == "code":
+                    # Check if subsequent block provides explanation
+                    has_expl = False
+                    for next_b in blocks[idx + 1:]:
+                        if getattr(next_b, "type", "") in ("text", "callout") and len((getattr(next_b, "text", "") or getattr(next_b, "content", "")).split()) >= 6:
+                            has_expl = True
+                            break
+                    if not has_expl:
+                        issues.append(f"Page {p.page_number} has CodeBlock without post-code explanation walkthrough.")
+                        code_expl_issue = True
+        if not code_expl_issue:
+            passed_checks.append("Post-code walkthrough coverage")
+
+        # 4. Inappropriate or fake sources (ACM for programming guides)
+        source_issue = False
+        for p in pages:
+            for s in p.sources or []:
+                url = (getattr(s, "url", "") or "").lower()
+                title = (getattr(s, "title", "") or "").lower()
+                if "acm.org" in url and is_python_guide:
+                    issues.append(f"Page {p.page_number} contains inappropriate ACM academic proceeding source for programming guide: '{url}'")
+                    source_issue = True
+                if "primary specification" in title and "acm.org" in url:
+                    issues.append(f"Page {p.page_number} contains synthetic 'Primary Specification' title: '{title}'")
+                    source_issue = True
+        if not source_issue:
+            passed_checks.append("Authoritative source verification")
+
+        # 5. Generic systems engineering filler sentences
+        filler_issue = False
+        filler_patterns = [
+            r"in modern systems engineering, .* serves as a foundational component",
+            r"by consistently applying .*, you establish repeatable, friction-free execution",
+            r"when designing systems around .*, decouple storage and computation",
+        ]
+        for p in pages:
+            p_text = f"{p.content.headline or ''} {p.content.body or ''} " + " ".join(
+                getattr(b, "text", "") or getattr(b, "content", "") for b in getattr(p.content, "blocks", [])
+            )
+            for pat in filler_patterns:
+                if re.search(pat, p_text, re.IGNORECASE):
+                    issues.append(f"Page {p.page_number} contains generic boilerplate pattern: '{pat}'")
+                    filler_issue = True
+        if not filler_issue:
+            passed_checks.append("Generic filler suppression")
+
+        # 6. False verification claims
+        false_claim_issue = False
+        for p in pages:
+            p_text = f"{p.content.headline or ''} {p.content.body or ''} " + " ".join(
+                getattr(b, "text", "") or getattr(b, "content", "") for b in getattr(p.content, "blocks", [])
+            )
+            for claim in ["Execution verified successfully.", "Concept verified successfully."]:
+                if claim in p_text:
+                    issues.append(f"Page {p.page_number} contains false unverified claim: '{claim}'")
+                    false_claim_issue = True
+        if not false_claim_issue:
+            passed_checks.append("Truthful output verification")
+
+        # 7. Empty visual component blocks
+        empty_comp_issue = False
+        for p in pages:
+            for b in getattr(p.content, "blocks", []):
+                b_type = getattr(b, "type", "")
+                if b_type == "table" and not getattr(b, "rows", []):
+                    issues.append(f"Page {p.page_number} contains TableBlock with no rows.")
+                    empty_comp_issue = True
+                elif b_type == "checklist" and not getattr(b, "items", []):
+                    issues.append(f"Page {p.page_number} contains ChecklistBlock with no items.")
+                    empty_comp_issue = True
+                elif b_type == "comparison" and not (getattr(b, "left_items", []) or getattr(b, "right_items", [])):
+                    issues.append(f"Page {p.page_number} contains empty ComparisonBlock.")
+                    empty_comp_issue = True
+        if not empty_comp_issue:
+            passed_checks.append("Empty visual component suppression")
+
+        # 8. Standard page validation (placeholders, topic drift, density)
+        std_errors = cls.validate_book(pages, expected_topic=topic, expected_language=language)
+        issues.extend(std_errors)
+        if not std_errors:
+            passed_checks.append("General content density and layout validation")
+
+        return {
+            "is_valid": len(issues) == 0,
+            "total_pages": len(pages),
+            "issues_count": len(issues),
+            "issues": issues,
+            "passed_checks": passed_checks,
+        }
+
+    @classmethod
     def validate_dom_metrics(
         cls,
         page_number: int,

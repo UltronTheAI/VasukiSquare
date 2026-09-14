@@ -12,6 +12,15 @@ from vasukisquare.book.layout import TechnicalPageSpec, TechnicalPageType, PAGE_
 logger = logging.getLogger(__name__)
 
 
+class ValidationResult(BaseModel):
+    """Result of evaluating generated technical section/page quality and integrity."""
+
+    valid: bool = Field(default=True, description="Whether section satisfies quality and correctness criteria")
+    score: float = Field(default=1.0, description="Quality score between 0.0 and 1.0")
+    reasons: List[str] = Field(default_factory=list, description="Specific quality issues detected")
+    fields_to_regenerate: List[str] = Field(default_factory=list, description="Fields recommended for regeneration")
+
+
 class ContentValidationResult(BaseModel):
     """Result of evaluating generated page content density and completeness."""
 
@@ -81,6 +90,9 @@ GENERIC_BOILERPLATE_PATTERNS = [
     r"When implementing .*, software engineers must balance runtime execution throughput",
     r"The architecture of .* requires evaluating trade-offs between",
     r"In modern software engineering, .* is an essential paradigm that",
+    r"In modern systems engineering, .* serves as a foundational component for robust",
+    r"By consistently applying .*, you establish repeatable, friction-free execution",
+    r"When designing systems around .*, decouple storage and computation",
 ]
 
 
@@ -101,10 +113,10 @@ MEDIAWIKI_ARTIFACT_PATTERNS = [
 
 def validate_terminal_command(command: str) -> bool:
     """Validate that command contains real shell/CLI commands and not conversational prose."""
-    if not command or not command.strip():
+    if not command or not str(command).strip():
         return False
 
-    clean = command.strip()
+    clean = str(command).strip().replace("\r\n", "\n").replace("\r", "\n").replace("\\n", "\n")
     clean_lower = clean.lower()
 
     # Reject if it starts with obvious prose introductions
@@ -149,10 +161,10 @@ def validate_terminal_command(command: str) -> bool:
 
 def validate_code_block(code: str, language: str = "python") -> bool:
     """Validate that code contains actual source code and not English prose, with AST verification for Python."""
-    if not code or not code.strip():
+    if not code or not str(code).strip():
         return False
 
-    clean = code.strip()
+    clean = str(code).strip().replace("\r\n", "\n").replace("\r", "\n").replace("\\n", "\n")
     clean_lower = clean.lower()
 
     # Reject prose introductions
@@ -188,6 +200,155 @@ def validate_code_block(code: str, language: str = "python") -> bool:
         return False
 
     return matches >= 1 or (has_assignment and has_brackets)
+
+
+def validate_generated_section(
+    section: Any,
+    chapter_context: Optional[str] = None,
+    topic: Optional[str] = None,
+    primary_language: str = "python",
+) -> ValidationResult:
+    """Validate generated section or page against glitched tokens, filler, topic mismatch, and code explanation rules."""
+    reasons: List[str] = []
+    fields_to_regenerate: List[str] = []
+    penalty = 0.0
+
+    def get_val(key: str, default: Any = "") -> Any:
+        if isinstance(section, dict):
+            return section.get(key, default)
+        return getattr(section, key, default)
+
+    title = str(get_val("headline") or get_val("title") or "").strip()
+    lead = str(get_val("lead_paragraph") or get_val("explanation") or get_val("body") or "").strip()
+    sec_para = str(get_val("secondary_paragraph") or "").strip()
+    code = str(get_val("code_snippet") or get_val("code") or "").strip()
+    code_expl = str(get_val("code_explanation") or get_val("explanation_after") or "").strip()
+    term_cmd = str(get_val("terminal_command") or "").strip()
+    callout_txt = str(get_val("callout_text") or get_val("content") or "").strip()
+
+    # 1. Title checks (1-2 meaningless chars, junk tokens)
+    if not title:
+        reasons.append("Title is missing or empty.")
+        fields_to_regenerate.append("headline")
+        penalty += 0.4
+    elif len(title) <= 2 or bool(re.match(r"^[^\w]*[a-zA-Z0-9]{1,2}[^\w]*$", title)):
+        reasons.append(f"Title is only 1-2 meaningless characters: '{title}'.")
+        fields_to_regenerate.append("headline")
+        penalty += 0.6
+    elif bool(re.match(r"^(?:(.)\1*)$", title)) and len(title) > 1:
+        reasons.append(f"Title contains repeated junk character: '{title}'.")
+        fields_to_regenerate.append("headline")
+        penalty += 0.6
+
+    # 2. Paragraph checks (1 char or repeated junk like 'r\nr\nr' or 'x x x')
+    if not lead and not sec_para:
+        reasons.append("Core explanatory paragraph is missing or empty.")
+        fields_to_regenerate.append("lead_paragraph")
+        penalty += 0.4
+    else:
+        lead_norm = re.sub(r"\s+", " ", lead).strip()
+        if len(lead_norm) <= 3:
+            reasons.append(f"Paragraph is only 1-3 characters: '{lead}'.")
+            fields_to_regenerate.append("lead_paragraph")
+            penalty += 0.6
+        elif bool(re.match(r"^(?:([a-zA-Z0-9])(?:\s+|\n+)*\1*)+$", lead)) and len(set(lead.replace(" ", "").replace("\n", ""))) <= 2:
+            reasons.append(f"Paragraph consists of repeated single-character junk: '{lead[:30]}'.")
+            fields_to_regenerate.append("lead_paragraph")
+            penalty += 0.7
+
+    # 3. Generation residue and placeholder tokens
+    full_text_corpus = f"{title} {lead} {sec_para} {code_expl} {callout_txt}".lower()
+    junk_patterns = [
+        r"\b\[todo\]\b", r"\b\[placeholder\]\b", r"\binsert text\b", r"\bsample text\b",
+        r"\blorem ipsum\b", r"\bundefined\b", r"\bnull\b", r"\{\{.*?\}\}"
+    ]
+    for pat in junk_patterns:
+        if re.search(pat, full_text_corpus):
+            reasons.append(f"Content contains generation residue matching '{pat}'.")
+            fields_to_regenerate.append("lead_paragraph")
+            penalty += 0.4
+
+    # 4. Check for generic filler patterns
+    filler_patterns = [
+        r"in modern systems engineering, .* serves as a foundational component",
+        r"by consistently applying .*, you establish repeatable, friction-free execution",
+        r"when designing systems around .*, decouple storage and computation",
+    ]
+    for pat in filler_patterns:
+        if re.search(pat, full_text_corpus):
+            reasons.append("Content contains generic systems-engineering filler paragraph.")
+            fields_to_regenerate.append("lead_paragraph")
+            penalty += 0.3
+
+    # 5. Code block validation & post-code explanation requirement
+    if code:
+        is_code_valid = validate_code_block(code, primary_language)
+        if not is_code_valid:
+            reasons.append(f"Code block contains conversational prose or syntax error instead of valid {primary_language} code.")
+            fields_to_regenerate.append("code_snippet")
+            penalty += 0.4
+
+        # Check post-code explanation
+        has_post_expl = bool(code_expl and len(code_expl.split()) >= 8)
+        if not has_post_expl and hasattr(section, "blocks"):
+            saw_code = False
+            for b in getattr(section, "blocks", []):
+                if getattr(b, "type", "") == "code":
+                    saw_code = True
+                elif saw_code and getattr(b, "type", "") in ("text", "callout", "output"):
+                    txt = getattr(b, "text", "") or getattr(b, "content", "") or ""
+                    if len(txt.split()) >= 8:
+                        has_post_expl = True
+                        break
+
+        if not has_post_expl:
+            reasons.append("Code example lacks an explanation after the code block explaining how it works.")
+            fields_to_regenerate.append("code_explanation")
+            penalty += 0.3
+
+    # 6. Terminal command validation
+    if term_cmd:
+        if not validate_terminal_command(term_cmd):
+            reasons.append(f"Terminal block contains conversational prose instead of valid shell command: '{term_cmd[:50]}'.")
+            fields_to_regenerate.append("terminal_command")
+            penalty += 0.3
+
+    # 7. Semantic topic relevance
+    combined_topic = f"{topic or ''} {chapter_context or ''}".lower().strip()
+    if combined_topic and len(combined_topic) > 3:
+        stop_words = {"with", "from", "into", "your", "this", "that", "about", "using", "guide", "overview", "introduction", "chapter", "section"}
+        topic_words = [w for w in re.findall(r"\b[a-zA-Z]{3,}\b", combined_topic) if w not in stop_words]
+        if topic_words:
+            has_overlap = any(tw in full_text_corpus for tw in topic_words)
+            if not has_overlap:
+                reasons.append(f"Content lacks semantic relevance to the section topic '{combined_topic}'.")
+                fields_to_regenerate.append("lead_paragraph")
+                penalty += 0.4
+
+    # 8. Minimum word count check (for content sections)
+    words = len(re.findall(r"\b\w+\b", full_text_corpus))
+    if words < 30 and not code:
+        reasons.append(f"Section has fewer than minimum useful words ({words} < 30 words).")
+        fields_to_regenerate.append("lead_paragraph")
+        penalty += 0.4
+
+    score = max(0.0, min(1.0, 1.0 - penalty))
+    is_hard_fail = any(
+        "1-2 meaningless" in r
+        or "repeated single-character" in r
+        or "generation residue" in r
+        or "Code example lacks an explanation" in r
+        or "lacks semantic relevance" in r
+        for r in reasons
+    )
+    valid = len(reasons) == 0 or (score >= 0.75 and not is_hard_fail)
+
+    return ValidationResult(
+        valid=valid,
+        score=round(score, 2),
+        reasons=reasons,
+        fields_to_regenerate=list(set(fields_to_regenerate)),
+    )
 
 
 def detect_topic_drift(text: str, primary_subject: str, is_beginner: bool = False) -> List[str]:

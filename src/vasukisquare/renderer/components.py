@@ -53,6 +53,20 @@ from vasukisquare.renderer.url_normalizer import UrlNormalizer
 logger = logging.getLogger(__name__)
 
 
+def normalize_preformatted_text(text: Optional[str]) -> str:
+    """Normalize literal escaped line breaks, CRLF, tabs, and double-escaped artifacts in preformatted content."""
+    if not text:
+        return ""
+    s = str(text).replace("\r\n", "\n").replace("\r", "\n")
+    if "\\r\\n" in s:
+        s = s.replace("\\r\\n", "\n")
+    if "\\n" in s:
+        s = s.replace("\\n", "\n")
+    if "\\t" in s:
+        s = s.replace("\\t", "    ")
+    return s
+
+
 class ComponentRenderer:
     """Renders structured technical content components into deterministic, high-contrast HTML."""
 
@@ -174,6 +188,9 @@ class ComponentRenderer:
     @classmethod
     def render_code(cls, block: CodeBlock, theme: Theme = Theme.LIGHT) -> str:
         """Render colorful syntax-highlighted code block with language badge, optional filename, and caption."""
+        if not block.code or not str(block.code).strip():
+            return ""
+        normalized_code = normalize_preformatted_text(block.code)
         lang = (block.language or "text").lower().strip()
         try:
             lexer = get_lexer_by_name(lang, stripall=True)
@@ -181,7 +198,7 @@ class ComponentRenderer:
             lexer = TextLexer()
 
         formatter = HtmlFormatter(nowrap=True, classprefix="hl-", linenos=block.line_numbers)
-        highlighted_code = highlight(block.code, lexer, formatter)
+        highlighted_code = highlight(normalized_code, lexer, formatter)
 
         filename_badge = f'<span class="code-filename">{html.escape(block.filename)}</span>' if block.filename else ""
         lang_badge = f'<span class="code-lang-badge">{html.escape(lang.upper())}</span>'
@@ -207,7 +224,10 @@ class ComponentRenderer:
     @classmethod
     def render_output(cls, block: OutputBlock, theme: Theme = Theme.LIGHT) -> str:
         """Render dedicated console output block with distinct monospace output formatting."""
-        escaped_out = html.escape(block.output.strip())
+        if not block.output or not str(block.output).strip():
+            return ""
+        normalized_out = normalize_preformatted_text(block.output).strip()
+        escaped_out = html.escape(normalized_out)
         title_badge = f'<span class="output-title-badge">{html.escape(block.title or "OUTPUT")}</span>'
         caption_html = (
             f'<figcaption class="output-caption" style="font-size: 11px; color: var(--theme-text-muted); margin-top: 4px;">{RichTextRenderer.render_text_or_markdown(block.caption)}</figcaption>'
@@ -229,14 +249,16 @@ class ComponentRenderer:
     @classmethod
     def render_mistake(cls, block: CommonMistakeBlock, theme: Theme = Theme.LIGHT) -> str:
         """Render labeled common beginner mistake comparison block with incorrect vs corrected code."""
+        if not (block.mistake_code or "").strip() and not (block.corrected_code or "").strip():
+            return ""
         lang = (block.language or "python").lower().strip()
         try:
             lexer = get_lexer_by_name(lang, stripall=True)
         except Exception:
             lexer = TextLexer()
         formatter = HtmlFormatter(nowrap=True, classprefix="hl-", linenos=False)
-        hl_wrong = highlight(block.mistake_code, lexer, formatter)
-        hl_fixed = highlight(block.corrected_code, lexer, formatter) if block.corrected_code else ""
+        hl_wrong = highlight(normalize_preformatted_text(block.mistake_code), lexer, formatter) if block.mistake_code else ""
+        hl_fixed = highlight(normalize_preformatted_text(block.corrected_code), lexer, formatter) if block.corrected_code else ""
 
         fixed_block_html = ""
         if block.corrected_code:
@@ -253,7 +275,7 @@ class ComponentRenderer:
         return f"""
         <div class="component-mistake-card theme-{theme.value}" style="border: 1px solid rgba(239, 68, 68, 0.35); border-radius: 6px; padding: 12px 14px; margin: 10px 0; background: rgba(239, 68, 68, 0.03);">
           <div class="mistake-header" style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 13px; color: #dc2626; margin-bottom: 8px;">
-            <span>⚠️ {html.escape(block.title)}</span>
+            <span>⚠️ {html.escape(block.title or 'Common Pitfall')}</span>
             {err_badge}
           </div>
           <div class="mistake-wrong" style="border-left: 3px solid #dc2626; padding: 6px 10px; background: rgba(239, 68, 68, 0.06); margin-bottom: 8px;">
@@ -271,44 +293,58 @@ class ComponentRenderer:
     def render_terminal(cls, block: TerminalBlock, theme: Theme = Theme.LIGHT) -> str:
         """Render dedicated editorial terminal/console block with semantic colored lines."""
         lines_html = []
-        for line in block.lines:
+        for line in (block.lines or []):
             if isinstance(line, TerminalLine):
                 kind = line.kind
-                txt = html.escape(line.text)
-                prompt = html.escape(line.prompt or ("$ " if kind == "command" else ""))
-                if kind == "command":
-                    lines_html.append(f'<div class="terminal-line is-command"><span class="terminal-prompt">{prompt}</span><span class="terminal-cmd">{txt}</span></div>')
-                elif kind in ("stdout", "output"):
-                    lines_html.append(f'<div class="terminal-line is-stdout">{txt}</div>')
-                elif kind == "success":
-                    lines_html.append(f'<div class="terminal-line is-success">{txt}</div>')
-                elif kind == "warning":
-                    lines_html.append(f'<div class="terminal-line is-warning">{txt}</div>')
-                elif kind == "error":
-                    lines_html.append(f'<div class="terminal-line is-error">{txt}</div>')
-                elif kind == "comment":
-                    lines_html.append(f'<div class="terminal-line is-comment">{txt}</div>')
+                raw_text = normalize_preformatted_text(line.text)
+                sub_lines = raw_text.split("\n")
+                prompt_str = line.prompt or ("$ " if kind == "command" else "")
+                
+                for idx, sub in enumerate(sub_lines):
+                    txt = html.escape(sub)
+                    prompt = html.escape(prompt_str if idx == 0 else ("  " if prompt_str else ""))
+                    if kind == "command":
+                        lines_html.append(f'<div class="terminal-line is-command"><span class="terminal-prompt">{prompt}</span><span class="terminal-cmd">{txt}</span></div>')
+                    elif kind in ("stdout", "output"):
+                        lines_html.append(f'<div class="terminal-line is-stdout">{txt}</div>')
+                    elif kind == "success":
+                        lines_html.append(f'<div class="terminal-line is-success">{txt}</div>')
+                    elif kind == "warning":
+                        lines_html.append(f'<div class="terminal-line is-warning">{txt}</div>')
+                    elif kind == "error":
+                        lines_html.append(f'<div class="terminal-line is-error">{txt}</div>')
+                    elif kind == "comment":
+                        lines_html.append(f'<div class="terminal-line is-comment">{txt}</div>')
+                    else:
+                        lines_html.append(f'<div class="terminal-line is-stdout">{txt}</div>')
             else:
-                raw = str(line).strip()
-                if raw.startswith("$ ") or raw.startswith("# "):
-                    prefix = raw[:2]
-                    cmd = raw[2:]
-                    lines_html.append(
-                        f'<div class="terminal-line is-command"><span class="terminal-prompt">{html.escape(prefix)}</span><span class="terminal-cmd">{html.escape(cmd)}</span></div>'
-                    )
-                elif raw.startswith("[error]") or raw.startswith("Error:") or "FAILED" in raw:
-                    lines_html.append(f'<div class="terminal-line is-error">{html.escape(raw)}</div>')
-                elif raw.startswith("[warning]") or raw.startswith("Warning:"):
-                    lines_html.append(f'<div class="terminal-line is-warning">{html.escape(raw)}</div>')
-                elif raw.startswith("[success]") or raw.startswith("✓") or "SUCCESS" in raw:
-                    lines_html.append(f'<div class="terminal-line is-success">{html.escape(raw)}</div>')
-                elif raw.startswith("//") or raw.startswith("#") or raw.startswith("/*"):
-                    lines_html.append(f'<div class="terminal-line is-comment">{html.escape(raw)}</div>')
-                else:
-                    lines_html.append(f'<div class="terminal-line is-stdout">{html.escape(raw)}</div>')
+                raw_norm = normalize_preformatted_text(str(line))
+                for raw in raw_norm.split("\n"):
+                    raw_stripped = raw.strip()
+                    if not raw_stripped:
+                        continue
+                    if raw_stripped.startswith("$ ") or raw_stripped.startswith("# "):
+                        prefix = raw_stripped[:2]
+                        cmd = raw_stripped[2:]
+                        lines_html.append(
+                            f'<div class="terminal-line is-command"><span class="terminal-prompt">{html.escape(prefix)}</span><span class="terminal-cmd">{html.escape(cmd)}</span></div>'
+                        )
+                    elif raw_stripped.startswith("[error]") or raw_stripped.startswith("Error:") or "FAILED" in raw_stripped:
+                        lines_html.append(f'<div class="terminal-line is-error">{html.escape(raw_stripped)}</div>')
+                    elif raw_stripped.startswith("[warning]") or raw_stripped.startswith("Warning:"):
+                        lines_html.append(f'<div class="terminal-line is-warning">{html.escape(raw_stripped)}</div>')
+                    elif raw_stripped.startswith("[success]") or raw_stripped.startswith("✓") or "SUCCESS" in raw_stripped:
+                        lines_html.append(f'<div class="terminal-line is-success">{html.escape(raw_stripped)}</div>')
+                    elif raw_stripped.startswith("//") or raw_stripped.startswith("#") or raw_stripped.startswith("/*"):
+                        lines_html.append(f'<div class="terminal-line is-comment">{html.escape(raw_stripped)}</div>')
+                    else:
+                        lines_html.append(f'<div class="terminal-line is-stdout">{html.escape(raw_stripped)}</div>')
 
-        shell_label = f'<span class="terminal-shell">{html.escape(block.shell.upper())}</span>'
-        title_label = f'<span class="terminal-title">{html.escape(block.title)}</span>'
+        if not lines_html:
+            return ""
+
+        shell_label = f'<span class="terminal-shell">{html.escape((block.shell or "bash").upper())}</span>'
+        title_label = f'<span class="terminal-title">{html.escape(block.title or "Terminal Session")}</span>'
 
         return f"""
         <div class="component-terminal-window theme-{theme.value}">
@@ -330,6 +366,8 @@ class ComponentRenderer:
     @classmethod
     def render_table(cls, block: TableBlock, theme: Theme = Theme.LIGHT) -> str:
         """Render high-contrast, structured A4 table with rich cell formatting and optional icons."""
+        if not block.columns or not block.rows:
+            return ""
         caption_html = (
             f'<caption class="table-caption">{RichTextRenderer.render_text_or_markdown(block.caption)}</caption>'
             if block.caption
@@ -426,6 +464,8 @@ class ComponentRenderer:
     @classmethod
     def render_callout(cls, block: CalloutBlock, theme: Theme = Theme.LIGHT) -> str:
         """Render semantic callout box (note, important, warning, tip, definition) with Lucide icon and rich text."""
+        if not block.content or not str(block.content).strip():
+            return ""
         icon_map = {
             "note": "info",
             "important": "alert-triangle",

@@ -53,6 +53,8 @@ from vasukisquare.book.components import (
 from vasukisquare.agents.content_validator import (
     validate_terminal_command,
     validate_code_block,
+    validate_generated_section,
+    ValidationResult,
 )
 from vasukisquare.research.models import ResearchCorpus
 from vasukisquare.llm.client import LLMClient, GroqGenerationError
@@ -69,6 +71,9 @@ class LLMGeneratedPage(BaseModel):
     code_language: Optional[str] = Field(default="python", description="Programming language")
     code_filename: Optional[str] = Field(default=None, description="Filename for code listing")
     code_caption: Optional[str] = Field(default=None, description="Caption for code listing")
+    code_explanation: Optional[str] = Field(default=None, description="2-5 concise paragraphs or bullets explaining what the code does, key lines, and how it relates to the topic")
+    expected_output: Optional[str] = Field(default=None, description="Expected console output produced when executing the code example")
+    why_it_matters: Optional[str] = Field(default=None, description="Why this pattern is useful or common beginner mistake to avoid")
     terminal_title: Optional[str] = Field(default=None, description="Terminal window title")
     terminal_command: Optional[str] = Field(default=None, description="Terminal shell command")
     callout_title: Optional[str] = Field(default=None, description="Callout title")
@@ -374,17 +379,24 @@ def repair_underfilled_page(
                         )
 
                 if pass_idx == 0:
-                    explanation = (
-                        f"In modern systems engineering, {headline} serves as a foundational component for robust, deterministic execution. "
-                        "By structuring data transformations and controlling execution flow with explicit contracts, developers eliminate entire "
-                        "classes of edge-case bugs while improving observability across distributed architectures."
-                    )
+                    if is_python:
+                        explanation = (
+                            f"Understanding **{headline}** allows you to write cleaner, more idiomatic Python. "
+                            "By applying structured syntax and adhering to standard conventions, your code becomes "
+                            "significantly easier to read, test, and maintain across real-world projects."
+                        )
+                    else:
+                        explanation = (
+                            f"Mastering **{headline}** provides a solid foundation in {primary_subject}. "
+                            "Focusing on core syntax, modular organization, and clear execution patterns prevents common runtime errors "
+                            "and builds practical confidence."
+                        )
                     candidates.append(TextBlock(text=explanation))
                     if not has_callout:
                         candidates.append(
                             CalloutBlock(
-                                title="Architectural Best Practice",
-                                content=f"When designing systems around {headline}, decouple storage and computation to enable independent scaling and simplify unit testing.",
+                                title="Best Practice",
+                                content=f"When working with {headline}, test small inputs interactively to verify expected behavior before integrating into larger modules.",
                                 variant="tip",
                                 icon="lightbulb",
                             )
@@ -394,7 +406,7 @@ def repair_underfilled_page(
                         candidates.append(
                             CalloutBlock(
                                 title="Practical Tip",
-                                content=f"When applying {headline}, verify your inputs and test small edge cases early to prevent runtime exceptions.",
+                                content=f"When applying {headline}, verify your inputs and test edge cases early to prevent runtime exceptions.",
                                 variant="tip",
                                 icon="lightbulb",
                             )
@@ -402,11 +414,11 @@ def repair_underfilled_page(
                     if not has_checklist:
                         candidates.append(
                             ChecklistBlock(
-                                title=f"Verification & Best Practices for {headline}",
+                                title=f"Key Takeaways: {headline}",
                                 items=[
-                                    "Validate input invariants and boundary conditions prior to processing.",
-                                    "Enforce strict typing and runtime assertion checks across module boundaries.",
-                                    "Instrument telemetry and error logging for production diagnostics.",
+                                    f"Verify variable scope and input parameters when working with {headline}.",
+                                    "Follow PEP 8 formatting standards for consistent readability.",
+                                    "Handle potential boundary conditions and exceptions gracefully.",
                                 ],
                             )
                         )
@@ -417,19 +429,19 @@ def repair_underfilled_page(
                                 title=f"Practice Challenge: {headline}",
                                 objective=f"Implement and verify {headline} with executable code.",
                                 instructions=[
-                                    f"Write a short function that applies {headline} to process structured records.",
-                                    "Write a unit test verifying expected boundary conditions.",
+                                    f"Write a short script or function demonstrating {headline}.",
+                                    "Run the code and inspect the output to confirm it behaves as expected.",
                                 ],
                             )
                         )
                     elif not has_comparison:
                         candidates.append(
                             ComparisonBlock(
-                                title=f"Trade-off Analysis: {headline}",
-                                left_title="Recommended Approach",
-                                right_title="Anti-Pattern",
-                                left_items=["Explicit contract boundaries", "Zero-copy memory allocations", "Deterministic recovery"],
-                                right_items=["Implicit global mutable state", "Unbounded buffer growth", "Silent failure swallowing"],
+                                title=f"Pattern Comparison: {headline}",
+                                left_title="Recommended Pattern",
+                                right_title="Common Pitfall",
+                                left_items=["Clear, explicit variable and function names", "Defensive error handling with context managers", "Modular and testable logic"],
+                                right_items=["Implicit assumptions and unhandled exceptions", "Hardcoded magic values", "Monolithic unstructured scripts"],
                             )
                         )
 
@@ -444,7 +456,7 @@ def repair_underfilled_page(
             else:
                 # If large candidate overflows, try a compact summary block instead
                 fallback_block = TextBlock(
-                    text=f"By consistently applying **{headline}**, you establish repeatable, friction-free execution that compounds into permanent long-term results."
+                    text=f"Consistent practice with **{headline}** reinforces strong foundational habits for writing reliable {primary_subject} programs."
                 )
                 test_fb_blocks = list(blocks) + [fallback_block]
                 fb_util = estimate_page_utilization(PageContent(headline=headline, blocks=test_fb_blocks), page_type=spec.page_type.value, publication_profile=profile)
@@ -923,16 +935,18 @@ class PageWriterAgent:
 
         # 2. Terminal Block (Technical books only)
         if is_tech and res.terminal_command and validate_terminal_command(res.terminal_command):
-            blocks.append(
-                TerminalBlock(
-                    title=res.terminal_title or "Terminal Session",
-                    shell="bash",
-                    lines=[
-                        TerminalLine(kind="command", text=res.terminal_command.strip()),
-                        TerminalLine(kind="output", text="Execution verified successfully."),
-                    ],
+            # Normalize escaped newlines and split into individual command lines
+            clean_cmd = res.terminal_command.replace("\r\n", "\n").replace("\r", "\n").replace("\\n", "\n")
+            cmd_lines = [c.strip() for c in clean_cmd.split("\n") if c.strip()]
+            term_lines = [TerminalLine(kind="command", text=c) for c in cmd_lines]
+            if term_lines:
+                blocks.append(
+                    TerminalBlock(
+                        title=res.terminal_title or "Terminal Session",
+                        shell="bash",
+                        lines=term_lines,
+                    )
                 )
-            )
 
         # 3. Visual Anchor Blocks
         anchor = p.visual_anchor or VisualAnchorType.TEXT
@@ -948,64 +962,81 @@ class PageWriterAgent:
                     line_numbers=True,
                 )
             )
+            # Add Expected Output Block if provided
+            if res.expected_output and res.expected_output.strip():
+                blocks.append(
+                    OutputBlock(
+                        title="Expected Console Output",
+                        content=res.expected_output.strip(),
+                    )
+                )
+            # Add Post-Code Explanation
+            if res.code_explanation and res.code_explanation.strip():
+                blocks.append(TextBlock(text=res.code_explanation.strip()))
 
         if res.checklist_items:
-            blocks.append(
-                ChecklistBlock(
-                    title=res.checklist_title or f"Key Practices: {p.brief}",
-                    items=[item for item in res.checklist_items if item][:4],
+            valid_items = [item.strip() for item in res.checklist_items if item and item.strip()]
+            if valid_items:
+                blocks.append(
+                    ChecklistBlock(
+                        title=res.checklist_title or f"Key Practices: {p.brief}",
+                        items=valid_items[:4],
+                    )
                 )
-            )
 
         if res.comparison_left_items and res.comparison_right_items:
-            blocks.append(
-                ComparisonBlock(
-                    title=res.comparison_title or (f"{p.brief}: Architectural Patterns" if is_tech else f"Effective vs Ineffective Approaches to {p.brief}"),
-                    left_title="Recommended Pattern" if is_tech else "Sustainable Strategy",
-                    left_items=[item for item in res.comparison_left_items if item][:4],
-                    right_title="Anti-Pattern / Pitfall" if is_tech else "Common Failure Mode",
-                    right_items=[item for item in res.comparison_right_items if item][:4],
+            left_items = [item.strip() for item in res.comparison_left_items if item and item.strip()]
+            right_items = [item.strip() for item in res.comparison_right_items if item and item.strip()]
+            if left_items and right_items:
+                blocks.append(
+                    ComparisonBlock(
+                        title=res.comparison_title or (f"{p.brief}: Architectural Patterns" if is_tech else f"Effective vs Ineffective Approaches to {p.brief}"),
+                        left_title="Recommended Pattern" if is_tech else "Sustainable Strategy",
+                        left_items=left_items[:4],
+                        right_title="Anti-Pattern / Pitfall" if is_tech else "Common Failure Mode",
+                        right_items=right_items[:4],
+                    )
                 )
-            )
 
         if res.table_columns and res.table_rows and (anchor in (VisualAnchorType.TABLE, VisualAnchorType.COMPARISON) or p.layout == LayoutType.COMPARISON.value):
-            blocks.append(
-                TableBlock(
-                    caption=res.table_caption or f"Table {p.chapter_number}.1: {p.brief} Feature Breakdown",
-                    columns=res.table_columns,
-                    rows=res.table_rows,
+            if res.table_columns and res.table_rows:
+                blocks.append(
+                    TableBlock(
+                        caption=res.table_caption or f"Table {p.chapter_number}.1: {p.brief} Feature Breakdown",
+                        columns=res.table_columns,
+                        rows=res.table_rows,
+                    )
                 )
-            )
 
-        if res.diagram_mermaid and (anchor == VisualAnchorType.DIAGRAM or p.layout == LayoutType.DIAGRAM_FOCUS.value):
+        if res.diagram_mermaid and res.diagram_mermaid.strip() and (anchor == VisualAnchorType.DIAGRAM or p.layout == LayoutType.DIAGRAM_FOCUS.value):
             blocks.append(
                 DiagramBlock(
-                    code=res.diagram_mermaid,
+                    code=res.diagram_mermaid.strip(),
                     caption=res.diagram_caption or f"Figure {p.chapter_number}.1: {p.brief} Architectural Workflow",
                 )
             )
 
-        if res.quote_text and (anchor == VisualAnchorType.QUOTE or p.layout == LayoutType.QUOTE.value):
+        if res.quote_text and res.quote_text.strip() and (anchor == VisualAnchorType.QUOTE or p.layout == LayoutType.QUOTE.value):
             blocks.append(
                 QuoteBlock(
-                    quote=res.quote_text,
+                    quote=res.quote_text.strip(),
                     author=res.quote_author or "Official Specification / Industry Practice",
                 )
             )
 
         # 4. Callout Box
-        if res.callout_title and res.callout_text:
+        if res.callout_title and res.callout_text and res.callout_text.strip():
             blocks.append(
                 CalloutBlock(
                     variant=res.callout_variant if res.callout_variant in ("tip", "note", "important", "warning", "definition") else "tip",
                     title=res.callout_title,
-                    content=res.callout_text,
+                    content=res.callout_text.strip(),
                 )
             )
 
         # 5. Secondary Paragraph
-        if res.secondary_paragraph:
-            blocks.append(TextBlock(text=res.secondary_paragraph))
+        if res.secondary_paragraph and res.secondary_paragraph.strip():
+            blocks.append(TextBlock(text=res.secondary_paragraph.strip()))
 
         if res.cited_source_urls:
             self.metrics.research.sources_used = max(
@@ -1734,83 +1765,170 @@ class PageWriterAgent:
                 ],
             )
 
-        # --- Chapter 6: Data Structures ---
-        elif "lists" in brief_lower or "tuples" in brief_lower or "collections" in brief_lower:
-            return PageContent(
-                headline=headline,
-                blocks=[
-                    TextBlock(
-                        text="Python features versatile built-in container types: mutable lists (`[...]`), immutable tuples (`(...)`), "
-                        "key-value dictionaries (`{...}`), and unique sets (`set()`)."
-                    ),
-                    CodeBlock(
-                        language="python",
-                        filename="collections_demo.py",
-                        code=(
-                            "# Lists, Dictionaries, and Sets\n"
-                            "users = ['Alice', 'Bob', 'Charlie']\n"
-                            "users.append('Diana')\n\n"
-                            "scores = {'Alice': 95, 'Bob': 88}\n"
-                            "scores['Charlie'] = 92\n\n"
-                            "tags = {'python', 'beginner', 'python'}  # Duplicates removed\n"
-                            "print('Users:', users)\n"
-                            "print('Top Score:', scores['Alice'])\n"
-                            "print('Unique Tags:', tags)"
+        # --- Chapter 6: File I/O, Persistence & Data Handling ---
+        elif "file" in brief_lower or "persistence" in brief_lower or "read" in brief_lower or "write" in brief_lower or "csv" in brief_lower or "json" in brief_lower or ch_num == 6:
+            if "json" in brief_lower or "csv" in brief_lower or "structured" in brief_lower:
+                return PageContent(
+                    headline=headline,
+                    blocks=[
+                        TextBlock(
+                            text="Structured data interchange commonly uses JSON or CSV formats. Python provides built-in `json` and `csv` modules "
+                            "that serialize native dictionaries and lists into disk files and parse them back without third-party dependencies."
                         ),
-                        caption="Listing 6.1: Core Python data structures in action.",
-                        line_numbers=True,
-                    ),
-                    OutputBlock(
-                        title="Output",
-                        content="Users: ['Alice', 'Bob', 'Charlie', 'Diana']\nTop Score: 95\nUnique Tags: {'python', 'beginner'}",
-                    ),
-                ],
-            )
+                        CodeBlock(
+                            language="python",
+                            filename="data_persistence.py",
+                            code=(
+                                "import json\n"
+                                "from pathlib import Path\n\n"
+                                "# Sample record dataset\n"
+                                "records = [\n"
+                                "    {'id': 101, 'name': 'Alice', 'role': 'Engineer'},\n"
+                                "    {'id': 102, 'name': 'Bob', 'role': 'Designer'},\n"
+                                "]\n\n"
+                                "data_path = Path('users.json')\n"
+                                "# Writing structured JSON data\n"
+                                "with open(data_path, 'w', encoding='utf-8') as f:\n"
+                                "    json.dump(records, f, indent=2)\n\n"
+                                "# Reading and parsing JSON data\n"
+                                "with open(data_path, 'r', encoding='utf-8') as f:\n"
+                                "    loaded = json.load(f)\n\n"
+                                "print(f'Loaded {len(loaded)} records. First user: {loaded[0][\"name\"]}')"
+                            ),
+                            caption="Listing 6.1: Serializing and deserializing structured JSON records.",
+                            line_numbers=True,
+                        ),
+                        OutputBlock(
+                            title="Console Output",
+                            content="Loaded 2 records. First user: Alice",
+                        ),
+                        TextBlock(
+                            text="### Code Walkthrough\n"
+                            "The `json.dump()` function serializes Python data structures directly into an open file stream using UTF-8 encoding. "
+                            "Conversely, `json.load()` parses the text stream back into native Python lists and dictionaries, ensuring seamless data persistence."
+                        ),
+                        CalloutBlock(
+                            variant="tip",
+                            title="Pathlib Integration",
+                            content="Combine `pathlib.Path` with standard `with open()` context managers to ensure cross-platform compatibility across Windows, macOS, and Linux.",
+                            icon="file-text",
+                        ),
+                    ],
+                )
+            else:
+                return PageContent(
+                    headline=headline,
+                    blocks=[
+                        TextBlock(
+                            text="Persistent storage requires interacting with the local filesystem. Python's built-in `open()` function "
+                            "supports different access modes: `'r'` (read), `'w'` (write/truncate), `'a'` (append), and `'b'` (binary). "
+                            "Always use the `with` statement context manager to ensure files are closed automatically, even if errors occur."
+                        ),
+                        TableBlock(
+                            caption="Table 6.1: Standard File Access Modes in Python.",
+                            columns=["Mode Flag", "Operations Allowed", "Behavior If File Exists", "Behavior If Missing"],
+                            rows=[
+                                ["`'r'` (Read)", "Read only", "Starts at beginning", "Raises `FileNotFoundError`"],
+                                ["`'w'` (Write)", "Write only", "Truncates existing content to 0 bytes", "Creates new file"],
+                                ["`'a'` (Append)", "Write only", "Appends data to the end of file", "Creates new file"],
+                                ["`'r+'` (Read/Write)", "Read & Write", "Preserves content, starts at offset 0", "Raises `FileNotFoundError`"],
+                            ],
+                        ),
+                        CodeBlock(
+                            language="python",
+                            filename="file_operations.py",
+                            code=(
+                                "from pathlib import Path\n\n"
+                                "log_file = Path('app.log')\n\n"
+                                "# 1. Writing to file\n"
+                                "with open(log_file, 'w', encoding='utf-8') as f:\n"
+                                "    f.write('INFO: Application initialized\\n')\n\n"
+                                "# 2. Appending new lines\n"
+                                "with open(log_file, 'a', encoding='utf-8') as f:\n"
+                                "    f.write('INFO: Processing job completed\\n')\n\n"
+                                "# 3. Reading line by line\n"
+                                "with open(log_file, 'r', encoding='utf-8') as f:\n"
+                                "    for line_num, line in enumerate(f, start=1):\n"
+                                "        print(f'Line {line_num}: {line.strip()}')"
+                            ),
+                            caption="Listing 6.2: Writing, appending, and reading file lines safely.",
+                            line_numbers=True,
+                        ),
+                        OutputBlock(
+                            title="Console Output",
+                            content="Line 1: INFO: Application initialized\nLine 2: INFO: Processing job completed",
+                        ),
+                        TextBlock(
+                            text="### Code Walkthrough\n"
+                            "The `with` statement ensures the file descriptor is released immediately upon exiting the block. "
+                            "Iterating directly over the open file object `f` reads line-by-line efficiently without loading the entire file into memory."
+                        ),
+                        CalloutBlock(
+                            variant="important",
+                            title="Explicit Encoding",
+                            content="Always specify `encoding='utf-8'` when opening text files to prevent unexpected platform-dependent decoding errors.",
+                            icon="shield-check",
+                        ),
+                    ],
+                )
 
-        # --- Chapter 7: File I/O & Exceptions ---
-        elif "error handling" in brief_lower or "exceptions" in brief_lower or "files" in brief_lower or "try, except" in brief_lower:
+        # --- Chapter 7: Error Handling & Exceptions ---
+        elif "error handling" in brief_lower or "exceptions" in brief_lower or "try, except" in brief_lower or ch_num == 7:
             return PageContent(
                 headline=headline,
                 blocks=[
                     TextBlock(
-                        text="Defensive programming requires handling runtime errors gracefully using `try...except` blocks "
-                        "and ensuring system resources like open files are always safely closed with `with` context managers."
+                        text="Defensive programming requires handling runtime errors gracefully using `try...except...else...finally` blocks. "
+                        "Catching specific exception types prevents unhandled crashes and allows applications to report clear diagnostics or recover cleanly."
                     ),
                     CodeBlock(
                         language="python",
-                        filename="files_and_exceptions.py",
+                        filename="exception_handling.py",
                         code=(
-                            "from pathlib import Path\n\n"
-                            "data_file = Path('example.txt')\n"
-                            "# Safe write using context manager\n"
-                            "with open(data_file, 'w', encoding='utf-8') as f:\n"
-                            "    f.write('Hello, Python File I/O!')\n\n"
-                            "# Safe read with try-except\n"
-                            "try:\n"
-                            "    with open(data_file, 'r', encoding='utf-8') as f:\n"
-                            "        content = f.read()\n"
-                            "    print('Read file successfully:', content)\n"
-                            "except FileNotFoundError as err:\n"
-                            "    print(f'Error reading file: {err}')"
+                            "def parse_user_age(raw_value: str) -> int:\n"
+                            '    """Safely parse user age input with defensive error handling."""\n'
+                            "    try:\n"
+                            "        age = int(raw_value)\n"
+                            "        if age < 0:\n"
+                            "            raise ValueError('Age cannot be negative.')\n"
+                            "    except ValueError as err:\n"
+                            "        print(f'Input validation error: {err}')\n"
+                            "        return 0\n"
+                            "    else:\n"
+                            "        print('Input parsed successfully.')\n"
+                            "        return age\n\n"
+                            "valid_result = parse_user_age('25')\n"
+                            "invalid_result = parse_user_age('invalid_number')"
                         ),
-                        caption="Listing 7.1: File operations with context managers and error handling.",
+                        caption="Listing 7.1: Robust exception handling with try, except, and else.",
                         line_numbers=True,
                     ),
                     OutputBlock(
                         title="Console Output",
-                        content="Read file successfully: Hello, Python File I/O!",
+                        content="Input parsed successfully.\nInput validation error: invalid literal for int() with base 10: 'invalid_number'",
+                    ),
+                    TextBlock(
+                        text="### Code Walkthrough\n"
+                        "The `try` block isolates statements that might fail. When `int('invalid_number')` raises a `ValueError`, the `except` block catches it, "
+                        "logs the error, and provides a fallback value instead of terminating the program with an unhandled traceback."
+                    ),
+                    CalloutBlock(
+                        variant="tip",
+                        title="Catch Specific Exceptions",
+                        content="Avoid bare `except:` clauses. Catching specific exceptions (like `ValueError` or `KeyError`) prevents masking unexpected bugs.",
+                        icon="alert-circle",
                     ),
                 ],
             )
 
         # --- Chapter 8: OOP Fundamentals ---
-        elif "object-oriented" in brief_lower or "classes" in brief_lower or "oop" in brief_lower or "methods" in brief_lower:
+        elif "object-oriented" in brief_lower or "classes" in brief_lower or "oop" in brief_lower or "methods" in brief_lower or ch_num == 8:
             return PageContent(
                 headline=headline,
                 blocks=[
                     TextBlock(
                         text="Object-Oriented Programming (OOP) groups state (attributes) and behavior (methods) into reusable blueprints called classes. "
-                        "The `__init__` method initializes newly created class instances."
+                        "The `__init__` constructor method initializes newly created class instances, while `self` references the active instance."
                     ),
                     CodeBlock(
                         language="python",
@@ -1835,17 +1953,28 @@ class PageWriterAgent:
                         title="Console Output",
                         content="Alice Balance: $150.00",
                     ),
+                    TextBlock(
+                        text="### Code Walkthrough\n"
+                        "The `BankAccount` class encapsulates the `owner` and `balance` data attributes. Calling `account.deposit(50.0)` invokes the deposit method "
+                        "on that specific instance, mutating `self.balance` safely within the class boundary."
+                    ),
+                    CalloutBlock(
+                        variant="tip",
+                        title="Encapsulation Principle",
+                        content="Bundle related variables and functions together inside classes to keep your application logic modular and maintainable.",
+                        icon="layers",
+                    ),
                 ],
             )
 
         # --- Chapter 9: Capstone Mini-Project ---
-        elif "capstone" in brief_lower or "mini-project" in brief_lower or "project" in brief_lower:
+        elif "capstone" in brief_lower or "mini-project" in brief_lower or "project" in brief_lower or ch_num == 9:
             return PageContent(
                 headline=headline,
                 blocks=[
                     TextBlock(
                         text="We combine variables, functions, collections, file I/O, and OOP into a complete, runnable CLI Task Tracker application. "
-                        "The project demonstrates how individual concepts integrate into a practical tool."
+                        "The project demonstrates how individual language concepts integrate into a coherent, practical tool."
                     ),
                     CodeBlock(
                         language="python",
@@ -1876,11 +2005,22 @@ class PageWriterAgent:
                         title="Console Output",
                         content="[1] Install Python 3.12 (Done: False)\n[2] Complete Chapter Exercises (Done: False)",
                     ),
+                    TextBlock(
+                        text="### Code Walkthrough\n"
+                        "The `TaskManager` class maintains an internal list of `Task` objects. New tasks are instantiated with sequential identifiers, "
+                        "demonstrating object instantiation, list manipulation, and string formatting in a cohesive workflow."
+                    ),
+                    CalloutBlock(
+                        variant="tip",
+                        title="Next Steps for Expansion",
+                        content="Extend the capstone by adding JSON persistence to save tasks to disk when the program exits.",
+                        icon="compass",
+                    ),
                 ],
             )
 
         # --- Chapter 10: Standard Library & Next Steps ---
-        elif "standard library" in brief_lower or "packages" in brief_lower or "pip" in brief_lower or "next steps" in brief_lower:
+        elif "standard library" in brief_lower or "packages" in brief_lower or "pip" in brief_lower or "next steps" in brief_lower or ch_num >= 10:
             return PageContent(
                 headline=headline,
                 blocks=[
@@ -1918,26 +2058,34 @@ class PageWriterAgent:
                 ),
                 CodeBlock(
                     language="python",
-                    filename="practice_example.py",
+                    filename=f"{headline.lower().replace(' ', '_')[:20]}.py",
                     code=(
                         f"# Working example for {headline}\n"
-                        f"def execute_practice() -> str:\n"
-                        f"    message = 'Concept verified successfully.'\n"
-                        f"    return message\n\n"
-                        f"print(execute_practice())"
+                        f"def process_data(items: list[int]) -> dict[str, int]:\n"
+                        f"    '''Compute sum and count of positive items.'''\n"
+                        f"    positives = [x for x in items if x > 0]\n"
+                        f"    return {{'count': len(positives), 'total': sum(positives)}}\n\n"
+                        f"data = [12, -4, 25, 0, 8]\n"
+                        f"stats = process_data(data)\n"
+                        f"print(f'Processed stats: {{stats}}')"
                     ),
-                    caption=f"Listing: {headline} Practice Implementation",
+                    caption=f"Listing: {headline} Implementation",
                     line_numbers=True,
                 ),
                 OutputBlock(
                     title="Console Output",
-                    content="Concept verified successfully.",
+                    content="Processed stats: {'count': 3, 'total': 45}",
+                ),
+                TextBlock(
+                    text=f"### Code Walkthrough\n"
+                    f"This example processes a list of integers, filters the positive values using a list comprehension, "
+                    f"and returns aggregated statistics in a dictionary for structured retrieval."
                 ),
                 CalloutBlock(
                     variant="tip",
-                    title="Hands-On Challenge",
-                    content=f"Try writing a small script that applies {headline} to solve a real task in your daily workflow.",
-                    icon="code",
+                    title="Practical Tip",
+                    content=f"When implementing {headline}, test small inputs interactively to confirm expected behavior before integrating into larger modules.",
+                    icon="lightbulb",
                 ),
             ],
         )

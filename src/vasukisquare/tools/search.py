@@ -67,7 +67,7 @@ class MockSearchProvider(SearchProvider):
             return self.predefined_results[:max_results]
 
         q_lower = query.lower()
-        if "python" in q_lower:
+        if "python" in q_lower or any(w in q_lower for w in ["variable", "loop", "function", "pip", "pytest", "pep", "oop", "class", "syntax"]):
             docs = [
                 SourceDocument(
                     url="https://docs.python.org/3/tutorial/index.html",
@@ -86,6 +86,14 @@ class MockSearchProvider(SearchProvider):
                     reliability_score=0.95,
                 ),
                 SourceDocument(
+                    url="https://docs.python.org/3/library/index.html",
+                    title="The Python Standard Library — Python 3 Documentation",
+                    source_type=SourceType.DOCUMENTATION,
+                    extracted_text="The Python Standard Library contains built-in modules for file I/O, string operations, math, networking, and data structures.",
+                    summary="Official standard library documentation detailing built-in types, exceptions, and core utilities.",
+                    reliability_score=0.97,
+                ),
+                SourceDocument(
                     url="https://realpython.com/python-basics/",
                     title="Python Basics: A Practical Introduction to Python 3",
                     source_type=SourceType.WEB,
@@ -96,22 +104,41 @@ class MockSearchProvider(SearchProvider):
             ]
             return docs[:max_results]
 
-        # Derive clean slug and clean title from query
+        if any(w in q_lower for w in ["javascript", "typescript", "html", "css", "web"]):
+            return [
+                SourceDocument(
+                    url="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide",
+                    title="JavaScript Guide — MDN Web Docs",
+                    source_type=SourceType.DOCUMENTATION,
+                    extracted_text="The JavaScript Guide shows you how to use JavaScript and gives an overview of the language.",
+                    summary="Authoritative MDN guide to JavaScript syntax, control flow, functions, and object models.",
+                    reliability_score=0.98,
+                ),
+                SourceDocument(
+                    url="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference",
+                    title="JavaScript Reference — MDN Web Docs",
+                    source_type=SourceType.DOCUMENTATION,
+                    extracted_text="Comprehensive standard built-in objects, methods, and language syntax reference.",
+                    summary="Complete language specification and API reference from MDN.",
+                    reliability_score=0.98,
+                ),
+            ][:max_results]
+
+        # General authoritative fallback for other technical/scientific topics
         clean_words = [
             w for w in query.replace(":", " ").replace(",", " ").split()
             if w.lower() not in ("overview", "definition", "fundamentals", "guide", "in-depth")
         ]
-        slug = "-".join(clean_words[:6]).lower() if clean_words else "technical-specification"
-        title_text = " ".join(clean_words[:6]).title() if clean_words else "System Architecture & Engineering Specification"
+        title_text = " ".join(clean_words[:6]).title() if clean_words else "Official Language & Architecture Documentation"
 
         return [
             SourceDocument(
-                url=f"https://acm.org/publications/proceedings/{slug}",
-                title=f"{title_text} - Primary Specification",
+                url="https://docs.python.org/3/",
+                title=f"{title_text} — Technical Reference",
                 source_type=SourceType.DOCUMENTATION,
-                extracted_text=f"Formal architectural specification and empirical evaluation of {query}.",
-                summary=f"Technical specification and performance analysis of {query}.",
-                reliability_score=0.90,
+                extracted_text=f"Official reference documentation and architectural guide for {query}.",
+                summary=f"Technical documentation and best practices for {query}.",
+                reliability_score=0.95,
             )
         ][:max_results]
 
