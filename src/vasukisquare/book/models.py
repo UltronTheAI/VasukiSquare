@@ -1,10 +1,8 @@
-"""Domain schemas and models for Books, Pages, Covers, Intent, Editorial Plans, and Cover Plans."""
-
 import re
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 from uuid import uuid4
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, field_validator
 from vasukisquare.book.layout import (
     LayoutType,
     VisualAnchorType,
@@ -313,6 +311,16 @@ class PlannedChapter(BaseModel):
     sections: List[SectionPlan] = Field(default_factory=list)
     sources_to_cite: List[str] = Field(default_factory=list)
 
+    @field_validator("theme", mode="before")
+    @classmethod
+    def _validate_theme(cls, v: Any) -> Theme:
+        if isinstance(v, str):
+            try:
+                return Theme(v.lower())
+            except ValueError:
+                return Theme.LIGHT
+        return v
+
     @model_validator(mode="after")
     def set_theme_from_chapter_num(self) -> "PlannedChapter":
         self.theme = get_chapter_theme(self.chapter_number)
@@ -370,6 +378,16 @@ class PlannedPage(BaseModel):
     visual_anchor: Optional[VisualAnchorType] = None
     brief: str = ""
     page_purpose: Optional[PagePurpose] = None
+
+    @field_validator("theme", mode="before")
+    @classmethod
+    def _validate_theme(cls, v: Any) -> Theme:
+        if isinstance(v, str):
+            try:
+                return Theme(v.lower())
+            except ValueError:
+                return Theme.LIGHT
+        return v
 
 
 class BookPlan(BaseModel):
@@ -458,6 +476,15 @@ class PageStyle(BaseModel):
     layout_variant: Optional[str] = None
     custom_css: Optional[str] = None
 
+    @field_validator("theme", mode="before")
+    @classmethod
+    def _validate_theme(cls, v: Any) -> Theme:
+        if isinstance(v, str):
+            try:
+                return Theme(v.lower())
+            except ValueError:
+                return Theme.LIGHT
+        return v
 
 
 class ChapterMetadata(BaseModel):
@@ -469,6 +496,16 @@ class ChapterMetadata(BaseModel):
     icon: Optional[str] = None
     page_count: int = Field(default=0, ge=0)
     theme: Theme = Theme.LIGHT
+
+    @field_validator("theme", mode="before")
+    @classmethod
+    def _validate_theme(cls, v: Any) -> Theme:
+        if isinstance(v, str):
+            try:
+                return Theme(v.lower())
+            except ValueError:
+                return Theme.LIGHT
+        return v
 
     @model_validator(mode="after")
     def set_theme_from_chapter(self) -> "ChapterMetadata":
@@ -495,6 +532,16 @@ class Page(BaseModel):
     sources: List[SourceCitation] = Field(default_factory=list)
     html: str = ""
     validation: Dict[str, Any] = Field(default_factory=dict)
+
+    @field_validator("theme", mode="before")
+    @classmethod
+    def _validate_theme(cls, v: Any) -> Theme:
+        if isinstance(v, str):
+            try:
+                return Theme(v.lower())
+            except ValueError:
+                return Theme.LIGHT
+        return v
 
     @property
     def chapter_title(self) -> Optional[str]:

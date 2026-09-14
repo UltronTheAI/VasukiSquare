@@ -29,6 +29,9 @@ from vasukisquare.book.models import (
 from vasukisquare.book.components import (
     TextBlock,
     CodeBlock,
+    TerminalBlock,
+    TerminalLine,
+    DiagramBlock,
     OutputBlock,
     CalloutBlock,
     TableBlock,
@@ -47,10 +50,42 @@ from vasukisquare.book.components import (
     SourceBlock,
     AcknowledgementBlock,
 )
+from vasukisquare.agents.content_validator import (
+    validate_terminal_command,
+    validate_code_block,
+)
 from vasukisquare.research.models import ResearchCorpus
 from vasukisquare.llm.client import LLMClient, GroqGenerationError
 from vasukisquare.llm.metrics import BookGenerationMetrics
 from vasukisquare.design.theme import Theme
+
+
+class LLMGeneratedPage(BaseModel):
+    """Complete structured page output schema from LLM."""
+    headline: str = Field(default="", description="Section or page headline")
+    lead_paragraph: str = Field(default="", description="Core educational explanation (80-120 words)")
+    secondary_paragraph: Optional[str] = Field(default=None, description="Elaboration paragraph")
+    code_snippet: Optional[str] = Field(default=None, description="Executable code snippet")
+    code_language: Optional[str] = Field(default="python", description="Programming language")
+    code_filename: Optional[str] = Field(default=None, description="Filename for code listing")
+    code_caption: Optional[str] = Field(default=None, description="Caption for code listing")
+    terminal_title: Optional[str] = Field(default=None, description="Terminal window title")
+    terminal_command: Optional[str] = Field(default=None, description="Terminal shell command")
+    callout_title: Optional[str] = Field(default=None, description="Callout title")
+    callout_text: Optional[str] = Field(default=None, description="Callout body text")
+    callout_variant: Optional[str] = Field(default="tip", description="Callout variant: tip, note, important, warning, insight")
+    comparison_title: Optional[str] = Field(default=None, description="Comparison block title")
+    comparison_left_items: Optional[List[str]] = Field(default=None, description="Left comparison items")
+    comparison_right_items: Optional[List[str]] = Field(default=None, description="Right comparison items")
+    table_caption: Optional[str] = Field(default=None, description="Table caption")
+    table_columns: Optional[List[str]] = Field(default=None, description="Table column headers")
+    table_rows: Optional[List[List[str]]] = Field(default=None, description="Table data rows")
+    diagram_mermaid: Optional[str] = Field(default=None, description="Mermaid diagram DSL")
+    diagram_caption: Optional[str] = Field(default=None, description="Diagram caption")
+    quote_text: Optional[str] = Field(default=None, description="Featured quote text")
+    quote_author: Optional[str] = Field(default=None, description="Quote author / attribution")
+    cited_source_urls: List[str] = Field(default_factory=list, description="URLs from research dossier cited")
+
 
 class SmallModelHeadlineLead(BaseModel):
     """Decomposed small model output schema for headline and lead explanation."""
