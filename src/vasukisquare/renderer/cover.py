@@ -50,7 +50,7 @@ class CoverRenderer:
         """Render high-resolution 1600x2560 standalone cover HTML with SVG vector scenery."""
         cover_style = getattr(plan, "cover_style", None)
         comp_style = getattr(plan, "composition_style", None)
-        if cover_style in ALL_COVER_STYLES or comp_style in ALL_COVER_STYLES or (cover_style and comp_style == cover_style):
+        if cover_style in ALL_COVER_STYLES and (comp_style is None or comp_style == cover_style):
             from vasukisquare.cover.renderer import CoverRenderer as ModularCoverRenderer
             mod_renderer = ModularCoverRenderer(self.templates_dir)
             return mod_renderer.render_source_artwork(plan)
@@ -83,7 +83,7 @@ class CoverRenderer:
         """Generate an A4 Page representation safely framing the art-directed cover composition."""
         cover_style = getattr(plan, "cover_style", None)
         comp_style = getattr(plan, "composition_style", None)
-        if cover_style in ALL_COVER_STYLES or comp_style in ALL_COVER_STYLES or (cover_style and comp_style == cover_style):
+        if cover_style in ALL_COVER_STYLES and (comp_style is None or comp_style == cover_style):
             from vasukisquare.cover.renderer import CoverRenderer as ModularCoverRenderer
             mod_renderer = ModularCoverRenderer(self.templates_dir)
             return mod_renderer.render_a4_cover_page(plan, book_id)

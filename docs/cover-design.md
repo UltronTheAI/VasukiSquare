@@ -58,3 +58,20 @@ Covers are designed on a master high-resolution digital artwork canvas:
 - `Book.cover_id` is updated in the `books` collection to establish 1-to-1 traceability.
 - Optional rasterization saves high-resolution PNGs at `output/covers/{cover_id}.png` via Playwright Chromium.
 
+---
+
+## 5. Automatic Contrast-Aware Typography & WCAG Validation
+
+Every cover text color is automatically derived from the actual cover background:
+- **`get_contrasting_text_palette(background_color)`**: Returns semantic tokens (`cover_title`, `cover_subtitle`, `cover_primary_text`, `cover_secondary_text`, `cover_metadata`, `cover_accent`, `cover_badge_bg`, `cover_badge_text`, `cover_border`, `cover_divider`).
+- **WCAG Targets**:
+  - `Title`: $\ge 7:1$ preferred (minimum $\ge 4.5:1$).
+  - `Subtitle`: $\ge 4.5:1$.
+  - `Author / Primary Text`: $\ge 4.5:1$.
+  - `Edition / Metadata`: $\ge 4.5:1$.
+  - `Category / Eyebrow`: $\ge 4.5:1$.
+  - `Header Labels`: $\ge 4.5:1$.
+- **Light & Cream Backgrounds**: Render very dark charcoal/near-black title (`#111827`), dark slate subtitle (`#374151`), and readable muted metadata (`#4b5563`).
+- **Dark Backgrounds**: Render crisp white title (`#ffffff`), light neutral subtitle (`#e2e8f0`), and readable light metadata (`#cbd5e1`).
+- **Preflight Validation & Auto-Correction**: `validate_cover_contrast()` inspects all text elements before export, automatically correcting any low-contrast color with its high-contrast semantic token.
+
