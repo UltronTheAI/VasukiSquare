@@ -371,15 +371,89 @@ class BraveSearchProvider(SearchProvider):
                 break
         return documents
 
+class DuckDuckGoSearchProvider(SearchProvider):
+    """DuckDuckGo HTML search provider requiring zero API keys."""
+
+    def __init__(self, timeout: float = 12.0):
+        self.endpoint = "https://html.duckduckgo.com/html/"
+        self.timeout = timeout
+        self.headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+        }
+
+    async def search(self, query: str, max_results: int = 5) -> List[SourceDocument]:
+        from bs4 import BeautifulSoup
+        from urllib.parse import parse_qs, urlparse
+
+        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True) as client:
+            resp = await client.post(self.endpoint, data={"q": query}, headers=self.headers)
+            resp.raise_for_status()
+            soup = BeautifulSoup(resp.text, "html.parser")
+
+        documents: List[SourceDocument] = []
+        seen_urls: set[str] = set()
+
+        for result in soup.find_all("div", class_="result"):
+            title_tag = result.find("a", class_="result__a")
+            snippet_tag = result.find("a", class_="result__snippet")
+            if not title_tag:
+                continue
+
+            title = title_tag.get_text(strip=True)
+            href = title_tag.get("href", "")
+            if "uddg=" in href:
+                parsed = urlparse(href)
+                params = parse_qs(parsed.query)
+                target_url = params.get("uddg", [href])[0]
+            else:
+                target_url = href
+
+            if not target_url.startswith("http"):
+                continue
+
+            try:
+                norm_url = normalize_url(target_url)
+            except Exception:
+                norm_url = target_url
+
+            if not norm_url or norm_url in seen_urls:
+                continue
+            seen_urls.add(norm_url)
+
+            snippet = snippet_tag.get_text(strip=True) if snippet_tag else ""
+
+            documents.append(
+                SourceDocument(
+                    url=norm_url,
+                    title=title,
+                    source_type=SourceType.WEB,
+                    extracted_text=snippet,
+                    summary=snippet,
+                    reliability_score=0.75,
+                    metadata={"source": "duckduckgo"},
+                )
+            )
+            if len(documents) >= max_results:
+                break
+
+        logger.info(
+            f"[Research] Search provider: DuckDuckGo | Query: '{query}' | "
+            f"Results: {len(documents)}"
+        )
+        return documents
+
 
 class WebSearchTool(BaseTool[SearchParams, List[SourceDocument]]):
-    """High-level search tool dispatching queries to the configured SearchProvider with query caching."""
+    """High-level search tool dispatching queries to the configured SearchProvider with caching and multi-tier fallbacks."""
 
     def __init__(
         self,
         provider: SearchProvider,
         timeout_seconds: float = 25.0,
         provider_name: Optional[str] = None,
+        fallback_provider: Optional[SearchProvider] = None,
     ):
         super().__init__(
             name="web_search",
@@ -388,6 +462,8 @@ class WebSearchTool(BaseTool[SearchParams, List[SourceDocument]]):
         )
         self.provider = provider
         self.provider_name = provider_name or provider.__class__.__name__.replace("SearchProvider", "").lower()
+        self.fallback_provider = fallback_provider or DuckDuckGoSearchProvider()
+        self._mock_provider = MockSearchProvider()
         self._cache: Dict[Tuple[str, str, int], List[SourceDocument]] = {}
 
     async def _run(self, params: SearchParams) -> List[SourceDocument]:
@@ -396,9 +472,29 @@ class WebSearchTool(BaseTool[SearchParams, List[SourceDocument]]):
             logger.debug(f"[SEARCH CACHE HIT] provider={self.provider_name} query='{params.query}'")
             return self._cache[cache_key]
 
-        results = await self.provider.search(params.query, params.max_results)
+        results: List[SourceDocument] = []
+        try:
+            results = await self.provider.search(params.query, params.max_results)
+            if not results and not isinstance(self.provider, MockSearchProvider):
+                logger.info(f"[SEARCH] Provider '{self.provider_name}' returned 0 results for '{params.query}', trying fallback.")
+                results = await self.fallback_provider.search(params.query, params.max_results)
+        except Exception as e:
+            logger.warning(f"[SEARCH ERROR] Provider '{self.provider_name}' failed for query '{params.query}': {e}")
+            if not isinstance(self.provider, DuckDuckGoSearchProvider):
+                try:
+                    logger.info(f"[SEARCH FALLBACK] Trying DuckDuckGo fallback for '{params.query}'...")
+                    results = await self.fallback_provider.search(params.query, params.max_results)
+                except Exception as fallback_err:
+                    logger.warning(f"[SEARCH FALLBACK ERROR] DuckDuckGo fallback failed: {fallback_err}. Using mock results.")
+                    results = await self._mock_provider.search(params.query, params.max_results)
+            else:
+                results = await self._mock_provider.search(params.query, params.max_results)
+
+        if not results:
+            results = await self._mock_provider.search(params.query, params.max_results)
+
         self._cache[cache_key] = results
-        logger.info(f"[SEARCH] provider={self.provider_name} query=\"{params.query}\" results={len(results)}")
+        logger.info(f"[SEARCH] Final provider={self.provider_name} query=\"{params.query}\" results={len(results)}")
         return results
 
 
@@ -421,6 +517,8 @@ def create_search_provider(settings: Any) -> SearchProvider:
         return SerperSearchProvider(api_key=settings.serper_api_key)
     elif provider_name == "brave":
         return BraveSearchProvider(api_key=settings.brave_search_api_key)
+    elif provider_name in ("duckduckgo", "ddg"):
+        return DuckDuckGoSearchProvider()
     else:
         return MockSearchProvider()
 

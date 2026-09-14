@@ -3,11 +3,9 @@ from __future__ import annotations
 
 import asyncio
 from abc import ABC, abstractmethod
-from typing import Any, Callable, Dict, Generic, List, Optional, TypeVar
 from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, List, Optional, TypeVar
 from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
-from vasukisquare.research.models import SourceDocument
 
 if TYPE_CHECKING:
     from vasukisquare.research.models import SourceDocument

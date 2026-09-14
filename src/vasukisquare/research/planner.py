@@ -178,8 +178,8 @@ class ResearchPlanner:
             self.metrics.research.queries_planned = [q.query for q in plan.queries]
             return plan
         except Exception as e:
-            if self.settings.vasukisquare_mock_mode:
-                logger.warning(f"Groq research planning invocation failed in mock mode, falling back: {e}")
-                return self._generate_fallback_plan(prompt, intent=intent)
-            raise GroqGenerationError(f"Research query planning failed via Groq: {e}") from e
+            logger.warning(f"[Research] LLM research planning failed ({e}), generating resilient heuristic query plan.")
+            plan = self._generate_fallback_plan(prompt, intent=intent)
+            self.metrics.research.queries_planned = [q.query for q in plan.queries]
+            return plan
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any, List, Optional
+from typing import TYPE_CHECKING, Any, List, Optional
 from vasukisquare.config import Settings, get_settings
 from vasukisquare.research.models import (
     ResearchCorpus,
@@ -14,24 +14,15 @@ from vasukisquare.research.models import (
 from vasukisquare.research.planner import ResearchPlanner
 from vasukisquare.research.deduplication import DeduplicationService
 from vasukisquare.research.ranking import SourceRanker
-from vasukisquare.tools.search import (
-    WebSearchTool,
-    SearchParams,
-    MockSearchProvider,
-    TavilySearchProvider,
-    SerperSearchProvider,
-    BraveSearchProvider,
-    create_search_tool,
-)
-from vasukisquare.tools.fetcher import WebpageFetcherTool, FetchParams
-from vasukisquare.tools.wikipedia import WikipediaTool, WikipediaParams
 from vasukisquare.llm.metrics import BookGenerationMetrics
 from vasukisquare.book.models import BookIntent
 
+if TYPE_CHECKING:
+    from vasukisquare.tools.search import WebSearchTool
+    from vasukisquare.tools.fetcher import WebpageFetcherTool
+    from vasukisquare.tools.wikipedia import WikipediaTool
+
 logger = logging.getLogger(__name__)
-
-
-from vasukisquare.book.models import BookIntent
 
 
 class ResearchGenerationError(Exception):
@@ -58,7 +49,12 @@ class ResearchService:
         self.planner = planner or ResearchPlanner(self.settings, metrics=self.metrics)
         self.deduplicator = deduplicator or DeduplicationService(near_duplicate_threshold=0.80)
         self.ranker = ranker or SourceRanker()
-        self.fetcher_tool = fetcher_tool or WebpageFetcherTool()
+
+        if fetcher_tool:
+            self.fetcher_tool = fetcher_tool
+        else:
+            from vasukisquare.tools.fetcher import WebpageFetcherTool
+            self.fetcher_tool = WebpageFetcherTool()
 
         # Configure search tool provider based on settings
         if search_tool:
@@ -67,7 +63,11 @@ class ResearchService:
             from vasukisquare.tools.search import create_search_tool
             self.search_tool = create_search_tool(self.settings)
 
-        self.wikipedia_tool = wikipedia_tool or WikipediaTool()
+        if wikipedia_tool:
+            self.wikipedia_tool = wikipedia_tool
+        else:
+            from vasukisquare.tools.wikipedia import WikipediaTool
+            self.wikipedia_tool = WikipediaTool()
 
     async def execute_query(self, query_text: str, source_types: List[SourceType]) -> List[SourceDocument]:
         """Execute a single query against multiple providers concurrently."""

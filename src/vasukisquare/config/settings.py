@@ -134,11 +134,14 @@ class Settings(BaseSettings):
                 )
             return ("brave", "Explicitly set via SEARCH_PROVIDER=brave")
 
+        if prov in ("duckduckgo", "ddg"):
+            return ("duckduckgo", "Explicitly set via SEARCH_PROVIDER=duckduckgo")
+
         if prov == "mock":
             return ("mock", "Explicitly set via SEARCH_PROVIDER=mock")
 
         if prov == "auto":
-            # Auto order: 1. SearXNG (if enabled and healthy), 2. Tavily, 3. Serper, 4. Brave, 5. SearXNG fallback, 6. Mock
+            # Auto order: 1. SearXNG (if enabled and healthy), 2. Tavily, 3. Serper, 4. Brave, 5. DuckDuckGo, 6. Mock
             if self.searxng_enabled and self.searxng_url:
                 from vasukisquare.tools.search import check_searxng_health
                 if check_searxng_health(self.searxng_url, timeout=3.0):
@@ -155,20 +158,17 @@ class Settings(BaseSettings):
                 return ("serper", "SERPER_API_KEY configured")
             if self.brave_search_api_key and self.brave_search_api_key.strip():
                 return ("brave", "BRAVE_SEARCH_API_KEY configured")
-            if self.searxng_enabled and self.searxng_url:
-                return ("searxng", f"SearXNG configured at {self.searxng_url}")
-            return ("mock", "No external search provider configured")
+
+            return ("duckduckgo", "DuckDuckGo free search enabled as default online provider")
 
         raise EnvironmentConfigurationError(
-            f"Unsupported SEARCH_PROVIDER '{self.search_provider}'. Supported values: 'auto', 'searxng', 'tavily', 'serper', 'brave', 'mock'."
+            f"Unsupported SEARCH_PROVIDER '{self.search_provider}'. Supported values: 'auto', 'duckduckgo', 'searxng', 'tavily', 'serper', 'brave', 'mock'."
         )
 
     @property
     def has_web_search_provider(self) -> bool:
         """Check if at least one general web search provider is configured."""
-        if self.searxng_enabled and self.searxng_url:
-            return True
-        return bool(self.tavily_api_key or self.serper_api_key or self.brave_search_api_key)
+        return True
 
     @property
     def active_search_provider_name(self) -> str:

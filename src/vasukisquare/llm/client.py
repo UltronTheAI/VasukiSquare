@@ -309,8 +309,33 @@ class LLMClient:
                         pool.record_failure(model=model_name, error=e, is_rate_limit=False)
                         raise e
 
-                    # Structured output parsing error -> model capability issue, do NOT mark key rate limited
+                    # Structured output parsing error -> check if failed_generation has valid payload first
                     if err_info.is_structured_error:
+                        try:
+                            extracted_args = None
+                            body = getattr(e, "body", None)
+                            if isinstance(body, dict):
+                                err_dict = body.get("error", {})
+                                if isinstance(err_dict, dict) and "failed_generation" in err_dict:
+                                    raw_gen = err_dict["failed_generation"]
+                                    import json
+                                    gen_obj = json.loads(raw_gen) if isinstance(raw_gen, str) else raw_gen
+                                    if isinstance(gen_obj, dict):
+                                        extracted_args = gen_obj.get("arguments", gen_obj)
+                                        if isinstance(extracted_args, str):
+                                            extracted_args = json.loads(extracted_args)
+                            if extracted_args:
+                                validated = schema.model_validate(extracted_args)
+                                logger.info(
+                                    f"[LLM:RECOVERED_FAILED_GENERATION] provider=groq model={model_name} key={key_state.label} "
+                                    f"stage={stage} successfully recovered structured output from failed_generation."
+                                )
+                                self.groq_key_pool.mark_success(key_state)
+                                pool.record_success(model_name)
+                                return validated
+                        except Exception:
+                            pass
+
                         pool.record_failure(model=model_name, error=e, is_structured_error=True)
                         logger.warning(
                             f"[LLM:STRUCTURED_ERROR] provider=groq model={model_name} key={key_state.label} "
