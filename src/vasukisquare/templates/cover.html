@@ -223,16 +223,9 @@
           {% endif %}
         </div>
       </div>
-    </div>
-
-      <footer class="cover-footer">
-        <span class="cover-footer-left">{{ plan.author or "Vasuki" }}</span>
-        <span>FIRST EDITION</span>
-      </footer>
-    </div>
     <footer class="cover-footer-strip">
-      <span class="cover-footer-left">{{ plan.author or "Vasuki" }}</span>
-      <span>FIRST EDITION</span>
+      <span class="cover-footer-left">{{ plan.author or (config.branding.author_name if config else "Vasuki") }}</span>
+      <span>{{ plan.edition or (config.edition.name if config else "FIRST EDITION") }}</span>
     </footer>
   </div>
 </body>

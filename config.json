@@ -1,0 +1,20 @@
+{
+  "branding": {
+    "author_name": "Vasuki",
+    "publication_name": "Vasuki Publishing",
+    "company_name": "VasukiSquare",
+    "engine_name": "VasukiSquare AI Publishing Engine",
+    "website": "https://vasukisquare.cc"
+  },
+  "edition": {
+    "name": "FIRST EDITION",
+    "year": 2026
+  },
+  "copyright": {
+    "holder": "Vasuki Publishing",
+    "all_rights_reserved": true
+  },
+  "book_defaults": {
+    "language": "English"
+  }
+}

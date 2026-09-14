@@ -41,12 +41,91 @@ VasukiSquare uses `pydantic-settings` to load and validate configuration from en
 | `COVER_WIDTH` | `int` | `1600` | Cover canvas width in pixels |
 | `COVER_HEIGHT` | `int` | `2560` | Cover canvas height in pixels |
 
-## Usage Example
+## Branding & Publication Configuration (`config.json`)
+
+VasukiSquare allows full white-label customization of all publication metadata via a root-level `config.json` file.
+
+If `config.json` is missing from the project root when VasukiSquare starts, a default template is automatically generated. If `config.json` exists but contains syntax errors or invalid fields, VasukiSquare fails fast with clear, human-readable error messages and **never** silently overwrites your file.
+
+### Configuration Schema
+
+```json
+{
+  "branding": {
+    "author_name": "Vasuki",
+    "publication_name": "Vasuki Publishing",
+    "company_name": "VasukiSquare",
+    "engine_name": "VasukiSquare AI Publishing Engine",
+    "website": "https://vasukisquare.cc"
+  },
+  "edition": {
+    "name": "FIRST EDITION",
+    "year": 2026
+  },
+  "copyright": {
+    "holder": "Vasuki Publishing",
+    "all_rights_reserved": true
+  },
+  "book_defaults": {
+    "language": "English"
+  }
+}
+```
+
+### Field Descriptions
+
+| Section | Key | Type | Description |
+|---|---|---|---|
+| `branding` | `author_name` | `str` | Public author or editorial team identity displayed on covers and imprints. |
+| `branding` | `publication_name` | `str` | Publisher imprint name displayed across headers, imprints, and copyright blocks. |
+| `branding` | `company_name` | `str` | Publisher parent organization or studio identity. |
+| `branding` | `engine_name` | `str` | Technical engine acknowledgment displayed on copyright pages. |
+| `branding` | `website` | `str` | Optional public website or publication URL. If empty (`""`), it is cleanly omitted from publications without blank lines or broken links. |
+| `edition` | `name` | `str` | Edition descriptor (e.g. `FIRST EDITION`, `SPECIAL EDITION`). |
+| `edition` | `year` | `int` | Publication copyright year (e.g. `2026`). |
+| `copyright` | `holder` | `str` | Legal copyright holder displayed on copyright page notice. |
+| `copyright` | `all_rights_reserved` | `bool` | Whether to append "All rights reserved." to the copyright statement. |
+| `book_defaults` | `language` | `str` | Default human language for generated ebooks. |
+
+### White-Label Example
+
+To customize publications for your own agency or publisher:
+
+```json
+{
+  "branding": {
+    "author_name": "Jane Doe",
+    "publication_name": "Northstar Books",
+    "company_name": "Northstar Media LLC",
+    "engine_name": "Northstar Publishing Engine",
+    "website": "https://northstarbooks.com"
+  },
+  "edition": {
+    "name": "SECOND EDITION",
+    "year": 2027
+  },
+  "copyright": {
+    "holder": "Northstar Media LLC",
+    "all_rights_reserved": true
+  },
+  "book_defaults": {
+    "language": "English"
+  }
+}
+```
+
+## Python API Usage Example
 
 ```python
-from vasukisquare.config import get_settings
+from vasukisquare.config import get_settings, get_app_config
 
+# Environment settings (secrets, endpoints, hardware)
 settings = get_settings()
 print(f"Connecting to MongoDB at {settings.mongodb_uri}")
+
+# Publication branding configuration
+app_config = get_app_config()
+print(f"Publishing under: {app_config.branding.publication_name}")
 ```
+
 

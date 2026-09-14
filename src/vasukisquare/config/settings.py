@@ -1,4 +1,4 @@
-"""Configuration loading for VasukiSquare using Pydantic Settings."""
+"""Environment and infrastructure settings loaded from environment variables and .env files."""
 
 from functools import lru_cache
 from typing import Any, Dict, List, Optional
@@ -272,7 +272,6 @@ class Settings(BaseSettings):
             return True
         return False
 
-
     def validate_production_environment(self) -> None:
         """Validate required configuration for production book generation."""
         if self.vasukisquare_mock_mode:
@@ -349,5 +348,4 @@ def get_settings() -> Settings:
 def get_groq_models(group: Optional[str] = None) -> list[str]:
     """Convenience helper to retrieve configured Groq models."""
     return get_settings().get_groq_models(group)
-
 

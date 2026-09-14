@@ -5,7 +5,7 @@ import json
 import logging
 from pathlib import Path
 from typing import List, Optional, Union
-from vasukisquare.config import Settings, get_settings
+from vasukisquare.config import Settings, get_settings, get_app_config
 from vasukisquare.book.layout import LayoutType
 from vasukisquare.book.components import TocBlock, TocEntry, SourceBlock
 from vasukisquare.book.models import Book, ChapterMetadata, Page
@@ -188,13 +188,18 @@ class EbookGenerationPipeline:
         # Stage 4: Cover Planning & Design
         logger.info("Stage 4/7: Designing Cover Artwork...")
         cover_ckpt = checkpoints_dir / "cover_plan.json"
+        app_config = get_app_config()
+        resolved_author = getattr(state.intent, "author", None) if state.intent else None
+        if not resolved_author:
+            resolved_author = app_config.branding.author_name
+
         if resume and cover_ckpt.exists():
             try:
-                from vasukisquare.book.models import CoverPlan
-                state.cover_plan = CoverPlan.model_validate_json(cover_ckpt.read_text(encoding="utf-8"))
-                logger.info("Resumed from checkpoint: Cover Plan loaded.")
+                from vasukisquare.book.models import CoverPlan as CoverDesignPlan
+                state.cover_plan = CoverDesignPlan.model_validate_json(cover_ckpt.read_text(encoding="utf-8"))
+                logger.info(f"[RESUME] Loaded cover plan checkpoint from {cover_ckpt.name}")
             except Exception as e:
-                logger.warning(f"Failed to load cover plan checkpoint: {e}. Re-planning cover.")
+                logger.warning(f"[RESUME] Failed to parse cover checkpoint, re-planning: {e}")
                 if self.cover_agent and hasattr(self.cover_agent, "plan_cover"):
                     cover_planner = self.cover_agent
                 else:
@@ -210,7 +215,7 @@ class EbookGenerationPipeline:
                     technical_depth=state.intent.technical_depth,
                     seed=book_seed,
                     intent=state.intent,
-                    author="Vasuki",
+                    author=resolved_author,
                 )
                 if asyncio.iscoroutine(plan_res):
                     state.cover_plan = await plan_res
@@ -235,7 +240,7 @@ class EbookGenerationPipeline:
                 technical_depth=state.intent.technical_depth,
                 seed=book_seed,
                 intent=state.intent,
-                author="Vasuki",
+                author=resolved_author,
             )
             if asyncio.iscoroutine(plan_res):
                 state.cover_plan = await plan_res
@@ -495,7 +500,12 @@ class EbookGenerationPipeline:
             "topic": topic,
             "title": state.book_plan.title if state.book_plan else (state.intent.title if state.intent else topic),
             "subtitle": state.book_plan.subtitle if state.book_plan else (state.intent.subtitle if state.intent else None),
-            "author": state.cover_plan.author if state.cover_plan else "Vasuki",
+            "author": state.cover_plan.author if state.cover_plan else resolved_author,
+            "publisher": app_config.branding.publication_name,
+            "company": app_config.branding.company_name,
+            "edition": app_config.edition.name,
+            "publication_year": app_config.edition.year,
+            "website": app_config.branding.website if app_config.branding.website else None,
             "cover": {
                 "style": state.cover_plan.cover_style if state.cover_plan else "editorial_minimal",
                 "seed": state.cover_plan.cover_seed if state.cover_plan else book_seed,

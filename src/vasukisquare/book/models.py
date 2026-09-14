@@ -150,7 +150,8 @@ class CoverDesignPlan(BaseModel):
     category: str = Field(default="General", description="Domain classification")
     tone: str = Field(default="authoritative", description="Editorial tone")
     audience: str = Field(default="General Practitioners and Professionals", description="Target readership")
-    author: str = Field(default="Vasuki")
+    author: Optional[str] = None
+    edition: Optional[str] = None
     cover_seed: int = Field(default=42)
 
     @property
@@ -164,9 +165,15 @@ class CoverDesignPlan(BaseModel):
         return self.cover_seed
 
     @model_validator(mode="after")
-    def validate_token_colors(self) -> "CoverDesignPlan":
+    def validate_token_colors_and_branding(self) -> "CoverDesignPlan":
         validate_color_token(self.accent_color)
         validate_color_token(self.background_color)
+        if not self.author:
+            from vasukisquare.config import get_app_config
+            self.author = get_app_config().branding.author_name
+        if not self.edition:
+            from vasukisquare.config import get_app_config
+            self.edition = get_app_config().edition.name
         return self
 
 
@@ -604,7 +611,7 @@ class Book(BaseModel):
     title: str
     subtitle: Optional[str] = None
     running_title: Optional[str] = None
-    author: str = Field(default="Vasuki")
+    author: Optional[str] = None
     prompt: str = ""
     description: str = ""
     status: str = "draft"
@@ -618,6 +625,9 @@ class Book(BaseModel):
 
     @model_validator(mode="after")
     def generate_slug_if_missing(self) -> "Book":
+        if not self.author:
+            from vasukisquare.config import get_app_config
+            self.author = get_app_config().branding.author_name
         if not self.slug and self.title:
             self.slug = slugify(self.title)
         if not self.chapter_count and self.chapters:

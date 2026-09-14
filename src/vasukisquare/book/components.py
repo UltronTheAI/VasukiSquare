@@ -1,5 +1,5 @@
 from typing import Any, Dict, List, Literal, Optional, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from vasukisquare.book.richtext import RichSpan
 
 
@@ -241,17 +241,36 @@ class CopyrightBlock(BaseModel):
     book_title: str = Field(default="")
     book_subtitle: Optional[str] = Field(default=None)
     author: Optional[str] = Field(default=None)
-    rights_holder: str = Field(default="VasukiSquare Publishing")
-    year: Union[int, str] = Field(default=2026)
-    edition: str = Field(default="First Edition")
+    rights_holder: Optional[str] = None
+    year: Optional[Union[int, str]] = None
+    edition: Optional[str] = None
     isbn: Optional[str] = Field(default=None)
-    publisher: str = Field(default="VasukiSquare Technical Publishing Engine")
-    website: Optional[str] = Field(default="https://vasukisquare.ai")
+    publisher: Optional[str] = None
+    engine: Optional[str] = None
+    website: Optional[str] = None
     rights_notice: Optional[str] = Field(default=None)
     distribution_restrictions: Optional[str] = Field(default=None)
     license_notes: Optional[str] = Field(default=None)
     disclaimer: Optional[str] = Field(default=None)
     ordering_info: Optional[str] = Field(default=None)
+
+    @model_validator(mode="after")
+    def populate_defaults_from_config(self) -> "CopyrightBlock":
+        from vasukisquare.config import get_app_config
+        cfg = get_app_config()
+        if not self.rights_holder:
+            self.rights_holder = cfg.copyright.holder
+        if not self.year:
+            self.year = cfg.edition.year
+        if not self.edition:
+            self.edition = cfg.edition.name
+        if not self.publisher:
+            self.publisher = cfg.branding.publication_name
+        if not self.engine:
+            self.engine = cfg.branding.engine_name
+        if self.website is None:
+            self.website = cfg.branding.website or ""
+        return self
 
 
 class TocEntry(BaseModel):

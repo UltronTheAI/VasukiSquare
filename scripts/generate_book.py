@@ -94,6 +94,13 @@ def parse_args():
 
 async def main_async():
     args = parse_args()
+    try:
+        from vasukisquare.config import load_config
+        app_config = load_config()
+    except Exception as e:
+        print(f"\n[CONFIG ERROR] Failed to load configuration: {e}\n", file=sys.stderr)
+        sys.exit(1)
+
     settings = get_settings()
 
     if args.ollama_model:
@@ -114,7 +121,8 @@ async def main_async():
     out_dir = Path(args.output_dir)
 
     print(f"\n==========================================")
-    print(f" VasukiSquare Ebook Generation Engine")
+    print(f" {app_config.branding.engine_name}")
+    print(f" Publisher: {app_config.branding.publication_name}")
     print(f" Topic: {args.topic}")
     if args.title:
         print(f" Title: {args.title}")
@@ -158,6 +166,11 @@ def main():
     except KeyboardInterrupt:
         print("\nGeneration cancelled by user.")
         sys.exit(130)
+    except Exception as e:
+        from vasukisquare.config import ConfigValidationError
+        if isinstance(e, ConfigValidationError):
+            sys.exit(1)
+        raise
 
 
 if __name__ == "__main__":

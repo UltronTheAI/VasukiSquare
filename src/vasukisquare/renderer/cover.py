@@ -155,35 +155,36 @@ class CoverRenderer:
         watermark_color = "rgba(0,30,43,0.06)" if palette.is_light_bg else "rgba(255,255,255,0.06)"
         card_bg = "rgba(255,255,255,0.85)" if palette.is_light_bg else "rgba(0,0,0,0.3)"
 
+        from vasukisquare.config import get_app_config
+        cfg = get_app_config()
+        author_text = plan.author or cfg.branding.author_name
+        edition_text = getattr(plan, "edition", None) or cfg.edition.name
+        company_header = cfg.branding.company_name.upper()
+
         # 1. Asymmetric Left Heavy Composition
         if style == "asymmetric_left":
             return f"""
-            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden; border-left: 4px solid {accent};">
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px 96px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden; border-left: 4px solid {accent};">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.18; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>
               <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid {border_color}; padding-bottom: 20px;">
-                <span style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">VASUKISQUARE</span>
+                <span style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">{company_header}</span>
                 <span style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: {meta_color}; background: {badge_bg}; padding: 4px 10px; border-radius: 4px;">{plan.category}</span>
               </div>
               <div style="position: relative; z-index: 2; margin: auto 0; display: flex; flex-direction: column; gap: 16px; align-items: flex-start;">
                 {f'<div class="cover-icon-wrapper" style="margin-bottom: 4px;">{icon_svg}</div>' if icon_svg else ''}
                 <div class="cover-title-container" style="background-color: {container_bg}; padding: 24px 28px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 14px; text-align: left; width: fit-content; max-width: 100%; box-sizing: border-box; position: relative; z-index: 10;">
-                  <h1 class="cover-title" style="font-family: 'Newsreader', 'Lora', 'Merriweather', 'Playfair Display', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.12; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
+                  <h1 class="cover-title" style="font-family: \'Newsreader\', \'Lora\', \'Merriweather\', \'Playfair Display\', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.12; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
                     {plan.title}
                   </h1>
                   <div class="cover-divider" style="width: 44px; height: 2px; background-color: {divider_color}; opacity: 0.95;"></div>
                   {f'<p class="cover-subtitle" style="font-family: \'Plus Jakarta Sans\', \'Inter\', sans-serif; font-size: 14px; color: {subtitle_color}; line-height: 1.45; margin: 0; max-width: 520px; word-break: break-word; opacity: 0.95;">{plan.subtitle}</p>' if plan.subtitle else ''}
                 </div>
               </div>
-              <div style="position: relative; z-index: 2; border-top: 1px solid {border_color}; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
-                <span style="color: {palette.cover_primary_text}; font-weight: 600;">{plan.author}</span>
-                <span style="letter-spacing: 0.5px;">FIRST EDITION</span>
-              </div>
               <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
-                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
-                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{author_text}</span>
+                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">{edition_text}</span>
               </footer>
             </div>
             """
@@ -191,33 +192,28 @@ class CoverRenderer:
         # 2. Centered Editorial Composition
         elif style == "centered_editorial":
             return f"""
-            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 64px 52px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden; text-align: center;">
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 64px 52px 96px 52px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden; text-align: center;">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.16; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>
               <div style="position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px;">
-                <span style="font-size: 13px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: {accent};">VASUKISQUARE</span>
+                <span style="font-size: 13px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: {accent};">{company_header}</span>
                 <div style="width: 32px; height: 2px; background-color: {accent}; opacity: 0.8;"></div>
                 <span style="font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: {meta_color};">{plan.category}</span>
               </div>
               <div style="position: relative; z-index: 2; margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 20px; max-width: 580px;">
                 {f'<div class="cover-icon-wrapper" style="background: {badge_bg}; padding: 18px; border-radius: 50%; border: 1px solid {border_color};">{icon_svg}</div>' if icon_svg else ''}
                 <div class="cover-title-container" style="background-color: {container_bg}; padding: 24px 28px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; align-items: center; text-align: center; gap: 14px; width: fit-content; max-width: 100%; box-sizing: border-box; position: relative; z-index: 10;">
-                  <h1 class="cover-title" style="font-family: 'Newsreader', 'Lora', 'Merriweather', 'Playfair Display', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.15; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
+                  <h1 class="cover-title" style="font-family: \'Newsreader\', \'Lora\', \'Merriweather\', \'Playfair Display\', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.15; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
                     {plan.title}
                   </h1>
                   <div class="cover-divider" style="width: 44px; height: 2px; background-color: {divider_color}; opacity: 0.95;"></div>
                   {f'<p class="cover-subtitle" style="font-family: \'Plus Jakarta Sans\', \'Inter\', sans-serif; font-size: 14px; color: {subtitle_color}; line-height: 1.5; margin: 0; word-break: break-word; opacity: 0.95;">{plan.subtitle}</p>' if plan.subtitle else ''}
                 </div>
               </div>
-              <div style="position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: {meta_color};">
-                <span style="color: {palette.cover_primary_text}; font-weight: 600; letter-spacing: 1px;">{plan.author}</span>
-                <span style="font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
-              </div>
               <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
-                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
-                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{author_text}</span>
+                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">{edition_text}</span>
               </footer>
             </div>
             """
@@ -225,7 +221,6 @@ class CoverRenderer:
         # 3. Framed Technical Handbook Composition
         elif style == "framed_technical":
             return f"""
-            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 32px; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 32px 32px 80px 32px; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
               <div style="border: 1px solid {border_color}; height: 100%; width: 100%; box-sizing: border-box; padding: 40px; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
                 <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.16; pointer-events: none; overflow: hidden;">
@@ -238,7 +233,7 @@ class CoverRenderer:
                 <div style="position: absolute; bottom: -1px; right: -1px; width: 16px; height: 16px; border-bottom: 3px solid {accent}; border-right: 3px solid {accent};"></div>
 
                 <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid {border_color}; padding-bottom: 16px;">
-                  <span style="font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">VASUKISQUARE // {plan.category}</span>
+                  <span style="font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">{company_header} // {plan.category}</span>
                   <span style="font-family: monospace; font-size: 11px; color: {meta_color};">REF: {plan.cover_seed}</span>
                 </div>
 
@@ -246,22 +241,17 @@ class CoverRenderer:
                   {f'<div style="margin-bottom: 4px;">{icon_svg}</div>' if icon_svg else ''}
                   <span style="font-family: monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: {accent}; background: {badge_bg}; display: inline-block; padding: 4px 8px; border-radius: 2px; width: fit-content;">ENGINEERING GUIDE</span>
                   <div class="cover-title-container" style="background-color: {container_bg}; padding: 24px 28px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 12px; text-align: left; width: fit-content; max-width: 100%; box-sizing: border-box; position: relative; z-index: 10;">
-                    <h1 class="cover-title" style="font-family: 'Newsreader', 'Lora', 'Merriweather', 'Playfair Display', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.12; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
+                    <h1 class="cover-title" style="font-family: \'Newsreader\', \'Lora\', \'Merriweather\', \'Playfair Display\', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.12; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
                       {plan.title}
                     </h1>
                     <div class="cover-divider" style="width: 40px; height: 2px; background-color: {divider_color}; opacity: 0.95;"></div>
                     {f'<p class="cover-subtitle" style="font-family: \'Plus Jakarta Sans\', \'Inter\', sans-serif; font-size: 14px; color: {subtitle_color}; line-height: 1.45; margin: 0; max-width: 500px; word-break: break-word; opacity: 0.95;">{plan.subtitle}</p>' if plan.subtitle else ''}
                   </div>
                 </div>
-
-                <div style="position: relative; z-index: 2; border-top: 1px solid {border_color}; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
-                  <span style="color: {palette.cover_primary_text}; font-weight: 600;">{plan.author}</span>
-                  <span style="font-family: monospace; font-size: 10px;">FIRST EDITION</span>
-                </div>
               </div>
               <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 18px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
-                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
-                <span style="color: {palette.cover_footer_edition}; font-family: monospace; font-size: 10px;">FIRST EDITION</span>
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{author_text}</span>
+                <span style="color: {palette.cover_footer_edition}; font-family: monospace; font-size: 10px;">{edition_text}</span>
               </footer>
             </div>
             """
@@ -269,14 +259,13 @@ class CoverRenderer:
         # 4. Dense Blueprint Composition
         elif style == "dense_blueprint":
             return f"""
-            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 48px 48px 96px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.22; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>
               <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid {accent}; padding-bottom: 16px;">
                 <div>
-                  <div style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">VASUKISQUARE TECHNICAL ARCHITECTURE</div>
+                  <div style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">{company_header} TECHNICAL ARCHITECTURE</div>
                   <div style="font-size: 11px; color: {meta_color}; margin-top: 4px;">SYSTEM SPECIFICATION & IMPLEMENTATION HANDBOOK</div>
                 </div>
                 <div style="font-family: monospace; font-size: 11px; color: {palette.cover_primary_text}; background: {badge_bg}; padding: 6px 12px; border-radius: 4px; border: 1px solid {border_color};">
@@ -291,7 +280,7 @@ class CoverRenderer:
                   <span style="font-family: monospace; font-size: 12px; letter-spacing: 1px; color: {accent}; text-transform: uppercase;">{plan.category}</span>
                 </div>
                 <div class="cover-title-container" style="background-color: {container_bg}; padding: 24px 28px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 14px; text-align: left; width: fit-content; max-width: 100%; box-sizing: border-box; position: relative; z-index: 10;">
-                  <h1 class="cover-title" style="font-family: 'Newsreader', 'Lora', 'Merriweather', 'Playfair Display', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.12; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
+                  <h1 class="cover-title" style="font-family: \'Newsreader\', \'Lora\', \'Merriweather\', \'Playfair Display\', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.12; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
                     {plan.title}
                   </h1>
                   <div class="cover-divider" style="width: 44px; height: 2px; background-color: {divider_color}; opacity: 0.95;"></div>
@@ -299,14 +288,9 @@ class CoverRenderer:
                 </div>
               </div>
 
-              <div style="position: relative; z-index: 2; background: {card_bg}; border: 1px solid {border_color}; border-radius: 6px; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
-                <div>AUTHOR: <strong style="color: {palette.cover_primary_text};">{plan.author}</strong></div>
-                <div>AUDIENCE: <strong style="color: {palette.cover_primary_text};">{plan.audience}</strong></div>
-                <div style="color: {accent}; font-weight: 600;">FIRST EDITION</div>
-              </div>
               <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
-                <div style="color: {palette.cover_footer_author}; font-size: 12px; font-weight: 700;">AUTHOR: {plan.author}</div>
-                <div style="color: {palette.cover_footer_edition}; font-weight: 600; font-size: 11px; letter-spacing: 1px;">FIRST EDITION</div>
+                <div style="color: {palette.cover_footer_author}; font-size: 12px; font-weight: 700;">AUTHOR: {author_text}</div>
+                <div style="color: {palette.cover_footer_edition}; font-weight: 600; font-size: 11px; letter-spacing: 1px;">{edition_text}</div>
               </footer>
             </div>
             """
@@ -315,13 +299,12 @@ class CoverRenderer:
         elif style in ("large_typography", "typography_only"):
             large_size = title_size + 4
             return f"""
-            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 60px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 60px 48px 96px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.12; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>
               <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 14px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: {accent};">VASUKISQUARE</span>
+                <span style="font-size: 14px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: {accent};">{company_header}</span>
                 <span style="font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: {meta_color};">{plan.category}</span>
               </div>
               <div style="position: relative; z-index: 2; margin: auto 0; display: flex; flex-direction: column; gap: 16px; align-items: flex-start;">
@@ -329,20 +312,16 @@ class CoverRenderer:
                   #01
                 </div>
                 <div class="cover-title-container" style="background-color: {container_bg}; padding: 24px 28px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 14px; text-align: left; width: fit-content; max-width: 100%; box-sizing: border-box; position: relative; z-index: 10;">
-                  <h1 class="cover-title" style="font-family: 'Newsreader', 'Lora', 'Merriweather', 'Playfair Display', Georgia, serif; font-size: {large_size}px; font-weight: 700; line-height: 1.08; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
+                  <h1 class="cover-title" style="font-family: \'Newsreader\', \'Lora\', \'Merriweather\', \'Playfair Display\', Georgia, serif; font-size: {large_size}px; font-weight: 700; line-height: 1.08; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
                     {plan.title}
                   </h1>
                   <div class="cover-divider" style="width: 56px; height: 3px; background-color: {divider_color}; opacity: 0.95;"></div>
                   {f'<p class="cover-subtitle" style="font-family: \'Plus Jakarta Sans\', \'Inter\', sans-serif; font-size: 15px; color: {subtitle_color}; line-height: 1.45; margin: 0; max-width: 500px; word-break: break-word; opacity: 0.95;">{plan.subtitle}</p>' if plan.subtitle else ''}
                 </div>
               </div>
-              <div style="position: relative; z-index: 2; border-top: 1px solid {border_color}; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
-                <span style="color: {palette.cover_primary_text}; font-weight: 600;">{plan.author}</span>
-                <span style="letter-spacing: 1px;">FIRST EDITION</span>
-              </div>
               <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
-                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
-                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{author_text}</span>
+                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">{edition_text}</span>
               </footer>
             </div>
             """
@@ -350,32 +329,27 @@ class CoverRenderer:
         # 6. Bottom Weighted Composition
         elif style == "bottom_weighted":
             return f"""
-            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px 96px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.22; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>
               <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">VASUKISQUARE</span>
+                <span style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">{company_header}</span>
                 <span style="font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: {meta_color};">{plan.category}</span>
               </div>
               <div style="position: relative; z-index: 2; margin-top: auto; padding-top: 40px; display: flex; flex-direction: column; gap: 16px; align-items: flex-start;">
                 {f'<div class="cover-icon-wrapper">{icon_svg}</div>' if icon_svg else ''}
                 <div class="cover-title-container" style="background-color: {container_bg}; padding: 24px 28px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 14px; text-align: left; width: fit-content; max-width: 100%; box-sizing: border-box; position: relative; z-index: 10;">
-                  <h1 class="cover-title" style="font-family: 'Newsreader', 'Lora', 'Merriweather', 'Playfair Display', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.12; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
+                  <h1 class="cover-title" style="font-family: \'Newsreader\', \'Lora\', \'Merriweather\', \'Playfair Display\', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.12; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
                     {plan.title}
                   </h1>
                   <div class="cover-divider" style="width: 40px; height: 2px; background-color: {divider_color}; opacity: 0.95;"></div>
                   {f'<p class="cover-subtitle" style="font-family: \'Plus Jakarta Sans\', \'Inter\', sans-serif; font-size: 14px; color: {subtitle_color}; line-height: 1.45; margin: 0; max-width: 500px; word-break: break-word; opacity: 0.95;">{plan.subtitle}</p>' if plan.subtitle else ''}
                 </div>
               </div>
-              <div style="position: relative; z-index: 2; margin-top: 32px; border-top: 1px solid {border_color}; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
-                <span style="color: {palette.cover_primary_text}; font-weight: 600;">{plan.author}</span>
-                <span style="letter-spacing: 0.5px;">FIRST EDITION</span>
-              </div>
               <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
-                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
-                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{author_text}</span>
+                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">{edition_text}</span>
               </footer>
             </div>
             """
@@ -386,10 +360,9 @@ class CoverRenderer:
             return f"""
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; display: flex; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
               <!-- Left Sidebar Band -->
-              <div style="width: 90px; background: {sidebar_bg}; border-right: 2px solid {accent}; padding: 48px 16px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; position: relative; z-index: 3;">
               <div style="width: 90px; background: {sidebar_bg}; border-right: 2px solid {accent}; padding: 48px 16px 96px 16px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; position: relative; z-index: 3;">
                 <div style="writing-mode: vertical-rl; transform: rotate(180deg); font-size: 12px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: {accent};">
-                  VASUKISQUARE
+                  {company_header}
                 </div>
                 {f'<div style="margin: 20px 0;">{icon_svg}</div>' if icon_svg else ''}
                 <div style="writing-mode: vertical-rl; transform: rotate(180deg); font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: {meta_color};">
@@ -398,7 +371,6 @@ class CoverRenderer:
               </div>
 
               <!-- Main Content Body -->
-              <div style="flex: 1; padding: 56px 48px; display: flex; flex-direction: column; justify-content: space-between; position: relative; z-index: 2;">
               <div style="flex: 1; padding: 56px 48px 96px 48px; display: flex; flex-direction: column; justify-content: space-between; position: relative; z-index: 2;">
                 <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.16; pointer-events: none; overflow: hidden;">
                   {geometric_svg}
@@ -408,21 +380,17 @@ class CoverRenderer:
                 </div>
                 <div style="position: relative; z-index: 2; margin: auto 0; display: flex; flex-direction: column; gap: 16px; align-items: flex-start;">
                   <div class="cover-title-container" style="background-color: {container_bg}; padding: 24px 28px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 14px; text-align: left; width: fit-content; max-width: 100%; box-sizing: border-box; position: relative; z-index: 10;">
-                    <h1 class="cover-title" style="font-family: 'Newsreader', 'Lora', 'Merriweather', 'Playfair Display', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.14; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
+                    <h1 class="cover-title" style="font-family: \'Newsreader\', \'Lora\', \'Merriweather\', \'Playfair Display\', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.14; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
                       {plan.title}
                     </h1>
                     <div class="cover-divider" style="width: 44px; height: 2px; background-color: {divider_color}; opacity: 0.95;"></div>
                     {f'<p class="cover-subtitle" style="font-family: \'Plus Jakarta Sans\', \'Inter\', sans-serif; font-size: 14px; color: {subtitle_color}; line-height: 1.45; margin: 0; max-width: 460px; word-break: break-word; opacity: 0.95;">{plan.subtitle}</p>' if plan.subtitle else ''}
                   </div>
                 </div>
-                <div style="position: relative; z-index: 2; border-top: 1px solid {border_color}; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
-                  <span style="color: {palette.cover_primary_text}; font-weight: 600;">{plan.author}</span>
-                  <span>FIRST EDITION</span>
-                </div>
               </div>
               <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
-                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
-                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{author_text}</span>
+                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">{edition_text}</span>
               </footer>
             </div>
             """
@@ -430,32 +398,27 @@ class CoverRenderer:
         # 8. Default Modern Geometric Composition
         else:
             return f"""
-            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px 96px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.18; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>
               <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid {border_color}; padding-bottom: 20px;">
-                <span style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">VASUKISQUARE</span>
+                <span style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">{company_header}</span>
                 <span style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: {meta_color};">{plan.category}</span>
               </div>
               <div style="position: relative; z-index: 2; margin: auto 0; display: flex; flex-direction: column; gap: 16px; align-items: {('center' if align == 'center' else 'flex-start')};">
                 {f'<div class="cover-icon-wrapper" style="margin-bottom: 6px;">{icon_svg}</div>' if icon_svg else ''}
                 <div class="cover-title-container" style="background-color: {container_bg}; padding: 24px 28px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 14px; text-align: {align}; width: fit-content; max-width: 100%; box-sizing: border-box; position: relative; z-index: 10;">
-                  <h1 class="cover-title" style="font-family: 'Newsreader', 'Lora', 'Merriweather', 'Playfair Display', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.14; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
+                  <h1 class="cover-title" style="font-family: \'Newsreader\', \'Lora\', \'Merriweather\', \'Playfair Display\', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.14; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
                     {plan.title}
                   </h1>
                   <div class="cover-divider" style="width: 44px; height: 2px; background-color: {divider_color}; margin: 2px 0; opacity: 0.95;"></div>
                   {f'<p class="cover-subtitle" style="font-family: \'Plus Jakarta Sans\', \'Inter\', sans-serif; font-size: 14px; color: {subtitle_color}; line-height: 1.45; margin: 0; max-width: 500px; word-break: break-word; opacity: 0.95;">{plan.subtitle}</p>' if plan.subtitle else ''}
                 </div>
               </div>
-              <div style="position: relative; z-index: 2; border-top: 1px solid {border_color}; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
-                <span style="color: {palette.cover_primary_text}; font-weight: 600;">{plan.author}</span>
-                <span style="letter-spacing: 0.5px;">FIRST EDITION</span>
-              </div>
               <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
-                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
-                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{author_text}</span>
+                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">{edition_text}</span>
               </footer>
             </div>
             """

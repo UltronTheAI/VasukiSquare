@@ -864,8 +864,8 @@ class ComponentRenderer:
           </div>
 
           <div class="copyright-footer-legal">
-            <span>Published via VasukiSquare AI Publishing Engine</span>
-            <span>{html.escape(block.website or 'https://vasukisquare.ai')}</span>
+            <span>Published via {html.escape(getattr(block, 'engine', None) or 'VasukiSquare AI Publishing Engine')}</span>
+            {f'<span>{html.escape(block.website.strip())}</span>' if getattr(block, 'website', None) and block.website.strip() else ''}
           </div>
         </div>
         """

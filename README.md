@@ -56,7 +56,6 @@ Copy `.env.example` to `.env` and set your credentials:
 cp .env.example .env
 ```
 
-Key environment variables:
 ```ini
 APP_ENV=development
 GROQ_API_KEY=gsk_your_groq_api_key_here
@@ -65,6 +64,32 @@ MONGODB_URI=mongodb://localhost:27017
 MONGODB_DATABASE=vasukisquare
 PDF_OUTPUT_DIR=./output
 ```
+
+### 3. Customize Publication Branding (`config.json`)
+VasukiSquare reads white-label branding from `./config.json` in the root directory (auto-created with defaults if absent):
+```json
+{
+  "branding": {
+    "author_name": "Vasuki",
+    "publication_name": "Vasuki Publishing",
+    "company_name": "VasukiSquare",
+    "engine_name": "VasukiSquare AI Publishing Engine",
+    "website": "https://vasukisquare.cc"
+  },
+  "edition": {
+    "name": "FIRST EDITION",
+    "year": 2026
+  },
+  "copyright": {
+    "holder": "Vasuki Publishing",
+    "all_rights_reserved": true
+  },
+  "book_defaults": {
+    "language": "English"
+  }
+}
+```
+See [Configuration Guide](docs/configuration.md) for full details.
 
 ---
 

@@ -3,6 +3,7 @@
 from pathlib import Path
 from typing import List, Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from vasukisquare.config import get_app_config
 from vasukisquare.book.models import Page
 from vasukisquare.design.icons import IconColorResolver, render_lucide_icon, resolve_topic_decorative_icon
 from vasukisquare.renderer.components import ComponentRenderer
@@ -128,18 +129,21 @@ class HtmlPageRenderer:
             </div>
             """
 
-    def _render_thank_you_html(self, page: Page, icon_svg: str, book_title: str) -> str:
+    def _render_thank_you_html(self, page: Optional[Page], icon_svg: str, book_title: str) -> str:
         """Render one of 3 distinctive finishing/thank-you layouts."""
-        headline = (page.content and page.content.headline) or "THANK YOU"
-        body_text = (page.content and page.content.body) or f"Thank you for reading {book_title}. May these architectures guide your engineering journey."
+        from vasukisquare.config import get_app_config
+        cfg = get_app_config()
+
+        headline = (page.content.headline if page and page.content else None) or "THANK YOU"
+        body_text = (page.content.body if page and page.content else None) or f"Thank you for reading {book_title}. May these architectures guide your engineering journey."
         
-        variant = (page.style and page.style.layout_variant) or "classic_brand"
+        variant = (page.style.layout_variant if page and page.style else None) or "classic_brand"
         
         if variant == "community_resources":
             return f"""
             <div class="thank-you-container layout-resources">
               <div class="thank-you-brand">
-                <span>VASUKISQUARE TECHNICAL PRESS</span>
+                <span>{cfg.branding.company_name.upper()} TECHNICAL PRESS</span>
                 <span>COMPLETION OF VOLUME</span>
               </div>
               <div class="thank-you-body">
@@ -157,7 +161,8 @@ class HtmlPageRenderer:
               </div>
             </div>
             """
-        elif variant == "minimal_quote":
+
+        if variant == "minimal_quote":
             return f"""
             <div class="thank-you-container layout-quote">
               <div class="thank-you-brand">
@@ -171,8 +176,8 @@ class HtmlPageRenderer:
                 <p class="thank-you-statement">{body_text}</p>
               </div>
               <div class="thank-you-footer">
-                <span>VASUKISQUARE EDITORIAL</span>
-                <span>2026 EDITION</span>
+                <span>{cfg.branding.company_name.upper()} EDITORIAL</span>
+                <span>{cfg.edition.year} EDITION</span>
               </div>
             </div>
             """
@@ -180,7 +185,7 @@ class HtmlPageRenderer:
             return f"""
             <div class="thank-you-container layout-classic">
               <div class="thank-you-brand">
-                <span>VASUKISQUARE TECHNICAL PUBLISHING</span>
+                <span>{cfg.branding.publication_name.upper()}</span>
                 <span>END OF VOLUME</span>
               </div>
               <div class="thank-you-body">
@@ -191,7 +196,7 @@ class HtmlPageRenderer:
               </div>
               <div class="thank-you-footer">
                 <span>{book_title}</span>
-                <span>FIRST EDITION</span>
+                <span>{cfg.edition.name}</span>
               </div>
             </div>
             """
@@ -280,6 +285,7 @@ class HtmlPageRenderer:
             thank_you_html=thank_you_html,
             watermark_svg=watermark_svg,
             custom_inline_style=self._get_page_inline_style(page),
+            config=get_app_config(),
         )
         return rendered
 
@@ -336,6 +342,7 @@ class HtmlPageRenderer:
             book_topic=book_topic,
             running_title=calc_running_title,
             styles=self._get_css(),
+            config=get_app_config(),
         )
         return rendered
 

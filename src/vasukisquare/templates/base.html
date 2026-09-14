@@ -42,7 +42,7 @@
         {% elif page.layout_type.value in ["imprint", "title"] or page.page_type in ["imprint", "title"] %}
           <div class="title-page-container">
             <div class="title-page-header">
-              <span class="typo-eyebrow">VasukiSquare Architectural Series</span>
+              <span class="typo-eyebrow">{{ (config.branding.company_name ~ " Architectural Series") if config else "VasukiSquare Architectural Series" }}</span>
             </div>
             <div class="title-page-body">
               <h1 class="title-page-title">{{ book_title }}</h1>
@@ -50,14 +50,14 @@
               <p class="title-page-subtitle">{{ book_topic or (page.content and page.content.body) or "A Definitive Architecture & Implementation Guide" }}</p>
             </div>
             <div class="title-page-imprint">
-              <p><strong>VasukiSquare Technical Publishing Engine</strong></p>
+              <p><strong>{{ config.branding.engine_name if config else "VasukiSquare Technical Publishing Engine" }}</strong></p>
               <p>Researched from primary authoritative sources and verified for production architectures.</p>
-              <p style="margin-top: 6px; font-size: 11px; color: var(--theme-text-subtle);">First Edition (2026) • All Rights Reserved</p>
+              <p style="margin-top: 6px; font-size: 11px; color: var(--theme-text-subtle);">{{ (config.edition.name.title() ~ " (" ~ config.edition.year ~ ")") if config else "First Edition (2026)" }} • All Rights Reserved</p>
             </div>
           </div>
         {% elif page.layout_type.value == "thank_you" %}
         <div class="thank-you-brand">
-          <span>VASUKISQUARE TECHNICAL PUBLISHING</span>
+          <span>{{ (config.branding.publication_name | upper) if config else "VASUKISQUARE TECHNICAL PUBLISHING" }}</span>
           <span>END OF VOLUME</span>
         </div>
         <div class="thank-you-body">
@@ -66,11 +66,11 @@
           </div>
           <div class="thank-you-divider"></div>
           <h1 class="thank-you-title">{{ (page.content and page.content.headline) or "THANK YOU" }}</h1>
-          <p class="thank-you-statement">{{ (page.content and page.content.body) or "Thank you for reading. Researched from primary authoritative sources and rendered deterministically to physical A4 print specifications by VasukiSquare." }}</p>
+          <p class="thank-you-statement">{{ (page.content and page.content.body) or ("Thank you for reading. Researched from primary authoritative sources and rendered deterministically to physical A4 print specifications by " ~ (config.branding.engine_name if config else "VasukiSquare") ~ ".") }}</p>
         </div>
         <div class="thank-you-footer">
           <span>{{ running_title or book_title }}</span>
-          <span>FIRST EDITION</span>
+          <span>{{ config.edition.name if config else "FIRST EDITION" }}</span>
         </div>
         {% else %}
           {% if page.content and page.content.headline and page.layout_type.value not in ["copyright", "acknowledgement", "toc"] and page.page_type not in ["copyright", "acknowledgement", "toc"] %}

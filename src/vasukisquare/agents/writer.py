@@ -1030,26 +1030,32 @@ class PageWriterAgent:
             or not plan.intent.is_technical
         )
 
+        from vasukisquare.config import get_app_config
+        cfg = get_app_config()
+
         if p_type in ("imprint", "title"):
             subtitle_text = plan.subtitle or ("A Practical, Step-by-Step Guide" if is_nonfiction else "A Practical, Hands-On Guide")
-            eyebrow = None if is_nonfiction else "VasukiSquare Technical Series"
-            publisher_name = "Vasuki Publishing" if is_nonfiction else "VasukiSquare Technical Press"
-            author_text = "Authored by the Vasuki Editorial Team." if is_nonfiction else "Authored by the VasukiSquare AI Editorial System & Research Engine."
+            eyebrow = None if is_nonfiction else f"{cfg.branding.company_name} Technical Series"
+            publisher_name = cfg.branding.publication_name
+            author_text = f"Authored by {cfg.branding.author_name}."
+            edition_info = f"{cfg.edition.name.title()} ({cfg.edition.year})"
+            website_line = f"\n\n{cfg.branding.website}" if cfg.branding.website else ""
             blocks = [
                 HeadingBlock(level=1, text=plan.title, eyebrow=eyebrow),
                 TextBlock(text=subtitle_text, typography_role="subtitle"),
                 TextBlock(
                     text=f"{author_text}\n\n"
                          f"Published by {publisher_name}.\n\n"
-                         "First Edition (2026)",
+                         f"{edition_info}{website_line}",
                     typography_role="body-md",
                 ),
             ]
             return PageContent(headline=plan.title, blocks=blocks)
 
         elif p_type == LayoutType.COPYRIGHT.value:
-            rights_holder = "Vasuki Publishing" if is_nonfiction else "VasukiSquare Technical Publishing"
-            publisher = "Vasuki Publishing" if is_nonfiction else "VasukiSquare AI Publishing Engine"
+            rights_holder = cfg.copyright.holder
+            publisher = cfg.branding.publication_name
+            engine = cfg.branding.engine_name
             return PageContent(
                 headline="Copyright & Publishing Notice",
                 blocks=[
@@ -1057,10 +1063,11 @@ class PageWriterAgent:
                         book_title=plan.title,
                         book_subtitle=plan.subtitle,
                         rights_holder=rights_holder,
-                        year=2026,
-                        edition="First Edition",
+                        year=cfg.edition.year,
+                        edition=cfg.edition.name.title(),
                         publisher=publisher,
-                        website="https://vasukisquare.ai",
+                        engine=engine,
+                        website=cfg.branding.website or "",
                     )
                 ],
             )
@@ -1091,8 +1098,8 @@ class PageWriterAgent:
                     "for stewarding the language, the authors of Python Enhancement Proposals (PEPs), and the millions of community "
                     "educators who make Python the world's most accessible programming language."
                 )
-                signature = "The VasukiSquare Editorial & Education Team"
-                affiliation = "VasukiSquare Technical Publishing"
+                signature = f"The {cfg.branding.company_name} Editorial & Education Team"
+                affiliation = cfg.branding.publication_name
             elif is_nonfiction:
                 lead = "Recognizing the researchers, behavioral scientists, and community educators whose work inspires this guide."
                 body = (
@@ -1100,8 +1107,8 @@ class PageWriterAgent:
                     "and practical routine design. We express deep appreciation to the researchers, educators, and authors "
                     "who champion continuous personal growth and sustainable positive habits worldwide."
                 )
-                signature = "The Vasuki Editorial Team"
-                affiliation = "Vasuki Publishing"
+                signature = f"The {cfg.branding.author_name} Editorial Team"
+                affiliation = cfg.branding.publication_name
             else:
                 lead = "Recognizing the open-source engineering foundations and academic scholarship behind modern software architectures."
                 body = (
@@ -1109,8 +1116,8 @@ class PageWriterAgent:
                     "and open-source communities worldwide. Their relentless pursuit of reliability, open standards, "
                     "and accessible documentation makes high-quality technical publishing possible."
                 )
-                signature = "The VasukiSquare Editorial Team"
-                affiliation = "VasukiSquare Technical Publishing"
+                signature = f"The {cfg.branding.company_name} Editorial Team"
+                affiliation = cfg.branding.publication_name
 
             return PageContent(
                 headline="Acknowledgements",
@@ -1139,11 +1146,12 @@ class PageWriterAgent:
                     )
                 )
             if not blocks:
+                ref_fallback_url = cfg.branding.website if cfg.branding.website else ("https://docs.python.org/3/" if "python" in plan.title.lower() else "https://doi.org")
                 blocks.append(
                     SourceBlock(
                         title="Foundational Research & Publications" if is_nonfiction else "Official Language & Architecture Documentation",
                         publisher="Primary Source",
-                        url="https://vasukisquare.ai/research" if is_nonfiction else ("https://docs.python.org/3/" if "python" in plan.title.lower() else "https://vasukisquare.ai/research"),
+                        url=ref_fallback_url,
                         mode="card",
                         source_number=1,
                     )
