@@ -1,91 +1,85 @@
 # VasukiSquare Design System
 
-The VasukiSquare design system establishes a high-craft editorial document aesthetic derived directly from `DESIGN.md`.
+The VasukiSquare design system establishes a high-craft editorial aesthetic derived directly from [DESIGN.md](../DESIGN.md).
 
 ---
 
-## 1. Design Token Categories
+## 1. Physical A4 Layout & Grid Contracts
 
-All tokens are defined in `vasukisquare.design.tokens` and converted to CSS custom properties dynamically:
-
-### Colors
-- **Brand & Primary**:
-  - `primary`: `#00ed64`
-  - `brand-green`: `#00ed64`
-  - `brand-green-dark`: `#00684a`
-  - `brand-green-mid`: `#00a35c`
-  - `brand-green-soft`: `#c3f0d2`
-  - `brand-teal-deep`: `#001e2b`
-  - `brand-teal`: `#003d4f`
-  - `brand-teal-mid`: `#00684a`
-- **Category Accents**:
-  - `accent-purple`: `#7b3ff2`
-  - `accent-orange`: `#fa6e39`
-  - `accent-pink`: `#f06bb8`
-  - `accent-blue`: `#3d4f9f`
-- **Surfaces & Borders**:
-  - `canvas`: `#ffffff`
-  - `canvas-dark`: `#001e2b`
-  - `surface`: `#f9fbfa`
-  - `surface-soft`: `#f4f7f6`
-  - `surface-feature`: `#e3fcef`
-  - `hairline`: `#e1e5e8`
-  - `hairline-strong`: `#c1ccd6`
-  - `hairline-dark`: `#1c2d38`
-- **Text & Ink**:
-  - `ink`: `#001e2b`
-  - `charcoal`: `#1c2d38`
-  - `slate`: `#3d4f5b`
-  - `steel`: `#5c6c7a`
-  - `stone`: `#7c8c9a`
-  - `muted`: `#a8b3bc`
-  - `on-dark`: `#ffffff`
-  - `on-dark-muted`: `#a8b3bc`
-
-### Open-Source Typography Stacks
-Proprietary faces from the analysis are replaced with metric-compatible open-source stacks:
-- **Display / Headers**: `'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif`
-- **Body / Content**: `'Inter', 'Plus Jakarta Sans', -apple-system, sans-serif`
-- **Code / Listings**: `'JetBrains Mono', 'Fira Code', 'Source Code Pro', monospace`
-
-### Spacing & Radii Scale
-- **Spacing**: `xxs` (4px), `xs` (8px), `sm` (12px), `md` (16px), `lg` (20px), `xl` (24px), `xxl` (32px), `xxxl` (40px), `section-sm` (48px), `section` (64px), `section-lg` (96px), `hero` (120px).
-- **Radii**: `xs` (4px), `sm` (6px), `md` (8px), `lg` (12px), `xl` (16px), `xxl` (24px), `full` (9999px / pill).
+- **Document Dimensions**: Physical A4 size (210mm × 297mm).
+- **Zero Overflow Contract**: Every normal page must fit exactly inside A4 boundaries. No vertical scrolling or clipping is permitted.
+- **Margins & Safe Zones**:
+  - Top Margin: 18mm
+  - Bottom Margin: 18mm
+  - Left / Right Margins: 16mm
+- **Header & Footer**:
+  - Running header: Displays the publication title and current chapter name.
+  - Running footer: Displays publisher imprint, copyright date, and dynamic page number.
 
 ---
 
-## 2. 14 Controlled Editorial Page Layouts
+## 2. Mathematical Color Tokens
 
-VasukiSquare enforces 14 distinct layout types to guarantee page-to-page visual variety without sacrificing design harmony:
+All design colors are defined as strict tokens in `src/vasukisquare/design/tokens.py` and converted to CSS custom properties:
 
-1. **`editorial`**: High-readability multi-column text layout with leading drop-caps and section summaries.
-2. **`split-explainer`**: Two-column layout pairing a narrative explanation with a visual card.
-3. **`large-number`**: Big KPI / metric callouts with descriptive captions.
-4. **`quote`**: Large stylized callout quotations with author attributions.
-5. **`timeline`**: Vertical stepped milestone and chronological sequence layout.
-6. **`comparison`**: Side-by-side comparative matrices and trade-off tables.
-7. **`diagram-focus`**: Prominent architectural frame for system diagrams and workflows.
-8. **`code-focus`**: Syntax-highlighted code block with terminal headers.
-9. **`concept-grid`**: 2x2 or 3-column card grid explaining related sub-concepts.
-10. **`research-highlight`**: Key scientific finding or benchmark with highlighted border.
-11. **`definition`**: Formal glossary/terminology breakdown.
-12. **`case-study`**: Real-world incident or deployment case study with takeaway badges.
-13. **`full-bleed-statement`**: Hero text banner for pivotal chapter insights.
-14. **`summary`**: Key takeaways and bulleted chapter recap.
+### Primary Brand Tokens
+- `BRAND_GREEN`: `#00ed64`
+- `BRAND_GREEN_DARK`: `#00684a`
+- `BRAND_GREEN_MID`: `#00a35c`
+- `BRAND_TEAL_DEEP`: `#001e2b`
+- `BRAND_TEAL`: `#003d4f`
+
+### Surface & Canvas Tokens
+- `CANVAS` (Light): `#ffffff` / `#faf8f5`
+- `CANVAS_DARK` (Dark): `#001e2b` / `#00141e`
+- `SURFACE` (Light): `#f9fbfa`
+- `SURFACE_DARK`: `#0a2635`
+
+### Text & Ink Tokens
+- `INK`: `#001e2b`
+- `CHARCOAL`: `#1c2d38`
+- `SLATE`: `#3d4f5b`
+- `MUTED`: `#a8b3bc`
+- `ON_DARK`: `#ffffff`
+- `ON_DARK_MUTED`: `#a8b3bc`
 
 ---
 
-## 3. Anti-Repetition Constraints
+## 3. Chapter Themes & Alternating Contract
 
-The `LayoutConstraintEngine` ensures that adjacent content pages do not reuse the same layout, preventing monotonous sequences of identical page templates while maintaining the unified design language.
+VasukiSquare implements an alternating chapter theme contract:
+- **Odd Chapters (1, 3, 5, ...)**: Render in **Dark Theme** (`Theme.DARK`), providing deep contrast, glowing code blocks, and crisp typography.
+- **Even Chapters (2, 4, 6, ...)**: Render in **Light Theme** (`Theme.LIGHT`), providing clean, editorial reading clarity.
+- **Frontmatter & Backmatter**: Render in coordinated neutral themes (`Theme.LIGHT`).
 
 ---
 
-## 4. Semantic Lucide Icon Handling
+## 4. Chapter Opener Templates
 
-- The LLM selects the **semantic icon name** (e.g. `sparkles`, `cpu`, `database`, `code`, `layers`).
-- The renderer selects the **icon token color** via `IconColorResolver`:
-  - Dark Theme $\rightarrow$ `ColorToken.BRAND_GREEN` (`#00ed64`) or `ColorToken.ON_DARK` (`#ffffff`)
-  - Light Theme $\rightarrow$ `ColorToken.BRAND_GREEN_DARK` (`#00684a`) or `ColorToken.INK` (`#001e2b`)
-- Arbitrary colors are rejected with validation errors.
+Every chapter boundary begins with a dedicated, single-page chapter opener utilizing one of 6 layout templates:
 
+1. **`minimal_centered`**: Centered chapter number, bold headline, and hero Lucide icon.
+2. **`left_accent_banner`**: Vertical accent bar on the left margin with strong asymmetric typography.
+3. **`split_contrast`**: Two-tone split card separating chapter metadata from title.
+4. **`editorial_classic`**: Elegant serif/sans-serif header layout with subtle rule lines.
+5. **`technical_blueprint`**: Monospace badge metadata and technical grid styling.
+6. **`icon_heroic`**: Large decorative Lucide hero icon with subtitle banner.
+
+**Rule**: Chapter opener pages contain only chapter identification, chapter title, subtitle, and one semantic icon. Body text is never placed on chapter opener pages.
+
+---
+
+## 5. Typography Stacks
+
+VasukiSquare uses high-legibility, open-source typography stacks with system fallbacks:
+- **Display & Section Headers**: `'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif`
+- **Body & Content Text**: `'Inter', 'Plus Jakarta Sans', -apple-system, sans-serif`
+- **Code & Terminal Listings**: `'JetBrains Mono', 'Fira Code', monospace`
+
+---
+
+## 6. Lucide Icon Integration
+
+- Lucide is the exclusive icon system.
+- Icons are rendered as inline SVGs using `src/vasukisquare/design/icons.py`.
+- Icon colors are mathematically resolved via `IconColorResolver` to match the active page theme.

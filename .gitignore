@@ -215,10 +215,16 @@ marimo/_lsp/
 __marimo__/
 
 # Streamlit
-.streamlit/secrets.toml
-
+.env
 .env.local
+.env.*.local
+*.env
+!.env.example
+output/
+output/*
 output
-output/demo
-demo_output
+demo_output/
+.tmp/
+*.tmp
 dummy.txt
+

@@ -1,92 +1,75 @@
-# VasukiSquare HTML Rendering & A4 PDF Pagination Subsystem
+# Rendering Engine & PDF Compilation
 
-The rendering subsystem converts structured `Page` models into canonical HTML and deterministic physical A4 PDF documents.
-
----
-
-## 1. Physical A4 Pagination Model
-
-Every rendered page conforms strictly to the physical A4 print specification:
-- **Dimensions**: `210mm × 297mm`
-- **Page Rules**:
-  ```css
-  @page {
-    size: A4;
-    margin: 0;
-  }
-  ```
-- **Page Container**: Each logical `Page` entity maps to exactly one `.page` HTML container with `box-sizing: border-box`, `padding: 24mm 20mm`, and `overflow: hidden`.
-- **Page Breaking**: `page-break-after: always; break-after: page;` guarantees clean document assembly without inter-page spillover.
+VasukiSquare converts structured data models into physical A4 HTML pages and compiles them into publication-ready PDF documents.
 
 ---
 
-## 2. Page Chrome & Header/Footer Placement
+## 1. HTML Rendering & Template Architecture
 
-- **Normal Content Pages**:
-  - **Header**: Chapter number, chapter title, and book topic.
-  - **Footer**: Book title and 1-indexed page number.
-- **Chapter Opener Pages**:
-  - Intentionally minimal: Omits header chrome and contains **ONLY** the chapter number, chapter title, and one Lucide SVG icon.
-- **Cover & Thank-You Pages**:
-  - Hero formatting with full-bleed canvas styling and dark background tokens.
+The HTML rendering pipeline (`src/vasukisquare/renderer/html.py`):
+1. **Jinja2 Template Processing**: Loads templates from `src/vasukisquare/templates/` (`base.html`, `book.html`, `cover.html`, `styles.css`).
+2. **Component Block Rendering**: Maps Pydantic component objects (`HeroHeaderBlock`, `ParagraphBlock`, `CodeSnippetBlock`, `CalloutBlock`, etc.) into semantic, styled HTML.
+3. **Rich Text Formatting**: Formats `RichSpan` models into inline bold, italic, code, and external link tags without raw markdown syntax.
+4. **Header & Footer Decoration**: Injects dynamic running headers with book/chapter titles, publisher imprints, and calculated page numbers.
 
 ---
 
-## 3. Dynamic Page Insertion & Semantic Overflow Pagination
+## 2. Playwright Chromium PDF Compilation
 
-Instead of shrinking font sizes, compressing spacing, clipping components, or dropping content, VasukiSquare decouples logical pages from physical pages using **Dynamic Page Insertion**:
+PDF export (`src/vasukisquare/renderer/pdf.py`) uses Playwright with headless Chromium to guarantee print rendering fidelity:
 
-$$\text{Logical Content Page} \ne \text{Always One Physical Page}$$
-
-1. **Vertical Geometry & Safe Content Limits**:
-   - Usable safe content height: `CONTENT_SAFE_HEIGHT_MM = 215.0mm`
-   - Content target ratio: $0.85 - 0.95$ of safe usable height.
-   - Any content exceeding `CONTENT_SAFE_HEIGHT_MM` triggers dynamic page splitting.
-
-2. **Component-Level Semantic Splitting (`find_safe_page_split`)**:
-   - Partitions components at natural structural boundaries (between `TextBlock`, `CalloutBlock`, `ComparisonBlock`, `TableBlock`, `StepBlock`, etc.).
-   - Multi-item components sub-split cleanly when needed:
-     - `TableBlock`: splits rows with repeated column headers and `(Cont.)` caption.
-     - `ChecklistBlock`: splits items with continuous numbering.
-     - `StepBlock`: splits steps across pages with `(Cont.)` title.
-     - `TextBlock`: splits paragraphs without orphan sentences.
-
-3. **Recursive Continuation Page Generation (`create_continuation_page`)**:
-   - Continuation pages inherit chapter number, chapter title, theme, and layout styling.
-   - Headlines are cleanly suffixed: `"<Headline> (Cont.)"`, `"<Headline> (Cont. 2)"`, etc.
-   - If an inserted continuation page itself contains excess content, the pagination engine recursively splits it until all physical pages satisfy safe A4 height constraints.
-
-4. **Dynamic Table of Contents & Sequential Pointer Linking**:
-   - All physical pages in the book are re-indexed $1 \dots M$ with bidirectional MongoDB linked list pointers (`previous_page_id`, `next_page_id`).
-   - `regenerate_toc_pages` dynamically resolves the actual physical starting page numbers of all chapters and updates TOC entries automatically.
-
----
-
-## 4. Playwright Chromium PDF Generation
-
-PDF export runs headless Chromium via Playwright:
 ```python
-await page.pdf(
-    path=output_path,
-    format="A4",
-    print_background=True,
-    margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
-)
+async with async_playwright() as p:
+    browser = await p.chromium.launch(headless=True)
+    page = await browser.new_page(viewport={"width": 794, "height": 1123})
+    await page.set_content(html_content, wait_until="load")
+    
+    # Wait for all web fonts to load
+    await page.evaluate("() => document.fonts.ready")
+    
+    # Compile physical A4 PDF
+    await page.pdf(
+        path=str(out_path),
+        format="A4",
+        print_background=True,
+        margin={"top": "0", "bottom": "0", "left": "0", "right": "0"},
+    )
 ```
 
+### Key PDF Invariants
+- **Dimensions**: Exact ISO A4 format (210mm × 297mm).
+- **Margins**: Zero page margin in Playwright; inner margins are handled by CSS (`@page { size: A4; margin: 0; }`).
+- **Font Settlement**: Explicit JavaScript promise (`document.fonts.ready`) ensures typography never flashes or shifts during rendering.
+- **Image Load Validation**: Waits for all SVG icons and raster graphics to complete loading before capturing the PDF snapshot.
+
 ---
 
-## 5. Regression Snapshot Fixtures
+## 3. Zero-Overflow & Page Repair Engine
 
-The subsystem maintains 10 canonical layout fixtures verified across every test run:
-1. `cover`
-2. `copyright`
-3. `toc`
-4. `dark_chapter_opener`
-5. `light_chapter_opener`
-6. `text_heavy` (editorial)
-7. `code` (code-focus)
-8. `comparison`
-9. `references`
-10. `thank_you`
+In physical A4 printing, page content must never vertically overflow its container. VasukiSquare incorporates an automated overflow detection and repair engine (`src/vasukisquare/renderer/overflow.py`):
 
+1. **Content Density Estimation**: Calculates the physical vertical height of all component blocks on each page.
+2. **Dynamic Splitting**: If a page's content density exceeds 100% of the printable A4 safe zone, the repair engine splits the content across consecutive pages while preserving heading hierarchies.
+3. **Table of Contents Re-indexing**: When pages are dynamically split, Pass 2 updates chapter starting page numbers in the Table of Contents.
+
+---
+
+## 4. Preflight Audit
+
+Before final PDF generation, `preflight_book` (`src/vasukisquare/renderer/preflight.py`) conducts automated preflight checks:
+- Verifies physical A4 dimensions across all pages.
+- Verifies that chapter openers contain zero body text.
+- Validates alternating theme colors and contrast.
+- Ensures all page numbers are sequential and continuous.
+- Writes findings to `output/preflight_report.json`.
+
+---
+
+## 5. Rendering Troubleshooting
+
+| Problem | Cause | Solution |
+|---|---|---|
+| `Executable doesn't exist at ...` | Playwright Chromium binary not installed | Run `playwright install chromium` in your virtual environment. |
+| Missing system libraries on Linux | Headless Linux missing dependencies | Run `playwright install-deps chromium` (requires sudo on Debian/Ubuntu). |
+| Custom font not displaying | Network offline or font blocked | VasukiSquare uses robust fallback font stacks (`Inter`, `Plus Jakarta Sans`, system sans-serif). |
+| Blank pages in output | Overflow margin or extra line break | Check `preflight_report.json` to inspect page height utilization. |

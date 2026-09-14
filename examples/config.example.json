@@ -1,0 +1,21 @@
+{
+  "branding": {
+    "author_name": "Elena Rostova",
+    "publication_name": "Modern Engineering Press",
+    "company_name": "Rostova Media Group",
+    "engine_name": "VasukiSquare AI Publishing Engine",
+    "website": "https://modernengineeringpress.example.com"
+  },
+  "edition": {
+    "name": "FIRST EDITION",
+    "year": 2026
+  },
+  "copyright": {
+    "holder": "Modern Engineering Press LLC",
+    "all_rights_reserved": true
+  },
+  "book_defaults": {
+    "language": "English"
+  }
+}
+

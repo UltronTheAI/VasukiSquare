@@ -1,66 +1,120 @@
-# VasukiSquare Generation Pipeline Architecture
+# Generation Pipeline
 
-VasukiSquare decomposes the generation of technical ebooks into an explicit, stateful multi-stage workflow to guarantee factual reliability, design consistency, and deterministic physical A4 pagination.
+VasukiSquare executes an explicit 7-stage generation lifecycle coordinated by `EbookGenerationPipeline` in `src/vasukisquare/pipeline/orchestrator.py`.
+
+The stages are executed sequentially with intermediate state caching, allowing any interrupted run to be resumed using `--resume`.
 
 ---
 
-## 1. High-Level Lifecycle
+## Stage-by-Stage Breakdown
 
 ```
-[1. Prompt]
+Stage 1: Intent Inference
     │
     ▼
-[2. Intent Inference] (Editorial Parameters, Audience, Depth, Tone)
+Stage 2: Deep Research & Retrieval
     │
     ▼
-[3. Deep Research] (Multi-Perspective Search, Deduplication, Ranking) ──► research.json
+Stage 3: Editorial & Chapter Planning
     │
     ▼
-[4. Editorial Planning] (Chapter Outlines, Page Budgets, Layout Goals) ──► book_plan.json
+Stage 4: Cover Planning & Design
     │
     ▼
-[5. Cover Planning] (1600x2560 Canvas, Geometric Vectors, Token Colors) ──► cover.html & cover.png
+Stage 5: Page Authoring & Overflow Repair
     │
     ▼
-[6. Page Writing & Rendering] (Structured PageContent, Code, Citations) ──► pages/*.html
+Stage 6: Database Persistence (Optional MongoDB)
     │
     ▼
-[7. Validation & Controlled Repair] (A4 Capacity Limits, Automatic Page Splitting)
-    │
-    ▼
-[8. MongoDB Persistence] (Books, Pages with Doubly-Linked IDs, Covers)
-    │
-    ▼
-[9. Full Assembly & PDF Export] (Canonical book.html & Playwright A4 book.pdf)
+Stage 7: Final HTML Assembly & PDF Export
 ```
 
 ---
 
-## 2. Failure Recovery & Resiliency Invariants
-
-1. **No Redundant Web Research**: Once research queries are executed, the resulting `ResearchCorpus` is serialized into `research.json` and reused throughout all downstream stages.
-2. **Targeted Page Regeneration**: If a page fails capacity validation (e.g., text overflow > 2800 characters), the `PageRepairEngine` splits the overflowing body content cleanly across an inserted continuation page and re-links the graph pointers. The rest of the book and previous research are preserved without full-pipeline regeneration.
-3. **Deterministic Page Numbering**: Every page in the book receives a contiguous 1-indexed page number from Page 1 (Cover) to Page N (Thank You).
+### Stage 1: Intent Inference (`EditorialPlannerAgent.infer_intent`)
+- **Input**: User topic, optional public title, optional editorial prompt/brief, target page count.
+- **Processing**:
+  - Classifies whether the subject is technical or non-technical (`is_technical`).
+  - Identifies target audience (e.g. beginner, intermediate, systems engineer).
+  - Determines tone (e.g. practical, academic, concise).
+  - Extracts required topics, desired elements (exercises, checklists, code), and programming language.
+  - Enforces title length constraint (≤ 50 characters).
+- **Output**: `BookIntent` model.
+- **Artifact**: `checkpoints/intent.json`.
+- **Failure Handling**: Falls back to deterministic intent extraction rules if LLM parsing encounters errors.
 
 ---
 
-## 3. CLI Commands
+### Stage 2: Deep Research (`ResearchService.research_topic`)
+- **Input**: Topic and `BookIntent`.
+- **Processing**:
+  - `ResearchPlanner` expands topic into multi-perspective search queries (conceptual, architectural, pitfalls, standards).
+  - Dispatches queries across configured search providers (SearXNG, DuckDuckGo, Tavily, Serper, Brave) and Wikipedia API.
+  - Normalizes URLs, deduplicates sources, and ranks documents by domain authority.
+  - Ingests and extracts clean markdown/text content from high-ranking pages.
+- **Output**: `ResearchCorpus` model containing ranked `SourceDocument` records.
+- **Artifacts**: `research.json`, `research_queries.json`, `checkpoints/research.json`.
+- **Failure Handling**: If live web search is unavailable or times out, seamlessly falls back to DuckDuckGo, Wikipedia, or built-in offline technical corpora.
 
-### Generate Ebook CLI
-```bash
-python scripts/generate_book.py --topic "How Modern Databases Work" --pages 60
-```
+---
 
-### Run Full Demo
-```bash
-python scripts/generate_demo.py
-```
+### Stage 3: Editorial Planning (`EditorialPlannerAgent.generate_book_plan`)
+- **Input**: Topic, `BookIntent`, and `ResearchCorpus`.
+- **Processing**:
+  - Outlines 4–12 chapters mapped across the target page budget.
+  - Assigns visual anchor types (code blocks, comparison tables, diagrams, callouts, lists) to every section.
+  - Creates exact page-by-page specifications (`PlannedPageSpec`) for frontmatter, chapters, and backmatter.
+  - Generates cohesive `BookThemeMap` with alternating dark/light chapter themes and harmonious color accents.
+- **Output**: `BookPlan` model.
+- **Artifacts**: `book_plan.json`, `checkpoints/book_plan.json`.
+- **Failure Handling**: Structured retry loops with exponential backoff on model failure.
 
-### Outputs
-- `output/demo/book.html`: Assembled canonical HTML document with embedded CSS variables.
-- `output/demo/book.pdf`: Printable A4 PDF generated via Chromium.
-- `output/demo/cover.png`: 1600×2560 high-resolution cover image.
-- `output/demo/research.json`: Ingested and ranked research sources.
-- `output/demo/book_plan.json`: Chapter structures, page budgets, and visual anchor assignments.
-- `output/demo/pages/`: Individual standalone page HTML files.
+---
 
+### Stage 4: Cover Planning & Design (`CoverPlannerAgent.plan_cover`)
+- **Input**: Book title, subtitle, category, audience, tone, and theme seed.
+- **Processing**:
+  - Selects 1 of 6 cover styles (`editorial_minimal`, `split_hero`, `geometric_accent`, `technical_blueprint`, `swiss_bold`, `minimal_monochrome`).
+  - Computes high-contrast color palettes meeting WCAG contrast thresholds.
+  - Renders 1600 × 2560 source canvas artwork and physical A4 cover layout.
+- **Output**: `CoverPlan` model and rendered A4 cover `Page`.
+- **Artifacts**: `cover_plan.json`, `cover.html`, `checkpoints/cover_plan.json`.
+- **Failure Handling**: Contrast repair engine automatically adjusts text/background luminance if contrast ratio falls below 4.5:1.
+
+---
+
+### Stage 5: Page Authoring & Repair (`PageWriterAgent.write_page`)
+- **Input**: `PlannedPageSpec`, `BookPlan`, and `ResearchCorpus`.
+- **Processing**:
+  - Authors structured component blocks (`HeroHeaderBlock`, `ParagraphBlock`, `CodeSnippetBlock`, `CalloutBlock`, `ComparisonTableBlock`, etc.) with zero raw markdown leakage.
+  - Formats 1 of 6 chapter opener templates on chapter boundary pages.
+  - Runs `PageRepairEngine` and `OverflowDetector` to calculate content density and prevent vertical A4 overflow.
+  - Pass 2 resolves dynamic Table of Contents starting page numbers and cited bibliography blocks.
+  - Executes 15-point Content Quality Audit (`ContentValidator.audit_book`).
+- **Output**: List of typed, validated `Page` models.
+- **Artifacts**: `pages/page_*.html`, `checkpoints/pages/page_*.json`.
+- **Failure Handling**: Individual page retry on schema validation error; checkpointing preserves all completed pages.
+
+---
+
+### Stage 6: Database Persistence (`DatabaseManager` & Repositories)
+- **Input**: Assembled `Book`, `Page` list, and `Cover`.
+- **Processing**:
+  - Persists `Book` root document in `books` collection.
+  - Generates bidirectional linked-list IDs (`previous_page_id`, `next_page_id`, `book_id`) and inserts into `pages` collection.
+  - Links `starting_page_id` and persists cover artwork in `covers` collection.
+- **Output**: Navigable MongoDB document graph.
+- **Failure Handling**: **Non-blocking**. If MongoDB is not running or `--no-db` is specified, the pipeline logs a warning and proceeds without interrupting PDF export.
+
+---
+
+### Stage 7: HTML Assembly & PDF Export (`HtmlPageRenderer` & `PdfRenderer`)
+- **Input**: Validated `Page` list, `BookPlan`, and `AppConfig`.
+- **Processing**:
+  - Runs `preflight_book` to check geometry and visual token integrity.
+  - Combines individual page DOMs into canonical `book.html`.
+  - Launches Playwright headless Chromium, waits for web fonts and assets to settle, and prints physical A4 `book.pdf`.
+  - Writes canonical `book_manifest.json` and `generation_metrics.json`.
+- **Output**: `book.html`, `book.pdf`, `book_manifest.json`, `preflight_report.json`, `generation_metrics.json`.
+- **Failure Handling**: Clear diagnostics if Playwright browser binaries are missing (`playwright install chromium`).

@@ -1,135 +1,137 @@
-# VasukiSquare MongoDB Schema Specification
+# MongoDB Persistence & Document Schema
 
-VasukiSquare persists ebooks across exactly three collections in MongoDB:
+VasukiSquare includes an optional persistence layer for storing books, individual pages, and cover artwork in MongoDB as a navigable linked document graph.
+
+> [!NOTE]
+> **MongoDB is 100% Optional**:
+> VasukiSquare saves all generated HTML, PDF, manifest, and checkpoint files directly to your output directory. If MongoDB is not running, or if you pass the `--no-db` CLI flag, the generation pipeline catches connection errors non-blockingly and completes PDF export without interruption.
+
+---
+
+## 1. Enabling MongoDB Persistence
+
+To enable MongoDB storage:
+1. Ensure a MongoDB instance is running locally or provide a connection URI in `.env`:
+   ```env
+   MONGODB_URI=mongodb://localhost:27017
+   MONGODB_DATABASE=vasukisquare
+   ```
+2. Run your generation command without `--no-db`:
+   ```bash
+   vasukisquare --topic "Cloud Architecture Patterns"
+   ```
+
+---
+
+## 2. Collections & Document Schemas
+
+VasukiSquare organizes persistence across three collections:
 1. `books`
 2. `pages`
 3. `covers`
 
-Together, these collections form a navigable linked document graph allowing forward and backward page traversal and end-to-end book tracing.
-
----
-
-## 1. Collections & Document Schemas
+Together, these collections form a navigable doubly-linked list of pages connected to root book and cover records.
 
 ### `books` Collection
 
-Represents the root book document.
+Represents the root publication record.
 
 ```json
 {
-  "_id": "uuid-string",
-  "slug": "introduction-to-modern-ai",
-  "title": "Introduction to Modern AI",
-  "subtitle": "Architecture and Practical Applications",
-  "prompt": "Write a complete guide on modern AI architectures...",
-  "description": "An exhaustive technical breakdown of transformers and agentic systems.",
+  "_id": "550e8400-e29b-41d4-a716-446655440000",
+  "title": "Modern Distributed Systems",
+  "subtitle": "Consensus, Raft, and Gossip Protocols",
+  "running_title": "Modern Distributed Systems",
+  "prompt": "Modern Distributed Systems: Consensus, Raft, and Gossip Protocols",
+  "description": "An in-depth technical exploration of consensus and distributed algorithms.",
   "status": "draft",
-  "chapter_count": 5,
-  "page_count": 60,
-  "starting_page_id": "page-uuid-1",
-  "cover_id": "cover-uuid-1",
+  "chapter_count": 4,
+  "page_count": 32,
+  "starting_page_id": "page-uuid-001",
+  "cover_id": "cover-uuid-001",
   "chapters": [
     {
       "chapter_number": 1,
-      "title": "The Genesis of Neural Networks",
-      "summary": "Historical perspective and foundation.",
-      "icon": "sparkles",
-      "page_count": 12,
-      "theme": "dark"
+      "title": "Foundations of Consensus",
+      "summary": "Core definitions and historical context.",
+      "icon": "layers",
+      "page_count": 8
     }
   ],
-  "created_at": "2026-09-11T12:00:00Z",
-  "updated_at": "2026-09-11T12:00:00Z"
+  "created_at": "2026-09-15T12:00:00Z",
+  "updated_at": "2026-09-15T12:00:00Z"
 }
 ```
 
 ### `pages` Collection
 
-Represents individual A4 pages. Every page exists as an independent document forming a doubly-linked list.
+Represents individual A4 pages stored as independent documents forming a doubly-linked list.
 
 ```json
 {
-  "_id": "page-uuid-2",
-  "book_id": "uuid-string",
+  "_id": "page-uuid-002",
+  "book_id": "550e8400-e29b-41d4-a716-446655440000",
   "page_number": 2,
   "page_type": "chapter_opener",
   "chapter_number": 1,
-  "chapter_name": "The Genesis of Neural Networks",
+  "chapter_title": "Foundations of Consensus",
   "theme": "dark",
   "layout": "chapter_opener",
-  "previous_page_id": "page-uuid-1",
-  "next_page_id": "page-uuid-3",
-  "icon": "sparkles",
+  "previous_page_id": "page-uuid-001",
+  "next_page_id": "page-uuid-003",
+  "icon": "layers",
   "content": {
-    "headline": "The Genesis of Neural Networks",
-    "body": null,
-    "key_points": [],
-    "code_snippets": [],
-    "callouts": [],
-    "metadata": {}
+    "headline": "Foundations of Consensus",
+    "blocks": []
   },
   "style": {
     "theme": "dark",
-    "font_family": "Euclid Circular A",
+    "background_color": "#001e2b",
+    "text_color": "#ffffff",
     "accent_color": "#00ed64",
-    "layout_variant": null,
-    "custom_css": null
+    "opener_template": "minimal_centered"
   },
-  "sources": [
-    {
-      "url": "https://arxiv.org/abs/1706.03762",
-      "title": "Attention Is All You Need",
-      "claim": "Transformers introduce self-attention mechanisms.",
-      "quote": "We propose the Transformer, a model architecture...",
-      "page_number": 1
-    }
-  ],
-  "html": "<div class=\"page theme-dark layout-chapter_opener\">...</div>",
-  "validation": {
-    "overflow_detected": false,
-    "citations_valid": true
-  }
+  "html": "<div class=\"page theme-dark layout-chapter_opener\">...</div>"
 }
 ```
 
 ### `covers` Collection
 
-Represents the book's high-resolution cover artwork and layout.
+Represents high-resolution cover artwork and style parameters.
 
 ```json
 {
-  "_id": "cover-uuid-1",
-  "book_id": "uuid-string",
+  "_id": "cover-uuid-001",
+  "book_id": "550e8400-e29b-41d4-a716-446655440000",
   "width": 1600,
   "height": 2560,
-  "title": "Introduction to Modern AI",
+  "title": "Modern Distributed Systems",
   "design": {
-    "subtitle": "Architecture and Practical Applications",
-    "palette": "brand-dark",
-    "hero_icon": "sparkles"
+    "subtitle": "Consensus, Raft, and Gossip Protocols",
+    "cover_style": "editorial_minimal",
+    "accent_color": "#00ed64",
+    "background_color": "#faf8f5"
   },
-  "html": "<div class=\"cover-wrapper\">...</div>",
-  "image_path": "output/covers/cover-uuid-1.png",
-  "created_at": "2026-09-11T12:00:00Z"
+  "html": "<div class=\"cover-container\">...</div>",
+  "created_at": "2026-09-15T12:00:00Z"
 }
 ```
 
 ---
 
-## 2. MongoDB Indexes
+## 3. Database Indexes
 
-The following indexes guarantee unique constraints, relationship integrity, and fast lookup performance:
+When initialized via `DatabaseManager.init_all_indexes()`, the following indexes are created:
 
-| Collection | Key(s) | Options | Purpose |
+| Collection | Key(s) | Unique? | Purpose |
 |---|---|---|---|
-| `books` | `{ "slug": 1 }` | `unique: true` | Enforce human-readable unique URL slugs |
-| `pages` | `{ "book_id": 1, "page_number": 1 }` | `unique: true` | Prevent duplicate page numbering within any book |
-| `pages` | `{ "book_id": 1 }` | `unique: false` | Fast lookup of all pages belonging to a book |
-| `covers` | `{ "book_id": 1 }` | `unique: true` | Enforce 1-to-1 relationship between book and cover |
+| `pages` | `{ "book_id": 1, "page_number": 1 }` | `unique: true` | Prevents duplicate page numbering within a book |
+| `pages` | `{ "book_id": 1 }` | `unique: false` | Fast querying of all pages belonging to a specific book |
+| `covers` | `{ "book_id": 1 }` | `unique: true` | Enforces 1-to-1 relationship between book and cover |
 
 ---
 
-## 3. Linked Graph & Page Navigation
+## 4. Linked Graph Traversal Invariants
 
 ```
 Book [ starting_page_id: Page 1, cover_id: Cover ]
@@ -148,12 +150,10 @@ Book [ starting_page_id: Page 1, cover_id: Cover ]
         Page N (prev: Page N-1, next: null)
 ```
 
-### Linking Invariants
-1. `page 1.previous_page_id == null`
-2. `page N.next_page_id == null`
-3. For every page `i` where `1 < i < N`:
-   - `page[i].previous_page_id == page[i-1]._id`
-   - `page[i].next_page_id == page[i+1]._id`
-4. `book.starting_page_id == page 1._id`
-5. `cover.book_id == book._id`
-
+1. `page[0].previous_page_id == null`
+2. `page[-1].next_page_id == null`
+3. For every page `i` where `0 < i < N-1`:
+   - `page[i].previous_page_id == page[i-1].id`
+   - `page[i].next_page_id == page[i+1].id`
+4. `book.starting_page_id == page[0].id`
+5. `cover.book_id == book.id`

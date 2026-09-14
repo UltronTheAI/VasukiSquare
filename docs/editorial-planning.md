@@ -1,74 +1,80 @@
-# VasukiSquare Editorial Book Planning
+# Editorial Planning & Page Budgeting
 
-The Editorial Planning Agent translates a user's prompt and research corpus into a complete, budget-balanced `BookPlan` before any chapter prose is written.
-
----
-
-## 1. Intent Inference (`BookIntent`)
-
-The planner analyzes the prompt and research corpus to infer 9 key editorial parameters:
-
-- **`book_type`**: Architectural guide, handbook, technical deep dive, tutorial manual, or executive briefing.
-- **`target_audience`**: Technical background and persona.
-- **`technical_depth`**: Introductory, intermediate, advanced, or expert.
-- **`tone`**: Authoritative, practical, analytical, or educational.
-- **`approximate_length`**: Target page range (`short`, `standard`, `comprehensive`).
-- **`chapter_count`**: Number of structured chapters (typically 4–10).
-- **`research_intensity`**: `standard`, `deep`, or `academic`.
-- **`code_requirements`**: Whether code snippets and implementation guides are required.
-- **`diagram_requirements`**: Whether system architecture diagrams and topologies are required.
+The `EditorialPlannerAgent` (`src/vasukisquare/agents/editorial.py`) translates user topics into cohesive, mathematically budgeted publication structures.
 
 ---
 
-## 2. Canonical Book Structure
+## 1. Intent Analysis & Classification
 
-Every generated book plan guarantees a complete book sequence:
+Before outlining chapters, the engine infers a `BookIntent`:
 
-```
-[Frontmatter]
-  ├── Page 1: Cover (Dark theme, 1600x2560 canvas mapping)
-  ├── Page 2: Title / Half-Title Imprint
-  ├── Page 3: Copyright & Publishing Notice
-  └── Page 4: Table of Contents (TOC)
-
-[Body: Chapters 1 .. N]
-  ├── Chapter Opener (Dark for odd chapters, Light for even chapters)
-  │     ├── EXACTLY 1 Lucide Icon
-  │     ├── Chapter Number
-  │     └── Chapter Title
-  │     (No body text or overview paragraphs)
-  └── Chapter Content Pages (Count = Chapter Budget - 1)
-        ├── Code Snippets
-        ├── Architectural Diagrams & Tables
-        ├── Comparative Matrices
-        └── Technical Narratives
-
-[Backmatter]
-  ├── References & Primary Source Citations
-  └── Thank-You / Acknowledgments Page
+```python
+class BookIntent(BaseModel):
+    topic: str
+    title: str
+    subtitle: Optional[str]
+    book_type: str                  # "practical_guide", "reference_manual", "deep_dive", etc.
+    is_technical: bool              # Technical vs non-technical subject classification
+    primary_programming_language: Optional[str]
+    target_audience: str            # "Beginner", "Intermediate", "Systems Architects"
+    tone: str                       # "practical", "rigorous", "conversational"
+    technical_depth: str            # "introductory", "in_depth", "advanced"
+    required_topics: List[str]
+    desired_elements: List[str]     # ["code", "checklists", "exercises", "diagrams"]
+    code_requirements: bool
+    target_pages: int
 ```
 
----
-
-## 3. Visual Layout Anchors
-
-The planner annotates sections and pages with explicit visual anchors to guarantee visual diversity while remaining within `DESIGN.md` tokens:
-
-- **`code`**: Formatted syntax-highlighted code listings (`layout: "code"`).
-- **`table`**: Structured data tables, parameter grids, and API summaries.
-- **`diagram`**: System topology, sequence flows, and component diagrams.
-- **`timeline`**: Historical evolution and release milestones.
-- **`quote`**: Authoritative industry or academic callout quotations.
-- **`comparison`**: Side-by-side trade-off matrices (`layout: "comparison"`).
-- **`statistic`**: Big-number KPI cards and quantitative benchmark highlights.
-- **`text`**: Structured technical prose and concept explanations.
+### Technical vs. Non-Technical Detection
+- **Technical Subjects** (`is_technical=True`): Triggers syntax-highlighted code blocks, terminal execution sessions, language-specific best practices, and code visual anchors.
+- **Non-Technical Subjects** (`is_technical=False`): Suppresses code blocks completely, replacing them with takeaway cards, step-by-step checklists, reflection prompts, and concept comparison tables.
 
 ---
 
-## 4. Core Invariants
+## 2. Title Constraints & Sanitation
 
-1. **Deterministic Page Budgeting**: Every chapter has a fixed page budget (e.g. 6–10 pages). The chapter opener consumes 1 page of this budget.
-2. **Theme Alternation**: Odd chapters (1, 3, 5, ...) are assigned `Theme.DARK`. Even chapters (2, 4, 6, ...) are assigned `Theme.LIGHT`.
-3. **Sequential Pre-allocation**: Every page in `all_planned_pages` is assigned a unique, contiguous 1-indexed `page_number`.
-4. **No Premature Generation**: The editorial planner defines structure, budgets, and visual anchors without generating final chapter prose.
+VasukiSquare strictly validates titles (`validate_book_title` in `src/vasukisquare/book/models.py`):
+- **Length Constraint**: Maximum 50 characters.
+- **No LLM Preamble**: Rejects commentary such as `"Here is the title of the book"`, `"Book Title: ..."`.
+- **Single-Line**: Rejects multiline titles.
+- If an explicit `--title` exceeds 50 characters, `clean_and_resolve_title` intelligently trims and applies an ellipsis to guarantee visual balance on cover artwork and running headers.
 
+---
+
+## 3. Page Budgeting Architecture
+
+Physical books require predictable physical page budgets. The engine distributes pages across three primary zones:
+
+```
+Total Page Budget (e.g. 40 Pages)
+├── 1. Frontmatter (Pages 1 to 4)
+│   ├── Page 1: Cover Artwork
+│   ├── Page 2: Imprint, Copyright & Metadata
+│   ├── Page 3: Preface / Executive Summary
+│   └── Page 4: Dynamic Table of Contents
+│
+├── 2. Core Chapters (Pages 5 to 38)
+│   ├── Chapter 1: 8 Pages (Opener + 7 Section Pages)
+│   ├── Chapter 2: 9 Pages (Opener + 8 Section Pages)
+│   ├── Chapter 3: 9 Pages (Opener + 8 Section Pages)
+│   └── Chapter 4: 8 Pages (Opener + 7 Section Pages)
+│
+└── 3. Backmatter (Pages 39 to 40)
+    ├── Page 39: References & Cited Bibliography
+    └── Page 40: Acknowledgments & Next Steps
+```
+
+### Exact vs. Target Page Count
+The `--pages` argument specifies the **target budget**. While the editorial planner designs the chapter structure around this target, dynamic page-splitting and zero-overflow repairs may adjust the actual page count by ±1–2 pages to guarantee that no content overflows physical A4 boundaries.
+
+---
+
+## 4. Visual Anchor Selection
+
+Every planned section is assigned a primary `VisualAnchorType`:
+- `VisualAnchorType.CODE`: Code snippet with filename badge and language styling.
+- `VisualAnchorType.CALLOUT`: Tip, warning, or best-practice callout box.
+- `VisualAnchorType.TABLE`: Side-by-side comparison matrix.
+- `VisualAnchorType.LIST`: Structured key points or checklists.
+- `VisualAnchorType.HERO`: Section headline with Lucide topic icon.
+- `VisualAnchorType.TERMINAL`: Command-line interface block.

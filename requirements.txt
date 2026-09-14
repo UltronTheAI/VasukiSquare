@@ -1,3 +1,5 @@
+# VasukiSquare Runtime Dependencies
+# (Canonical packaging metadata is maintained in pyproject.toml)
 pydantic>=2.7.0
 pydantic-settings>=2.2.0
 pymongo>=4.6.0
@@ -9,6 +11,6 @@ langchain-groq>=0.2.0
 langchain-ollama>=0.2.0
 langgraph>=0.2.0
 playwright>=1.40.0
-pytest>=8.0.0
-pytest-asyncio>=0.23.0
-
+httpx>=0.27.0
+tenacity>=8.2.0
+beautifulsoup4>=4.12.0
