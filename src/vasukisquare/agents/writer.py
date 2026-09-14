@@ -530,14 +530,13 @@ class PageWriterAgent:
                     self.metrics.record_page_generated_by_llm()
                     raw_content = llm_content
                 else:
-                    raise ValueError(f"LLM returned empty content for Page {p.page_number}")
-            except Exception as e:
-                if self.settings.vasukisquare_mock_mode:
-                    logger.warning(f"LLM page generation failed in mock mode for Page {p.page_number}, using fallback: {e}")
+                    logger.warning(f"LLM returned empty content for Page {p.page_number} ({p.brief}), falling back to heuristic generation.")
                     self.metrics.record_fallback_page()
                     raw_content = self._heuristic_write_page(p, plan, citations)
-                else:
-                    raise GroqGenerationError(f"Failed to generate page content for Page {p.page_number} ({p.brief}) via Groq: {e}") from e
+            except Exception as e:
+                logger.warning(f"LLM page generation failed for Page {p.page_number} ({p.brief}), falling back to heuristic generation: {e}")
+                self.metrics.record_fallback_page()
+                raw_content = self._heuristic_write_page(p, plan, citations)
 
         initial_util = estimate_page_utilization(raw_content, page_type=spec.page_type.value, publication_profile=profile)
         initial_ratio = initial_util.estimated_ratio
@@ -750,7 +749,11 @@ class PageWriterAgent:
         plan: BookPlan,
         corpus: Optional[ResearchCorpus],
     ) -> Optional[PageContent]:
-        """Use Groq LLM to write a high quality, topic-aligned page strictly grounded in research."""
+        """Use LLM to write a high quality, topic-aligned page strictly grounded in research."""
+        is_tech = (
+            plan.intent.publication_profile == PublicationProfile.TECHNICAL
+            or plan.intent.is_technical
+        )
         primary_lang = plan.intent.primary_programming_language or "text"
 
         dossier_chunks = []
@@ -762,22 +765,35 @@ class PageWriterAgent:
                 )
         research_context = "\n\n".join(dossier_chunks) if dossier_chunks else "No research dossier available."
 
+        if is_tech:
+            author_role = "principal technical author and software architect"
+            guidelines = (
+                f"1. Ground all technical details, APIs, code samples, commands, and concepts directly in the Research Dossier below.\n"
+                f"2. Never use generic placeholder sentences. Every sentence must teach concrete details about {plan.title}.\n"
+                f"3. If generating code, provide clean, runnable, syntactically valid {primary_lang} code.\n"
+                f"4. Include an actionable CalloutBox (tip, best practice, or common pitfall).\n"
+                f"5. Populate cited_source_urls with the URLs from the dossier actually used."
+            )
+        else:
+            author_role = "expert editorial non-fiction author and subject specialist"
+            guidelines = (
+                f"1. Ground all behavioral concepts, strategies, examples, and frameworks in the Research Dossier below.\n"
+                f"2. Write warm, practical, engaging, actionable advice. Never output code snippets or terminal commands.\n"
+                f"3. Provide rich substantive paragraphs (80-120 words for lead, 60-100 words for secondary).\n"
+                f"4. Include an actionable CalloutBox (tip, insight, or reflection exercise).\n"
+                f"5. Populate cited_source_urls with the URLs from the dossier actually used."
+            )
+
         system_prompt = (
-            f"You are a principal technical author and software architect writing an authoritative educational ebook.\n"
+            f"You are an {author_role} writing an authoritative educational ebook.\n"
             f"Book Title: '{plan.title}'\n"
             f"Target Audience: {plan.intent.target_audience} (Depth: {plan.intent.technical_depth})\n"
-            f"Tone: {plan.intent.tone}\n"
-            f"Primary Language / Tool: {primary_lang}\n\n"
+            f"Tone: {plan.intent.tone}\n\n"
             f"You are writing a single high-impact content page for:\n"
             f"- Chapter {p.chapter_number}: {p.chapter_title}\n"
             f"- Section Topic: {p.brief}\n"
             f"- Visual Anchor Type: {p.visual_anchor.value if p.visual_anchor else 'text'}\n\n"
-            f"CRITICAL AUTHORING INSTRUCTIONS:\n"
-            f"1. Ground all technical details, APIs, code samples, commands, and concepts directly in the Research Dossier below.\n"
-            f"2. Never use generic placeholder sentences. Every sentence must teach concrete details about {plan.title}.\n"
-            f"3. If generating code, provide clean, runnable, syntactically valid {primary_lang} code.\n"
-            f"4. Include an actionable CalloutBox (tip, best practice, or common pitfall).\n"
-            f"5. Populate cited_source_urls with the URLs from the dossier actually used."
+            f"CRITICAL AUTHORING INSTRUCTIONS:\n{guidelines}"
         )
 
         user_prompt = (
@@ -793,16 +809,21 @@ class PageWriterAgent:
             temperature=0.3,
         )
 
-        if not res or not res.headline or not res.lead_paragraph:
+        if not res:
+            return None
+
+        headline = (res.headline or p.brief or f"Chapter {p.chapter_number}").strip()
+        lead_text = (res.lead_paragraph or res.secondary_paragraph or "").strip()
+        if not lead_text:
             return None
 
         blocks: List[Any] = []
 
         # 1. Lead Paragraph
-        blocks.append(TextBlock(text=res.lead_paragraph))
+        blocks.append(TextBlock(text=lead_text))
 
-        # 2. Terminal Block
-        if res.terminal_command and validate_terminal_command(res.terminal_command):
+        # 2. Terminal Block (Technical books only)
+        if is_tech and res.terminal_command and validate_terminal_command(res.terminal_command):
             blocks.append(
                 TerminalBlock(
                     title=res.terminal_title or "Terminal Session",
@@ -817,7 +838,7 @@ class PageWriterAgent:
         # 3. Visual Anchor Blocks
         anchor = p.visual_anchor or VisualAnchorType.TEXT
 
-        if res.code_snippet and validate_code_block(res.code_snippet, res.code_language or primary_lang) and (anchor == VisualAnchorType.CODE or p.layout == LayoutType.CODE_FOCUS.value or "code" in (p.brief or "").lower()):
+        if is_tech and res.code_snippet and validate_code_block(res.code_snippet, res.code_language or primary_lang) and (anchor == VisualAnchorType.CODE or p.layout == LayoutType.CODE_FOCUS.value or "code" in (p.brief or "").lower()):
             code_lang = res.code_language or primary_lang
             blocks.append(
                 CodeBlock(
@@ -885,7 +906,7 @@ class PageWriterAgent:
                 len(set(res.cited_source_urls))
             )
 
-        page_content = PageContent(headline=res.headline, blocks=blocks)
+        page_content = PageContent(headline=headline, blocks=blocks)
         return page_content
 
     def _generate_structural_page_content(

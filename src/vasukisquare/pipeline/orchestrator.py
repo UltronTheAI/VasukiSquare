@@ -21,6 +21,7 @@ from vasukisquare.renderer.validator import ContentValidator
 from vasukisquare.database.connection import DatabaseManager
 from vasukisquare.database.repository import BookRepository, PageRepository, CoverRepository
 from vasukisquare.pipeline.state import GenerationState
+from vasukisquare.design.theme import Theme
 from vasukisquare.design.themes import generate_book_theme
 from vasukisquare.agents.technical_content import classify_topic, extract_chapter_research
 
@@ -278,9 +279,11 @@ class EbookGenerationPipeline:
             else:
                 sec_theme = book_theme.frontmatter
 
-            p_spec.theme = sec_theme.mode
+            theme_enum = Theme(sec_theme.mode.lower()) if hasattr(sec_theme, "mode") and sec_theme.mode else Theme.LIGHT
+            p_spec.theme = theme_enum
             page_model = await self.writer_agent.write_page(p_spec, state.book_plan, state.research_corpus)
-            page_model.theme = sec_theme.mode
+            page_model.theme = theme_enum
+            page_model.style.theme = theme_enum
             page_model.style.background_color = sec_theme.background_color
             page_model.style.text_color = sec_theme.text_color
             page_model.style.text_muted = sec_theme.text_muted
