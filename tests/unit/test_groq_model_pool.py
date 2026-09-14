@@ -239,6 +239,7 @@ async def test_first_model_429_second_model_succeeds():
         groq_models="model-1, model-2, model-3",
         groq_model_fallback=True,
         groq_retries_per_model=1,
+        groq_wait_for_rate_limit=False,
         vasukisquare_mock_mode=True,
     )
     client = LLMClient(settings=settings)
@@ -286,6 +287,7 @@ async def test_first_two_models_fail_third_succeeds():
         groq_models="model-1, model-2, model-3",
         groq_model_fallback=True,
         groq_retries_per_model=1,
+        groq_wait_for_rate_limit=False,
         vasukisquare_mock_mode=True,
     )
     client = LLMClient(settings=settings)
@@ -331,6 +333,7 @@ async def test_all_pool_models_fail_raises_clear_error():
         groq_api_key="gsk_real_key",
         groq_models="model-1, model-2",
         groq_model_fallback=True,
+        groq_wait_for_rate_limit=False,
         llm_fallback_on_rate_limit=False,
         vasukisquare_mock_mode=True,
     )
@@ -367,6 +370,7 @@ async def test_invalid_api_key_does_not_rotate_endlessly():
         groq_api_key="gsk_invalid_key",
         groq_models="model-1, model-2, model-3",
         groq_model_fallback=True,
+        groq_wait_for_rate_limit=False,
         vasukisquare_mock_mode=True,
     )
     client = LLMClient(settings=settings)
@@ -404,6 +408,7 @@ async def test_provider_fallback_to_ollama_after_all_groq_models_fail():
         groq_api_key="gsk_real_key",
         groq_models="model-1, model-2",
         groq_model_fallback=True,
+        groq_wait_for_rate_limit=False,
         llm_fallback_on_rate_limit=True,
         ollama_model="qwen2.5:7b-instruct",
         vasukisquare_mock_mode=True,

@@ -195,9 +195,13 @@ class EbookGenerationPipeline:
                 logger.info("Resumed from checkpoint: Cover Plan loaded.")
             except Exception as e:
                 logger.warning(f"Failed to load cover plan checkpoint: {e}. Re-planning cover.")
-                from vasukisquare.cover.planner import CoverPlannerAgent as ModularCoverPlanner
-                cover_planner = ModularCoverPlanner(self.settings, self.llm_client, self.metrics)
-                state.cover_plan = cover_planner.plan_cover(
+                if self.cover_agent and hasattr(self.cover_agent, "plan_cover"):
+                    cover_planner = self.cover_agent
+                else:
+                    from vasukisquare.cover.planner import CoverPlannerAgent as ModularCoverPlanner
+                    cover_planner = ModularCoverPlanner(self.settings, self.llm_client, self.metrics)
+
+                plan_res = cover_planner.plan_cover(
                     title=state.book_plan.title,
                     subtitle=state.book_plan.subtitle,
                     category=state.intent.book_type.replace("_", " ").title(),
@@ -208,11 +212,21 @@ class EbookGenerationPipeline:
                     intent=state.intent,
                     author="Vasuki",
                 )
-                cover_ckpt.write_text(state.cover_plan.model_dump_json(indent=2), encoding="utf-8")
+                if asyncio.iscoroutine(plan_res):
+                    state.cover_plan = await plan_res
+                else:
+                    state.cover_plan = plan_res
+
+                if state.cover_plan:
+                    cover_ckpt.write_text(state.cover_plan.model_dump_json(indent=2), encoding="utf-8")
         else:
-            from vasukisquare.cover.planner import CoverPlannerAgent as ModularCoverPlanner
-            cover_planner = ModularCoverPlanner(self.settings, self.llm_client, self.metrics)
-            state.cover_plan = cover_planner.plan_cover(
+            if self.cover_agent and hasattr(self.cover_agent, "plan_cover"):
+                cover_planner = self.cover_agent
+            else:
+                from vasukisquare.cover.planner import CoverPlannerAgent as ModularCoverPlanner
+                cover_planner = ModularCoverPlanner(self.settings, self.llm_client, self.metrics)
+
+            plan_res = cover_planner.plan_cover(
                 title=state.book_plan.title,
                 subtitle=state.book_plan.subtitle,
                 category=state.intent.book_type.replace("_", " ").title(),
@@ -223,7 +237,13 @@ class EbookGenerationPipeline:
                 intent=state.intent,
                 author="Vasuki",
             )
-            cover_ckpt.write_text(state.cover_plan.model_dump_json(indent=2), encoding="utf-8")
+            if asyncio.iscoroutine(plan_res):
+                state.cover_plan = await plan_res
+            else:
+                state.cover_plan = plan_res
+
+            if state.cover_plan:
+                cover_ckpt.write_text(state.cover_plan.model_dump_json(indent=2), encoding="utf-8")
 
         if not state.cover_plan:
             raise RuntimeError("Book cover is missing or failed to render.")

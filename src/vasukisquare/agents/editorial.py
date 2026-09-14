@@ -633,7 +633,7 @@ class EditorialPlannerAgent:
         # Domain 2: Python for Beginners / Zero to Real Programs (Comprehensive 10-Chapter Curriculum)
         elif "python" in t_lower or p_lang == "python":
             chapter_topics = [
-                ("What Python Is & Setting Up Your Environment", "Understanding the Python interpreter, installing Python 3, running scripts vs interactive REPL, and code editors.", "terminal", [
+                ("Introduction to Python & Setting Up Your Environment", "Understanding the Python interpreter, installing Python 3, running scripts vs interactive REPL, and code editors.", "terminal", [
                     SectionPlan(title="Why Python & How the Interpreter Executes Code", visual_anchors=[VisualAnchorType.DIAGRAM, VisualAnchorType.TEXT]),
                     SectionPlan(title="Installation, Tooling & Your First 'Hello World' Script", visual_anchors=[VisualAnchorType.CODE, VisualAnchorType.TEXT]),
                     SectionPlan(title="Interactive REPL vs Running .py Files", visual_anchors=[VisualAnchorType.CODE, VisualAnchorType.TEXT]),

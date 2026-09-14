@@ -111,6 +111,10 @@ def test_evaluate_technical_page_spec():
                 "Ensure that prerequisites such as Python 3.10+ and a valid C compiler are installed on your host system. "
                 "The LioranDB client library connects directly to the daemon socket and manages local connection pools. "
                 "Following installation, verify the binary installation by querying the engine version and status."
+                "Following installation, verify the binary installation by querying the engine version and status. "
+                "Detailed dependency checks help avoid runtime execution errors when bootstrapping database instances. "
+                "The installer handles linking shared C extensions and sets up default socket permissions securely. "
+                "Make sure that your operating system user account possesses sufficient permissions to create and bind the unix socket domain."
             ),
             TerminalBlock(
                 title="Installation",
@@ -124,8 +128,15 @@ def test_evaluate_technical_page_spec():
                 text="Once installed, configure your environment variables to point to the desired cluster instance or local storage directory. "
                 "Testing connectivity early ensures that configuration errors are caught prior to executing complex database transactions. "
                 "Always run automated unit tests against the running service to guarantee environment compatibility."
+                "Always run automated unit tests against the running service to guarantee environment compatibility. "
+                "Make sure system ports are properly exposed in containerized deployments to allow daemon access. "
+                "Monitoring network latency during initial connection handshake helps benchmark query overhead. "
+                "Verify file system permissions for the embedded storage directory before starting background worker threads. "
+                "Proper log rotation policies should also be initialized to prevent unbounded disk usage as database operations scale over time. "
+                "You can inspect active connections by calling the telemetry ping endpoint."
             ),
             CalloutBlock(title="Note", content="Requires Python 3.10+ and 512MB RAM minimum for local development."),
+            CalloutBlock(title="Note", content="Requires Python 3.10+ and 512MB RAM minimum for local development environments and containerized microservice architectures."),
         ],
     )
     res_valid = evaluate_technical_page(valid_page, install_spec, primary_subject="LioranDB")
@@ -161,6 +172,7 @@ def test_cover_renderer_full_bleed_geometry():
     assert "background-color: #001e2b" in page.html
     assert "297mm" in page.html
     assert "VASUKISQUARE" in page.html
+    assert "VasukiSquare AI" in page.html
 
 
 @pytest.mark.asyncio

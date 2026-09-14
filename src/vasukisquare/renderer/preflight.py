@@ -86,6 +86,8 @@ def preflight_page(page: Page, theme: Optional[SectionTheme] = None) -> PagePref
         "title",
         "acknowledgement",
         LayoutType.ACKNOWLEDGEMENT.value,
+        "references",
+        LayoutType.REFERENCES.value,
     ) or layout in (
         "toc",
         LayoutType.TOC.value,
@@ -97,6 +99,8 @@ def preflight_page(page: Page, theme: Optional[SectionTheme] = None) -> PagePref
         "title",
         "acknowledgement",
         LayoutType.ACKNOWLEDGEMENT.value,
+        "references",
+        LayoutType.REFERENCES.value,
     ):
         return PagePreflightReport(
             page_number=page.page_number,

@@ -373,6 +373,7 @@ def test_cover_solid_minimal_layout():
     a4_cover = renderer.render_a4_cover_page(plan, book_id="modern-dist-sys")
     assert "radial-gradient" not in a4_cover.html
     assert "cover-hero-solid" in a4_cover.html
+    assert "cover-hero" in a4_cover.html
     assert "Modern Distributed Systems" in a4_cover.html
 
 

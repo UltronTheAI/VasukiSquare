@@ -37,6 +37,7 @@ def test_cover_renderer_source_artwork_and_a4_page():
     assert a4_page.layout_type == LayoutType.COVER
     assert "Distributed Consensus and Raft" in a4_page.html
     assert "VASUKISQUARE" in a4_page.html
+    assert "FIRST EDITION" in a4_page.html
 
 
 def test_cover_service_persistence_and_book_linking():

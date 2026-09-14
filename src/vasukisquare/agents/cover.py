@@ -3,6 +3,7 @@
 import logging
 import random
 from typing import Optional, Union
+from typing import Any, Optional, Union
 from vasukisquare.config import Settings, get_settings
 from vasukisquare.book.models import CoverDesignPlan, CoverPlan
 from vasukisquare.design.tokens import ColorToken
@@ -118,6 +119,8 @@ class CoverPlannerAgent:
         seed: Optional[int] = None,
         author: str = "Vasuki",
         previous_cover: Optional[Union[CoverDesignPlan, dict]] = None,
+        intent: Optional[Any] = None,
+        **kwargs: Any,
     ) -> CoverDesignPlan:
         """Create a tailored, unique CoverDesignPlan with 10 cover families with variation seed."""
         from vasukisquare.cover.planner import CoverPlannerAgent as ModularCoverPlanner
@@ -131,6 +134,7 @@ class CoverPlannerAgent:
             technical_depth=technical_depth,
             seed=seed,
             author=author or "Vasuki",
+            intent=intent,
             previous_cover=previous_cover,
         )
         self._log_cover_result(plan, previous_cover if isinstance(previous_cover, CoverDesignPlan) else None)

@@ -183,6 +183,7 @@ async def test_python_beginner_pipeline_end_to_end(tmp_path: Path):
     assert "component-toc" in toc_page.html
     assert "Chapter 1" in toc_page.html
     assert "Introduction to Python" in toc_page.html
+    assert "Python" in toc_page.html
 
     # 3. Content Relevance across all pages: must contain Python, zero Raft/B-Tree leaks
     assembled = state.assembled_html.lower()

@@ -1,6 +1,7 @@
 """Verification tests for cover placement, full-bleed A4 dimensions, and frontmatter ordering."""
 
 import pytest
+from vasukisquare.config import Settings
 from vasukisquare.book.layout import LayoutType
 from vasukisquare.book.models import (
     Book,
@@ -174,16 +175,17 @@ def test_title_page_exists_separately_after_cover(sample_book_pages):
     assert p2.page_number == 2
 
 
-def test_missing_cover_fails_clearly():
+@pytest.mark.asyncio
+async def test_missing_cover_fails_clearly():
     # Attempting to plan or run pipeline without valid cover raises RuntimeError
     class BrokenCoverAgent:
         async def plan_cover(self, *args, **kwargs):
             return None
 
-    pipeline = EbookGenerationPipeline(cover_agent=BrokenCoverAgent())
+    settings = Settings(_env_file=None, vasukisquare_mock_mode=True)
+    pipeline = EbookGenerationPipeline(settings=settings, cover_agent=BrokenCoverAgent())
     with pytest.raises(RuntimeError, match="Book cover is missing or failed to render."):
-        import asyncio
-        asyncio.run(pipeline.run("LioranDB for Noobs", target_pages=10, persist_db=False, generate_pdf=False))
+        await pipeline.run("LioranDB for Noobs", target_pages=10, persist_db=False, generate_pdf=False)
 
 
 def test_final_page_count_includes_cover(sample_book_pages):
@@ -250,5 +252,6 @@ def test_long_title_dynamic_typography_scaling():
     )
     page = renderer.render_a4_cover_page(plan, book_id="test-book")
     assert "font-size: 26px" in page.html or "font-size: 30px" in page.html
+    assert "font-size:" in page.html
     assert "word-break: break-word" in page.html
 

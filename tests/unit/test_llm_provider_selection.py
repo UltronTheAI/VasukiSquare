@@ -175,6 +175,7 @@ async def test_groq_rate_limit_fallback_disabled_by_default():
         llm_provider="groq",
         groq_api_key="gsk_key",
         llm_fallback_on_rate_limit=False,
+        groq_wait_for_rate_limit=False,
         vasukisquare_mock_mode=True,
     )
     metrics = BookGenerationMetrics()
@@ -208,6 +209,7 @@ async def test_groq_rate_limit_fallback_enabled_switches_to_ollama():
         groq_api_key="gsk_key",
         ollama_model="qwen2.5:7b-instruct",
         llm_fallback_on_rate_limit=True,
+        groq_wait_for_rate_limit=False,
         vasukisquare_mock_mode=True,
     )
     metrics = BookGenerationMetrics()

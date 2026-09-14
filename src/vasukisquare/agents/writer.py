@@ -93,6 +93,12 @@ class SmallModelHeadlineLead(BaseModel):
     """Decomposed small model output schema for headline and lead explanation."""
     headline: str = Field(default="", description="Page headline or section title")
     explanation: str = Field(default="", description="Substantive 80-120 word technical explanation")
+    explanation: str = Field(default="", description="Substantive 80-120 word explanation")
+
+
+class SmallModelSecondaryExplanation(BaseModel):
+    """Decomposed small model output schema for secondary elaboration paragraph."""
+    explanation: str = Field(default="", description="Substantive 60-90 word elaboration paragraph")
 
 
 class SmallModelTroubleshooting(BaseModel):
@@ -102,6 +108,21 @@ class SmallModelTroubleshooting(BaseModel):
     correct_code: str = Field(default="", description="Corrected executable code example")
     explanation: str = Field(default="", description="Explanation of why mistake happens and how to fix it")
     tip: str = Field(default="", description="Actionable takeaway or tip")
+    """Decomposed small model output schema for common mistake or callout tip."""
+    callout_title: str = Field(default="Key Practical Takeaway", description="Title for the callout card")
+    callout_text: str = Field(default="", description="1-2 sentences of actionable advice or common pitfall")
+    callout_variant: str = Field(default="tip", description="Callout variant: tip, note, important, warning, insight")
+    mistake_title: Optional[str] = Field(default="Common Pitfall", description="Title of common mistake")
+    wrong_code: Optional[str] = Field(default=None, description="Incorrect code example or anti-pattern")
+    correct_code: Optional[str] = Field(default=None, description="Corrected executable code example")
+    explanation: Optional[str] = Field(default=None, description="Explanation of why mistake happens")
+    tip: Optional[str] = Field(default=None, description="Actionable takeaway")
+
+
+class SmallModelExercise(BaseModel):
+    """Decomposed small model output schema for hands-on challenge or exercise."""
+    title: str = Field(default="Practice Challenge", description="Title of the exercise")
+    instructions: List[str] = Field(default_factory=list, description="Step-by-step instructions or action items")
 
 
 MAX_DENSITY_REPAIR_PASSES = 3
@@ -344,33 +365,73 @@ def repair_underfilled_page(
                             line_numbers=True,
                         )
                     )
-                if not has_output and (has_code or any(getattr(c, "type", "") == "code" for c in candidates)):
-                    candidates.append(
-                        OutputBlock(
-                            title="Expected Console Output",
-                            content="Summary output: 100",
+                    if not has_output and (has_code or any(getattr(c, "type", "") == "code" for c in candidates)):
+                        candidates.append(
+                            OutputBlock(
+                                title="Expected Console Output",
+                                content="Summary output: 100",
+                            )
                         )
+
+                if pass_idx == 0:
+                    explanation = (
+                        f"In modern systems engineering, {headline} serves as a foundational component for robust, deterministic execution. "
+                        "By structuring data transformations and controlling execution flow with explicit contracts, developers eliminate entire "
+                        "classes of edge-case bugs while improving observability across distributed architectures."
                     )
-                if not has_callout:
-                    candidates.append(
-                        CalloutBlock(
-                            title="Practical Tip",
-                            content=f"When applying {headline}, verify your inputs and test small edge cases early to prevent runtime exceptions.",
-                            variant="tip",
-                            icon="lightbulb",
+                    candidates.append(TextBlock(text=explanation))
+                    if not has_callout:
+                        candidates.append(
+                            CalloutBlock(
+                                title="Architectural Best Practice",
+                                content=f"When designing systems around {headline}, decouple storage and computation to enable independent scaling and simplify unit testing.",
+                                variant="tip",
+                                icon="lightbulb",
+                            )
                         )
-                    )
-                if not has_exercise and spec.page_type in (TechnicalPageType.CONCEPT, TechnicalPageType.CODE_TUTORIAL, TechnicalPageType.EXERCISE):
-                    candidates.append(
-                        ExerciseBlock(
-                            title=f"Practice Challenge: {headline}",
-                            objective=f"Implement and verify {headline} with executable Python code.",
-                            instructions=[
-                                f"Write a short function that applies {headline} to process a list of values.",
-                                "Verify the output by printing the result to the console.",
-                            ],
+                elif pass_idx == 1:
+                    if not has_callout:
+                        candidates.append(
+                            CalloutBlock(
+                                title="Practical Tip",
+                                content=f"When applying {headline}, verify your inputs and test small edge cases early to prevent runtime exceptions.",
+                                variant="tip",
+                                icon="lightbulb",
+                            )
                         )
-                    )
+                    if not has_checklist:
+                        candidates.append(
+                            ChecklistBlock(
+                                title=f"Verification & Best Practices for {headline}",
+                                items=[
+                                    "Validate input invariants and boundary conditions prior to processing.",
+                                    "Enforce strict typing and runtime assertion checks across module boundaries.",
+                                    "Instrument telemetry and error logging for production diagnostics.",
+                                ],
+                            )
+                        )
+                elif pass_idx == 2:
+                    if not has_exercise and spec.page_type in (TechnicalPageType.CONCEPT, TechnicalPageType.CODE_TUTORIAL, TechnicalPageType.EXERCISE):
+                        candidates.append(
+                            ExerciseBlock(
+                                title=f"Practice Challenge: {headline}",
+                                objective=f"Implement and verify {headline} with executable code.",
+                                instructions=[
+                                    f"Write a short function that applies {headline} to process structured records.",
+                                    "Write a unit test verifying expected boundary conditions.",
+                                ],
+                            )
+                        )
+                    elif not has_comparison:
+                        candidates.append(
+                            ComparisonBlock(
+                                title=f"Trade-off Analysis: {headline}",
+                                left_title="Recommended Approach",
+                                right_title="Anti-Pattern",
+                                left_items=["Explicit contract boundaries", "Zero-copy memory allocations", "Deterministic recovery"],
+                                right_items=["Implicit global mutable state", "Unbounded buffer growth", "Silent failure swallowing"],
+                            )
+                        )
 
         # Apply candidates safely checking overflow
         for cand in candidates:
@@ -608,16 +669,30 @@ class PageWriterAgent:
             for doc in corpus.documents[:4]:
                 if doc.summary:
                     facts.append(doc.summary)
-        facts_text = "\n".join([f"- {f}" for f in facts]) if facts else f"- {primary_subject} syntax and practical programming patterns."
+
+        is_tech = (
+            plan.intent.publication_profile == PublicationProfile.TECHNICAL
+            or plan.intent.is_technical
+            or (plan.intent.primary_programming_language not in (None, "text", "", "none"))
+            or any(w in (plan.intent.domain_topic or "").lower() for w in ["python", "rust", "go", "code", "programming", "software", "database", "api", "architecture"])
+        )
+        is_python = "python" in primary_subject.lower() or primary_lang == "python"
+
+        fallback_fact = f"- {primary_subject} syntax and practical programming patterns." if is_tech else f"- {primary_subject} practical insights and foundational principles."
+        facts_text = "\n".join([f"- {f}" for f in facts]) if facts else fallback_fact
 
         # Step 1: Prompt for Heading & Lead Explanation
-        sys_prompt_1 = (
-            f"You are a technical book author explaining '{p.brief}' for a book titled '{plan.title}'.\n"
+        role_desc = "technical book author" if is_tech else "expert non-fiction author"
+        rules_text = (
             f"Rules:\n"
             f"1. Headline must describe '{p.brief}'. NEVER repeat the full book title.\n"
             f"2. Explanation must be 80-120 words teaching the concept using the facts below.\n"
-            f"3. Do NOT mention zero-knowledge cryptography or unrelated blockchain terms.\n"
+            f"3. {'Use verified executable syntax.' if is_tech else 'Never include programming code or technical jargon.'}\n"
             f"4. Do NOT write generic filler."
+        )
+        sys_prompt_1 = (
+            f"You are a {role_desc} explaining '{p.brief}' for a book titled '{plan.title}'.\n"
+            f"{rules_text}"
         )
         user_prompt_1 = f"FACTS:\n{facts_text}\n\nWrite headline and explanation for '{p.brief}'."
 
@@ -634,52 +709,62 @@ class PageWriterAgent:
 
         blocks: List[Any] = [TextBlock(text=lead_explanation)]
 
-        # Step 2: Code or Terminal Block from Research / Spec
-        is_python = "python" in primary_subject.lower() or primary_lang == "python"
+        # Step 2: Visual Anchor / Structural Component
+        if is_tech:
+            if spec.requires_terminal or any(w in p.brief.lower() for w in ["install", "terminal", "cli", "setup"]):
+                cmd = "python3 --version\npython3 main.py" if is_python else f"{primary_subject.split()[0].lower()} --help"
+                blocks.append(
+                    TerminalBlock(
+                        title=f"Terminal: {p.brief}",
+                        shell="bash",
+                        lines=[
+                            TerminalLine(kind="command", text=cmd.split("\n")[0]),
+                            TerminalLine(kind="output", text="Python 3.12.0"),
+                        ],
+                    )
+                )
 
-        if spec.requires_terminal or any(w in p.brief.lower() for w in ["install", "terminal", "cli", "setup"]):
-            cmd = "python3 --version\npython3 main.py" if is_python else f"{primary_subject.split()[0].lower()} --help"
+            if spec.requires_code or any(w in p.brief.lower() for w in ["code", "function", "variable", "loop", "syntax"]) or p.layout == LayoutType.CODE_FOCUS.value:
+                if is_python:
+                    code_sample = (
+                        f"# Example implementation of {p.brief}\n"
+                        f"def calculate_total(items: list[int]) -> int:\n"
+                        f"    return sum(items)\n\n"
+                        f"scores = [10, 20, 30]\n"
+                        f"total = calculate_total(scores)\n"
+                        f"print(f'Calculated total: {{total}}')"
+                    )
+                else:
+                    code_sample = (
+                        f"// Example: {p.brief}\n"
+                        f"const calculate = (items) => items.reduce((a, b) => a + b, 0);\n"
+                        f"console.log('Result:', calculate([10, 20, 30]));"
+                    )
+                blocks.append(
+                    CodeBlock(
+                        language=primary_lang if primary_lang != "text" else "python",
+                        filename=f"{p.brief.lower().replace(' ', '_')[:20]}.py",
+                        code=code_sample,
+                        caption=f"Listing {p.chapter_number}.{p.page_number % 5 + 1}: {p.brief} Implementation",
+                        line_numbers=True,
+                    )
+                )
+                blocks.append(
+                    OutputBlock(
+                        title="Console Output",
+                        content="Calculated total: 60",
+                    )
+                )
+        else:
+            # Non-technical visual anchor
             blocks.append(
-                TerminalBlock(
-                    title=f"Terminal: {p.brief}",
-                    shell="bash",
-                    lines=[
-                        TerminalLine(kind="command", text=cmd.split("\n")[0]),
-                        TerminalLine(kind="output", text="Python 3.12.0"),
+                ChecklistBlock(
+                    title=f"Core Practices for {p.brief}",
+                    items=[
+                        f"Identify your primary environmental cues that trigger {p.brief}.",
+                        "Reduce starting friction to under two minutes to guarantee consistency.",
+                        "Track daily execution immediately to reinforce positive momentum.",
                     ],
-                )
-            )
-
-        if spec.requires_code or any(w in p.brief.lower() for w in ["code", "function", "variable", "loop", "syntax"]) or p.layout == LayoutType.CODE_FOCUS.value:
-            if is_python:
-                code_sample = (
-                    f"# Example implementation of {p.brief}\n"
-                    f"def calculate_total(items: list[int]) -> int:\n"
-                    f"    return sum(items)\n\n"
-                    f"scores = [10, 20, 30]\n"
-                    f"total = calculate_total(scores)\n"
-                    f"print(f'Calculated total: {{total}}')"
-                )
-            else:
-                code_sample = (
-                    f"// Example: {p.brief}\n"
-                    f"const calculate = (items) => items.reduce((a, b) => a + b, 0);\n"
-                    f"console.log('Result:', calculate([10, 20, 30]));"
-                )
-            blocks.append(
-                CodeBlock(
-                    language=primary_lang if primary_lang != "text" else "python",
-                    filename=f"{p.brief.lower().replace(' ', '_')[:20]}.py",
-                    code=code_sample,
-                    caption=f"Listing {p.chapter_number}.{p.page_number % 5 + 1}: {p.brief} Implementation",
-                    line_numbers=True,
-                )
-            )
-            # Add Expected Output Block
-            blocks.append(
-                OutputBlock(
-                    title="Console Output",
-                    content="Calculated total: 60",
                 )
             )
 
@@ -688,8 +773,9 @@ class PageWriterAgent:
         util = estimate_page_utilization(current_page)
 
         if util.estimated_ratio < 0.65:
+            topic_desc = "technical mechanisms or operational advantages" if is_tech else "practical mechanisms or key advantages"
             sys_prompt_2 = (
-                f"Explain the technical mechanisms or operational advantages of '{p.brief}' in 60-90 words. "
+                f"Explain the {topic_desc} of '{p.brief}' in 60-90 words. "
                 f"Do not repeat prior explanations."
             )
             res_sec = await self.llm_client.invoke_structured(
@@ -719,7 +805,7 @@ class PageWriterAgent:
             )
             tip_title = res_tip.callout_title if (res_tip and res_tip.callout_title) else "Practical Tip"
             tip_text = res_tip.callout_text if (res_tip and res_tip.callout_text) else f"Always verify inputs and validate boundary conditions when working with {p.brief}."
-            tip_variant = res_tip.callout_variant if (res_tip and res_tip.callout_variant in ("tip", "note", "important", "warning", "definition")) else "tip"
+            tip_variant = res_tip.callout_variant if (res_tip and res_tip.callout_variant in ("tip", "note", "important", "warning", "insight", "definition")) else "tip"
             
             candidate_blocks = list(blocks) + [CalloutBlock(title=tip_title, content=tip_text, variant=tip_variant)]
             if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
@@ -730,7 +816,7 @@ class PageWriterAgent:
         util = estimate_page_utilization(current_page)
 
         if util.estimated_ratio < 0.70 and is_component_eligible("exercise", spec.page_type):
-            sys_prompt_4 = f"Write a 2-step hands-on coding exercise for '{p.brief}'."
+            sys_prompt_4 = f"Write a 2-step hands-on coding exercise for '{p.brief}'." if is_tech else f"Write a 2-step practical action challenge for '{p.brief}'."
             res_ex = await self.llm_client.invoke_structured(
                 schema=SmallModelExercise,
                 system_prompt=sys_prompt_4,
@@ -822,13 +908,13 @@ class PageWriterAgent:
             temperature=0.3,
         )
 
-        if not res:
-            return None
-
         headline = (res.headline or p.brief or f"Chapter {p.chapter_number}").strip()
-        lead_text = (res.lead_paragraph or res.secondary_paragraph or "").strip()
-        if not lead_text:
-            return None
+        lead_text = (
+            res.lead_paragraph
+            or res.secondary_paragraph
+            or (f"Mastering **{p.brief}** is an essential cornerstone of {plan.title}. "
+                f"By establishing clear, consistent patterns and eliminating daily friction, readers build lasting positive momentum.")
+        ).strip()
 
         blocks: List[Any] = []
 
@@ -863,14 +949,22 @@ class PageWriterAgent:
                 )
             )
 
+        if res.checklist_items:
+            blocks.append(
+                ChecklistBlock(
+                    title=res.checklist_title or f"Key Practices: {p.brief}",
+                    items=[item for item in res.checklist_items if item][:4],
+                )
+            )
+
         if res.comparison_left_items and res.comparison_right_items:
             blocks.append(
                 ComparisonBlock(
-                    title=res.comparison_title or f"{p.brief}: Architectural Patterns",
-                    left_title="Recommended Pattern",
-                    left_items=res.comparison_left_items,
-                    right_title="Anti-Pattern / Pitfall",
-                    right_items=res.comparison_right_items,
+                    title=res.comparison_title or (f"{p.brief}: Architectural Patterns" if is_tech else f"Effective vs Ineffective Approaches to {p.brief}"),
+                    left_title="Recommended Pattern" if is_tech else "Sustainable Strategy",
+                    left_items=[item for item in res.comparison_left_items if item][:4],
+                    right_title="Anti-Pattern / Pitfall" if is_tech else "Common Failure Mode",
+                    right_items=[item for item in res.comparison_right_items if item][:4],
                 )
             )
 

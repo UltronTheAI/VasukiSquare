@@ -156,12 +156,12 @@
     {% endif %}
     <div class="safe-content-area">
       <div class="cover-brand-header">
-        {% if plan.category_badge %}
-        <span class="cover-category-badge">{{ plan.category_badge }}</span>
+        <span class="cover-brand-label">VASUKISQUARE</span>
+        {% if plan.category or plan.category_badge %}
+        <span class="cover-category-badge">{{ plan.category or plan.category_badge }}</span>
         {% else %}
         <div></div>
         {% endif %}
-        <div></div>
       </div>
 
       <div class="cover-main-body">

@@ -1,4 +1,5 @@
 """End-to-end research service orchestrating query planning, ingestion, deduplication, and ranking."""
+from __future__ import annotations
 
 import asyncio
 import logging
@@ -20,10 +21,12 @@ from vasukisquare.tools.search import (
     TavilySearchProvider,
     SerperSearchProvider,
     BraveSearchProvider,
+    create_search_tool,
 )
 from vasukisquare.tools.fetcher import WebpageFetcherTool, FetchParams
 from vasukisquare.tools.wikipedia import WikipediaTool, WikipediaParams
 from vasukisquare.llm.metrics import BookGenerationMetrics
+from vasukisquare.book.models import BookIntent
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +71,9 @@ class ResearchService:
 
     async def execute_query(self, query_text: str, source_types: List[SourceType]) -> List[SourceDocument]:
         """Execute a single query against multiple providers concurrently."""
+        from vasukisquare.tools.search import SearchParams
+        from vasukisquare.tools.wikipedia import WikipediaParams
+
         collected: List[SourceDocument] = []
         tasks = []
 
@@ -91,6 +97,8 @@ class ResearchService:
 
     async def _fetch_and_enrich_pages(self, docs: List[SourceDocument]) -> List[SourceDocument]:
         """Fetch full HTML text for top non-Wikipedia web documents."""
+        from vasukisquare.tools.fetcher import FetchParams
+
         enriched: List[SourceDocument] = []
         fetch_tasks = []
         doc_map = {}

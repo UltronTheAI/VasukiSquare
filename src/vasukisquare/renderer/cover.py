@@ -40,17 +40,77 @@ class CoverRenderer:
         else:
             return 26
 
-    def render_source_artwork(self, plan: CoverDesignPlan) -> str:
+    def render_source_artwork(self, plan: Union[CoverPlan, CoverDesignPlan]) -> str:
         """Render high-resolution 1600x2560 standalone cover HTML with SVG vector scenery."""
-        from vasukisquare.cover.renderer import CoverRenderer as ModularCoverRenderer
-        mod_renderer = ModularCoverRenderer(self.templates_dir)
-        return mod_renderer.render_source_artwork(plan)
+        if hasattr(plan, "cover_style") and getattr(plan, "composition_style", None) is None and getattr(plan, "layout_style", None) is None:
+            from vasukisquare.cover.renderer import CoverRenderer as ModularCoverRenderer
+            mod_renderer = ModularCoverRenderer(self.templates_dir)
+            return mod_renderer.render_source_artwork(plan)
 
-    def render_a4_cover_page(self, plan: CoverDesignPlan, book_id: str) -> Page:
+        accent = getattr(plan, "accent_color", None) or ColorToken.BRAND_GREEN.value
+        bg = getattr(plan, "background_color", None) or ColorToken.BRAND_TEAL_DEEP.value
+
+        pattern_gen = CoverPatternGenerator()
+        geom_type = getattr(plan, "decorative_geometry", "grid_overlay")
+        geometric_svg = pattern_gen.generate_pattern(geom_type, accent)
+
+        hero_icon = getattr(plan, "hero_icon", None)
+        if hero_icon and hero_icon != "none":
+            hero_icon_svg = render_lucide_icon(hero_icon, size=80, color=accent)
+        else:
+            hero_icon_svg = ""
+
+        template = self.env.get_template("cover.html")
+        return template.render(
+            plan=plan,
+            geometric_svg=geometric_svg,
+            hero_icon_svg=hero_icon_svg,
+        )
+
+    def render_a4_cover_page(self, plan: Union[CoverPlan, CoverDesignPlan], book_id: str) -> Page:
         """Generate an A4 Page representation safely framing the art-directed cover composition."""
-        from vasukisquare.cover.renderer import CoverRenderer as ModularCoverRenderer
-        mod_renderer = ModularCoverRenderer(self.templates_dir)
-        return mod_renderer.render_a4_cover_page(plan, book_id)
+        if hasattr(plan, "cover_style") and getattr(plan, "composition_style", None) is None and getattr(plan, "layout_style", None) is None:
+            from vasukisquare.cover.renderer import CoverRenderer as ModularCoverRenderer
+            mod_renderer = ModularCoverRenderer(self.templates_dir)
+            return mod_renderer.render_a4_cover_page(plan, book_id)
+
+        accent = getattr(plan, "accent_color", None) or ColorToken.BRAND_GREEN.value
+        bg = getattr(plan, "background_color", None) or ColorToken.BRAND_TEAL_DEEP.value
+
+        pattern_gen = CoverPatternGenerator()
+        geom_type = getattr(plan, "decorative_geometry", "grid_overlay")
+        geometric_svg = pattern_gen.generate_pattern(geom_type, accent)
+
+        hero_icon = getattr(plan, "hero_icon", None)
+        if hero_icon and hero_icon != "none":
+            icon_svg = render_lucide_icon(hero_icon, size=40, color=accent)
+        else:
+            icon_svg = ""
+
+        title_size = self._get_title_font_size(plan.title)
+        contrast = getattr(plan, "contrast_mode", "light")
+        is_light = contrast == "light"
+
+        html_body = self._compose_a4_html(
+            plan=plan,
+            accent=accent,
+            bg=bg,
+            geometric_svg=geometric_svg,
+            icon_svg=icon_svg,
+            title_size=title_size,
+            is_light=is_light,
+        )
+
+        return Page(
+            id=generate_id(),
+            book_id=book_id,
+            page_number=1,
+            page_type=LayoutType.COVER.value,
+            layout=LayoutType.COVER.value,
+            theme=Theme.DARK if not is_light else Theme.LIGHT,
+            content=PageContent(headline=plan.title, body=plan.subtitle or ""),
+            html=html_body,
+        )
 
     def _compose_a4_html(
         self,
@@ -95,7 +155,7 @@ class CoverRenderer:
               </div>
               <div style="position: relative; z-index: 2; border-top: 1px solid {border_color}; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
                 <span style="color: {title_color}; font-weight: 600;">{plan.author}</span>
-                <span style="letter-spacing: 0.5px;">VASUKISQUARE PUBLISHING</span>
+                <span style="letter-spacing: 0.5px;">FIRST EDITION</span>
               </div>
             </div>
             """
@@ -122,7 +182,7 @@ class CoverRenderer:
               </div>
               <div style="position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: {meta_color};">
                 <span style="color: {title_color}; font-weight: 600; letter-spacing: 1px;">{plan.author}</span>
-                <span style="font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;">Technical Handbook Series</span>
+                <span style="font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
               </div>
             </div>
             """
@@ -157,7 +217,7 @@ class CoverRenderer:
 
                 <div style="position: relative; z-index: 2; border-top: 1px solid {border_color}; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
                   <span style="color: {title_color}; font-weight: 600;">{plan.author}</span>
-                  <span style="font-family: monospace; font-size: 10px;">RELEASE EDITION</span>
+                  <span style="font-family: monospace; font-size: 10px;">FIRST EDITION</span>
                 </div>
               </div>
             </div>
@@ -195,7 +255,7 @@ class CoverRenderer:
               <div style="position: relative; z-index: 2; background: {card_bg}; border: 1px solid {border_color}; border-radius: 6px; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
                 <div>AUTHOR: <strong style="color: {title_color};">{plan.author}</strong></div>
                 <div>AUDIENCE: <strong style="color: {title_color};">{plan.audience}</strong></div>
-                <div style="color: {accent}; font-weight: 600;">VERIFIED</div>
+                <div style="color: {accent}; font-weight: 600;">FIRST EDITION</div>
               </div>
             </div>
             """
@@ -224,7 +284,7 @@ class CoverRenderer:
               </div>
               <div style="position: relative; z-index: 2; border-top: 1px solid {border_color}; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
                 <span style="color: {title_color}; font-weight: 600;">{plan.author}</span>
-                <span style="letter-spacing: 1px;">AUTONOMOUS PUBLISHING</span>
+                <span style="letter-spacing: 1px;">FIRST EDITION</span>
               </div>
             </div>
             """
@@ -250,7 +310,7 @@ class CoverRenderer:
               </div>
               <div style="position: relative; z-index: 2; margin-top: 32px; border-top: 1px solid {border_color}; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
                 <span style="color: {title_color}; font-weight: 600;">{plan.author}</span>
-                <span style="letter-spacing: 0.5px;">VASUKISQUARE ARCHITECTURE</span>
+                <span style="letter-spacing: 0.5px;">FIRST EDITION</span>
               </div>
             </div>
             """
@@ -288,7 +348,7 @@ class CoverRenderer:
                 </div>
                 <div style="position: relative; z-index: 2; border-top: 1px solid {border_color}; padding-top: 16px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
                   <span style="color: {title_color}; font-weight: 600;">{plan.author}</span>
-                  <span>TECHNICAL HANDBOOK</span>
+                  <span>FIRST EDITION</span>
                 </div>
               </div>
             </div>
@@ -315,7 +375,7 @@ class CoverRenderer:
               </div>
               <div style="position: relative; z-index: 2; border-top: 1px solid {border_color}; padding-top: 20px; display: flex; justify-content: space-between; align-items: center; font-size: 11px; color: {meta_color};">
                 <span style="color: {title_color}; font-weight: 600;">{plan.author}</span>
-                <span style="letter-spacing: 0.5px;">VASUKISQUARE TECHNICAL PUBLISHING</span>
+                <span style="letter-spacing: 0.5px;">FIRST EDITION</span>
               </div>
             </div>
             """

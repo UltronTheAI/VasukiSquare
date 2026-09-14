@@ -67,6 +67,18 @@ def parse_args():
         help="Skip persisting records to MongoDB.",
     )
     parser.add_argument(
+        "--ollama-model",
+        type=str,
+        default=None,
+        help="Specify the Ollama model to use for local generation.",
+    )
+    parser.add_argument(
+        "--llm-provider",
+        type=str,
+        default=None,
+        help="Specify LLM provider ('groq', 'ollama', or 'auto').",
+    )
+    parser.add_argument(
         "--resume",
         action="store_true",
         help="Resume generation from latest stage/page checkpoints in output directory.",
@@ -83,6 +95,11 @@ def parse_args():
 async def main_async():
     args = parse_args()
     settings = get_settings()
+
+    if args.ollama_model:
+        settings.ollama_model = args.ollama_model
+    if args.llm_provider:
+        settings.llm_provider = args.llm_provider
 
     # Resolve prompt text from --prompt-file if specified
     prompt_text = args.prompt
