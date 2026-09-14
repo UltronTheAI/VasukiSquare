@@ -18,6 +18,28 @@ class VisualAnchorType(str, Enum):
     EXERCISE = "exercise"
 
 
+class PublicationProfile(str, Enum):
+    """Genre and publication style profile governing content policies and metadata."""
+
+    TECHNICAL = "technical"
+    GENERAL_NONFICTION = "general_nonfiction"
+    EDUCATIONAL = "educational"
+    FICTION = "fiction"
+    POETRY = "poetry"
+    MAGAZINE = "magazine"
+    NEWS = "news"
+    REPORT = "report"
+
+
+class ContentCapacity(str, Enum):
+    """Estimated content material capacity of a topic/subtopic."""
+
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    VERY_HIGH = "very_high"
+
+
 class ContentDensity(str, Enum):
     """Pedagogical and informational content density levels."""
 
@@ -56,10 +78,18 @@ class ContentBudget(BaseModel):
 
     page_type: TechnicalPageType = TechnicalPageType.CONCEPT
     target_density: ContentDensity = ContentDensity.STANDARD
-    target_utilization: float = Field(default=0.78, ge=0.0, le=1.0)
-    min_utilization: float = Field(default=0.70, ge=0.0, le=1.0)
-    hard_fail_utilization: float = Field(default=0.45, ge=0.0, le=1.0)
-    minimum_content_units: int = Field(default=3, ge=1)
+    target_utilization: float = Field(default=0.92, ge=0.0, le=1.0)
+    min_utilization: float = Field(default=0.85, ge=0.0, le=1.0)
+    hard_fail_utilization: float = Field(default=0.60, ge=0.0, le=1.0)
+    minimum_content_units: int = Field(default=4, ge=1)
+    target_prose_words_min: int = Field(default=400)
+    target_prose_words_max: int = Field(default=650)
+    requires_example: bool = Field(default=True)
+    requires_callout: bool = Field(default=True)
+    requires_visual_component: bool = Field(default=False)
+    requires_practical_component: bool = Field(default=True)
+    maximum_components: int = Field(default=8)
+    estimated_content_capacity: str = Field(default="high")
     required_components: List[str] = Field(default_factory=list)
     forbidden_components: List[str] = Field(default_factory=list)
 
@@ -69,8 +99,8 @@ class TechnicalPageSpec(BaseModel):
 
     page_type: TechnicalPageType = TechnicalPageType.CONCEPT
     required_components: List[str] = Field(default_factory=lambda: ["heading", "text", "callout"])
-    target_word_count_min: int = Field(default=180)
-    target_word_count_max: int = Field(default=450)
+    target_word_count_min: int = Field(default=350)
+    target_word_count_max: int = Field(default=650)
     requires_code: bool = Field(default=False)
     requires_terminal: bool = Field(default=False)
     requires_table: bool = Field(default=False)
@@ -95,14 +125,16 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
     TechnicalPageType.CONCEPT: TechnicalPageSpec(
         page_type=TechnicalPageType.CONCEPT,
         required_components=["heading", "text", "callout"],
-        target_word_count_min=250,
+        target_word_count_min=350,
+        target_word_count_max=650,
         suggested_layout="split_explainer",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.CONCEPT,
             target_density=ContentDensity.STANDARD,
-            target_utilization=0.78,
-            min_utilization=0.70,
-            minimum_content_units=3,
+            target_utilization=0.92,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
             required_components=["heading", "text", "callout"],
             forbidden_components=["step"],
         ),
@@ -110,14 +142,16 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
     TechnicalPageType.HISTORY: TechnicalPageSpec(
         page_type=TechnicalPageType.HISTORY,
         required_components=["heading", "text", "timeline", "callout"],
-        target_word_count_min=200,
+        target_word_count_min=300,
+        target_word_count_max=550,
         suggested_layout="timeline",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.HISTORY,
             target_density=ContentDensity.STANDARD,
-            target_utilization=0.78,
-            min_utilization=0.70,
-            minimum_content_units=3,
+            target_utilization=0.92,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
             required_components=["heading", "text", "timeline", "callout"],
             forbidden_components=["step"],
         ),
@@ -125,13 +159,15 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
     TechnicalPageType.FEATURES: TechnicalPageSpec(
         page_type=TechnicalPageType.FEATURES,
         required_components=["heading", "text", "callout"],
-        target_word_count_min=250,
+        target_word_count_min=350,
+        target_word_count_max=600,
         suggested_layout="editorial",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.FEATURES,
             target_density=ContentDensity.STANDARD,
-            target_utilization=0.80,
-            min_utilization=0.70,
+            target_utilization=0.92,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
             minimum_content_units=4,
             required_components=["heading", "text", "callout"],
             forbidden_components=["step"],
@@ -141,14 +177,16 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
         page_type=TechnicalPageType.INSTALLATION,
         required_components=["heading", "text", "terminal", "callout"],
         requires_terminal=True,
-        target_word_count_min=150,
+        target_word_count_min=250,
+        target_word_count_max=450,
         suggested_layout="editorial",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.INSTALLATION,
             target_density=ContentDensity.CODE_HEAVY,
-            target_utilization=0.75,
-            min_utilization=0.65,
-            minimum_content_units=3,
+            target_utilization=0.90,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
             required_components=["heading", "text", "terminal", "callout"],
         ),
     ),
@@ -156,14 +194,16 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
         page_type=TechnicalPageType.PROCEDURE_SETUP,
         required_components=["heading", "text", "terminal", "callout"],
         requires_terminal=True,
-        target_word_count_min=150,
+        target_word_count_min=250,
+        target_word_count_max=450,
         suggested_layout="editorial",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.PROCEDURE_SETUP,
             target_density=ContentDensity.CODE_HEAVY,
-            target_utilization=0.75,
-            min_utilization=0.65,
-            minimum_content_units=3,
+            target_utilization=0.90,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
             required_components=["heading", "text", "terminal", "callout"],
         ),
     ),
@@ -171,14 +211,16 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
         page_type=TechnicalPageType.CONFIGURATION,
         required_components=["heading", "text", "code", "callout"],
         requires_code=True,
-        target_word_count_min=150,
+        target_word_count_min=250,
+        target_word_count_max=450,
         suggested_layout="code_focus",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.CONFIGURATION,
             target_density=ContentDensity.CODE_HEAVY,
-            target_utilization=0.78,
-            min_utilization=0.65,
-            minimum_content_units=3,
+            target_utilization=0.90,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
             required_components=["heading", "text", "code", "callout"],
         ),
     ),
@@ -186,14 +228,16 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
         page_type=TechnicalPageType.TERMINAL_TUTORIAL,
         required_components=["heading", "text", "terminal", "output", "callout"],
         requires_terminal=True,
-        target_word_count_min=150,
+        target_word_count_min=250,
+        target_word_count_max=450,
         suggested_layout="editorial",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.TERMINAL_TUTORIAL,
             target_density=ContentDensity.CODE_HEAVY,
-            target_utilization=0.75,
-            min_utilization=0.65,
-            minimum_content_units=3,
+            target_utilization=0.90,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
             required_components=["heading", "text", "terminal", "output", "callout"],
         ),
     ),
@@ -201,13 +245,15 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
         page_type=TechnicalPageType.CODE_TUTORIAL,
         required_components=["heading", "text", "code", "output", "callout"],
         requires_code=True,
-        target_word_count_min=150,
+        target_word_count_min=250,
+        target_word_count_max=500,
         suggested_layout="code_focus",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.CODE_TUTORIAL,
             target_density=ContentDensity.CODE_HEAVY,
-            target_utilization=0.78,
-            min_utilization=0.65,
+            target_utilization=0.90,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
             minimum_content_units=4,
             required_components=["heading", "text", "code", "output", "callout"],
             forbidden_components=["step"],
@@ -218,27 +264,31 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
         required_components=["heading", "text", "table", "code"],
         requires_code=True,
         requires_table=True,
-        target_word_count_min=180,
+        target_word_count_min=250,
+        target_word_count_max=500,
         suggested_layout="comparison",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.API_REFERENCE,
             target_density=ContentDensity.DENSE,
-            target_utilization=0.82,
-            min_utilization=0.70,
-            minimum_content_units=3,
+            target_utilization=0.90,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
         ),
     ),
     TechnicalPageType.CRUD_EXAMPLE: TechnicalPageSpec(
         page_type=TechnicalPageType.CRUD_EXAMPLE,
         required_components=["heading", "text", "code", "output", "callout"],
         requires_code=True,
-        target_word_count_min=150,
+        target_word_count_min=250,
+        target_word_count_max=500,
         suggested_layout="code_focus",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.CRUD_EXAMPLE,
             target_density=ContentDensity.CODE_HEAVY,
-            target_utilization=0.80,
-            min_utilization=0.65,
+            target_utilization=0.90,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
             minimum_content_units=4,
         ),
     ),
@@ -246,67 +296,77 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
         page_type=TechnicalPageType.COMPARISON,
         required_components=["heading", "text", "table", "comparison", "callout"],
         requires_table=True,
-        target_word_count_min=180,
+        target_word_count_min=250,
+        target_word_count_max=500,
         suggested_layout="comparison",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.COMPARISON,
             target_density=ContentDensity.STANDARD,
-            target_utilization=0.78,
-            min_utilization=0.70,
-            minimum_content_units=3,
+            target_utilization=0.90,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
         ),
     ),
     TechnicalPageType.ARCHITECTURE: TechnicalPageSpec(
         page_type=TechnicalPageType.ARCHITECTURE,
         required_components=["heading", "text", "diagram", "callout"],
-        target_word_count_min=160,
+        target_word_count_min=250,
+        target_word_count_max=450,
         suggested_layout="diagram_focus",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.ARCHITECTURE,
             target_density=ContentDensity.VISUAL,
-            target_utilization=0.75,
-            min_utilization=0.60,
-            minimum_content_units=3,
+            target_utilization=0.88,
+            min_utilization=0.80,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
         ),
     ),
     TechnicalPageType.DEBUGGING: TechnicalPageSpec(
         page_type=TechnicalPageType.DEBUGGING,
         required_components=["heading", "text", "mistake", "code", "callout"],
         requires_code=True,
-        target_word_count_min=160,
+        target_word_count_min=250,
+        target_word_count_max=450,
         suggested_layout="editorial",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.DEBUGGING,
             target_density=ContentDensity.STANDARD,
-            target_utilization=0.78,
-            min_utilization=0.65,
-            minimum_content_units=3,
+            target_utilization=0.90,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
         ),
     ),
     TechnicalPageType.EXERCISE: TechnicalPageSpec(
         page_type=TechnicalPageType.EXERCISE,
         required_components=["heading", "text", "exercise", "callout"],
-        target_word_count_min=160,
+        target_word_count_min=250,
+        target_word_count_max=450,
         suggested_layout="editorial",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.EXERCISE,
             target_density=ContentDensity.STANDARD,
-            target_utilization=0.75,
-            min_utilization=0.65,
-            minimum_content_units=3,
+            target_utilization=0.88,
+            min_utilization=0.80,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
         ),
     ),
     TechnicalPageType.MINI_PROJECT: TechnicalPageSpec(
         page_type=TechnicalPageType.MINI_PROJECT,
         required_components=["heading", "text", "code", "output", "callout"],
         requires_code=True,
-        target_word_count_min=160,
+        target_word_count_min=250,
+        target_word_count_max=500,
         suggested_layout="code_focus",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.MINI_PROJECT,
             target_density=ContentDensity.CODE_HEAVY,
-            target_utilization=0.82,
-            min_utilization=0.70,
+            target_utilization=0.90,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
             minimum_content_units=4,
         ),
     ),
@@ -314,41 +374,47 @@ PAGE_TYPE_SPECS: Dict[TechnicalPageType, TechnicalPageSpec] = {
         page_type=TechnicalPageType.DEPLOYMENT,
         required_components=["heading", "text", "terminal", "callout"],
         requires_terminal=True,
-        target_word_count_min=160,
+        target_word_count_min=250,
+        target_word_count_max=450,
         suggested_layout="editorial",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.DEPLOYMENT,
             target_density=ContentDensity.CODE_HEAVY,
-            target_utilization=0.75,
-            min_utilization=0.65,
-            minimum_content_units=3,
+            target_utilization=0.90,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
         ),
     ),
     TechnicalPageType.BENCHMARK: TechnicalPageSpec(
         page_type=TechnicalPageType.BENCHMARK,
         required_components=["heading", "text", "table", "chart", "callout"],
         requires_table=True,
-        target_word_count_min=160,
+        target_word_count_min=250,
+        target_word_count_max=450,
         suggested_layout="comparison",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.BENCHMARK,
             target_density=ContentDensity.VISUAL,
-            target_utilization=0.78,
-            min_utilization=0.65,
-            minimum_content_units=3,
+            target_utilization=0.88,
+            min_utilization=0.80,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
         ),
     ),
     TechnicalPageType.SUMMARY: TechnicalPageSpec(
         page_type=TechnicalPageType.SUMMARY,
         required_components=["heading", "text", "checklist", "callout"],
-        target_word_count_min=160,
+        target_word_count_min=250,
+        target_word_count_max=500,
         suggested_layout="summary",
         content_budget=ContentBudget(
             page_type=TechnicalPageType.SUMMARY,
             target_density=ContentDensity.STANDARD,
-            target_utilization=0.75,
-            min_utilization=0.65,
-            minimum_content_units=3,
+            target_utilization=0.90,
+            min_utilization=0.85,
+            hard_fail_utilization=0.60,
+            minimum_content_units=4,
         ),
     ),
 }

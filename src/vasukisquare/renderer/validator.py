@@ -190,15 +190,24 @@ class ContentValidator:
                 severely_underfilled += 1
                 err = (
                     f"Page {p.page_number} ('{p.content.headline}') is severely underfilled: "
-                    f"utilization {util.estimated_ratio:.1%} < 45.0% threshold."
+                    f"utilization {util.estimated_ratio:.1%} < {util.hard_fail_ratio:.1%} threshold ({util.density_band.value})."
                 )
                 errors.append(err)
                 logger.error(err)
 
-            if util.content_units < 2:
+            if util.content_units < 3:
                 err = (
                     f"Page {p.page_number} ('{p.content.headline}') lacks sufficient educational content: "
-                    f"found {util.content_units} content units (minimum required is 2)."
+                    f"found {util.content_units} content units (minimum required is 3-4)."
+                )
+                errors.append(err)
+                logger.error(err)
+
+            # Validate semantic completeness score if present
+            if util.completeness_score and util.completeness_score.total_score < 60.0:
+                err = (
+                    f"Page {p.page_number} ('{p.content.headline}') failed semantic completeness score: "
+                    f"{util.completeness_score.total_score:.1f}/100.0. Quality issues detected."
                 )
                 errors.append(err)
                 logger.error(err)
@@ -211,6 +220,13 @@ class ContentValidator:
             )
             errors.append(err)
             logger.error(err)
+
+        avg_density = sum(ratios) / len(ratios) if ratios else 0.0
+        logger.info(
+            f"[DENSITY SUMMARY] Content Pages: {len(content_pages)} | "
+            f"Average Usable Density: {avg_density:.1%} | "
+            f"Severely Underfilled: {severely_underfilled}"
+        )
 
         return errors
 

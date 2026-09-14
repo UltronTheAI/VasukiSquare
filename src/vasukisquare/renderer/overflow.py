@@ -2,8 +2,14 @@
 
 import re
 from typing import List, Optional, Tuple, Dict, Any
-from vasukisquare.book.models import Page, PageContent, generate_id
-from vasukisquare.book.layout import LayoutType
+from pydantic import BaseModel, Field
+from vasukisquare.book.layout import LayoutType, PublicationProfile
+from vasukisquare.book.models import (
+    Page,
+    PageContent,
+    PageCompletenessScore,
+    generate_id,
+)
 from vasukisquare.book.components import (
     CalloutBlock,
     ChartBlock,
@@ -19,29 +25,35 @@ from vasukisquare.book.components import (
     ContentBlock,
 )
 
+from vasukisquare.renderer.geometry import (
+    CONTENT_SAFE_HEIGHT_MM,
+    USABLE_PAGE_HEIGHT_MM as GEOMETRY_USABLE_HEIGHT_MM,
+)
+
 # Maximum content thresholds for an individual A4 page with safe padding
 MAX_PAGE_CHARACTERS = 2800
 MAX_CODE_LINES = 38
 MAX_BODY_PARAGRAPHS = 6
-USABLE_PAGE_HEIGHT_MM = 249.0  # 297mm - 48mm (top/bottom 24mm margins)
-
-
-from pydantic import BaseModel, Field
+USABLE_PAGE_HEIGHT_MM = CONTENT_SAFE_HEIGHT_MM  # 215.0mm (usable content region excluding header/footer chrome)
 
 
 class PageUtilization(BaseModel):
     """Accurate physical A4 vertical layout utilization and educational density metrics."""
 
     estimated_ratio: float = Field(description="Estimated content height fraction of usable A4 height (0.0 to 1.0+)")
-    status: str = Field(description="Utilization status: underfilled, optimal, or overflow_risk")
+    status: str = Field(description="Utilization status: hard_failure, severely_underfilled, underfilled, enrich_if_safe, healthy, dense, or overflow_risk")
+    density_band: str = Field(default="healthy", description="Density band: HARD_FAILURE, SEVERELY_UNDERFILLED, UNDERFILLED, ENRICH_IF_SAFE, HEALTHY, DENSE, OVERFLOW_RISK")
     block_breakdown: Dict[str, float] = Field(default_factory=dict, description="Estimated height in mm per component")
     usable_height_mm: float = Field(default=USABLE_PAGE_HEIGHT_MM)
     total_content_height_mm: float = Field(default=0.0)
-    target_min_ratio: float = Field(default=0.70)
-    target_max_ratio: float = Field(default=0.90)
+    target_min_ratio: float = Field(default=0.90)
+    target_max_ratio: float = Field(default=0.95)
+    hard_fail_ratio: float = Field(default=0.60)
     content_units: int = Field(default=0, description="Count of meaningful educational content units")
     is_underfilled: bool = Field(default=False, description="True if utilization is below the minimum threshold")
-    is_hard_fail: bool = Field(default=False, description="True if content density is severely deficient (< 0.45 for normal pages)")
+    is_hard_fail: bool = Field(default=False, description="True if content density is severely deficient (< 0.60 for normal pages)")
+    publication_profile: Optional[PublicationProfile] = None
+    completeness_score: Optional[PageCompletenessScore] = None
 
     @property
     def utilization_ratio(self) -> float:
@@ -53,7 +65,7 @@ class PageUtilization(BaseModel):
 
     @property
     def is_overflow(self) -> bool:
-        return self.estimated_ratio > 0.95
+        return self.estimated_ratio > 0.98
 
 
 class DensityEstimator:
@@ -168,39 +180,69 @@ class DensityEstimator:
         return util.estimated_ratio
 
     @classmethod
-    def estimate_utilization(cls, page: Any, page_type: str = "chapter_content") -> PageUtilization:
-        """Calculate complete physical layout utilization and component height breakdown."""
+    def estimate_utilization(
+        cls,
+        page: Any,
+        page_type: str = "chapter_content",
+        publication_profile: Optional[PublicationProfile] = None,
+    ) -> PageUtilization:
+        """Calculate complete physical layout utilization, density band, and component height breakdown."""
         p_type = getattr(page, "page_type", page_type) or page_type
         layout = getattr(page, "layout", "") or ""
-        
-        # Chapter Opener Page
-        if p_type == "chapter_opener" or layout == "chapter_opener":
+        profile = getattr(page, "publication_profile", publication_profile) or publication_profile
+
+        # Poetry / Intentional Minimal Pages: exempt from normal density rules
+        if profile == PublicationProfile.POETRY or p_type == "poetry" or layout == "poetry":
             return PageUtilization(
                 estimated_ratio=0.45,
-                status="optimal",
-                block_breakdown={"chapter_opener_banner": 110.0},
+                status="healthy",
+                density_band="HEALTHY",
+                block_breakdown={"poetry_stanza": 112.0},
                 usable_height_mm=USABLE_PAGE_HEIGHT_MM,
-                total_content_height_mm=110.0,
-                target_min_ratio=0.25,
+                total_content_height_mm=112.0,
+                target_min_ratio=0.20,
                 target_max_ratio=0.60,
+                hard_fail_ratio=0.15,
                 content_units=2,
                 is_underfilled=False,
                 is_hard_fail=False,
+                publication_profile=profile,
             )
 
-        # Full-page dedicated structural layouts
-        if p_type in ("cover", "copyright", "toc", "thank_you", "imprint") or layout in ("cover", "copyright", "toc", "thank_you", "imprint"):
+        # Chapter Opener Page: target 0.35 - 0.65
+        if p_type == "chapter_opener" or layout == "chapter_opener":
             return PageUtilization(
-                estimated_ratio=0.80,
-                status="optimal",
-                block_breakdown={"structural_layout": 199.0},
+                estimated_ratio=0.50,
+                status="healthy",
+                density_band="HEALTHY",
+                block_breakdown={"chapter_opener_banner": 124.5},
                 usable_height_mm=USABLE_PAGE_HEIGHT_MM,
-                total_content_height_mm=199.0,
-                target_min_ratio=0.70,
-                target_max_ratio=0.90,
+                total_content_height_mm=124.5,
+                target_min_ratio=0.35,
+                target_max_ratio=0.65,
+                hard_fail_ratio=0.25,
+                content_units=2,
+                is_underfilled=False,
+                is_hard_fail=False,
+                publication_profile=profile,
+            )
+
+        # Full-page dedicated structural layouts (cover, imprint, copyright, toc, references, acknowledgement, thank_you)
+        if p_type in ("cover", "copyright", "toc", "thank_you", "imprint", "references", "acknowledgement") or layout in ("cover", "copyright", "toc", "thank_you", "imprint", "references", "acknowledgement"):
+            return PageUtilization(
+                estimated_ratio=0.88,
+                status="healthy",
+                density_band="HEALTHY",
+                block_breakdown={"structural_layout": 219.0},
+                usable_height_mm=USABLE_PAGE_HEIGHT_MM,
+                total_content_height_mm=219.0,
+                target_min_ratio=0.65,
+                target_max_ratio=0.95,
+                hard_fail_ratio=0.45,
                 content_units=3,
                 is_underfilled=False,
                 is_hard_fail=False,
+                publication_profile=profile,
             )
 
         total_height_mm = 0.0
@@ -210,7 +252,7 @@ class DensityEstimator:
         content = getattr(page, "content", page)
         headline = getattr(content, "headline", None) if content else None
 
-        # 1. Headline & Header Spacing
+        # 1. Headline & Header Spacing (Does NOT count as educational content unit)
         content_units_count = 0
         if headline:
             total_height_mm += 14.0
@@ -252,46 +294,201 @@ class DensityEstimator:
 
         ratio = round(total_height_mm / USABLE_PAGE_HEIGHT_MM, 3)
 
-        # Target minimum ratios:
-        # Diagram/visual: 0.60
-        # Code/terminal: 0.65
-        # Normal content/concept: 0.70
+        # Target minimum ratios based on specific content archetype:
+        # DIAGRAM / VISUAL PAGE: target 0.80–0.95
+        # CODE / TERMINAL HEAVY: target 0.85–0.95
+        # COMPARISON / FRAMEWORK: target 0.85–0.95
+        # EXERCISE / PRACTICE: target 0.80–0.95
+        # NORMAL CONTENT PAGE: target 0.90–0.95
         has_code = any("code" in k or "terminal" in k for k in breakdown.keys())
         has_diagram = any("diagram" in k or "chart" in k for k in breakdown.keys())
-        min_target = 0.60 if has_diagram else (0.65 if has_code else 0.70)
+        has_comparison = any("comparison" in k or "table" in k for k in breakdown.keys())
+        has_exercise = any("exercise" in k for k in breakdown.keys())
 
-        is_underfilled = (ratio < min_target)
-        is_hard_fail = (ratio < 0.45)
-
-        if is_underfilled:
-            status = "underfilled"
-        elif ratio > 0.95:
-            status = "overflow_risk"
+        if has_diagram:
+            min_target = 0.80
+        elif has_exercise:
+            min_target = 0.80
+        elif has_code or has_comparison:
+            min_target = 0.85
         else:
-            status = "optimal"
+            min_target = 0.90
+
+        # Categorize density bands:
+        # < 0.60: HARD FAILURE
+        # 0.60–0.75: SEVERELY UNDERFILLED
+        # 0.75–0.85: UNDERFILLED
+        # 0.85–0.90: ENRICH IF SAFE
+        # 0.90–0.95: HEALTHY
+        # 0.95–0.98: DENSE
+        # > 0.98: OVERFLOW RISK
+        if ratio < 0.60:
+            density_band = "HARD_FAILURE"
+            status = "hard_failure"
+            is_underfilled = True
+            is_hard_fail = True
+        elif ratio < 0.75:
+            density_band = "SEVERELY_UNDERFILLED"
+            status = "severely_underfilled"
+            is_underfilled = True
+            is_hard_fail = False
+        elif ratio < 0.85:
+            density_band = "UNDERFILLED"
+            status = "underfilled"
+            is_underfilled = True
+            is_hard_fail = False
+        elif ratio < min_target:
+            density_band = "ENRICH_IF_SAFE"
+            status = "enrich_if_safe"
+            is_underfilled = True
+            is_hard_fail = False
+        elif ratio <= 0.95:
+            density_band = "HEALTHY"
+            status = "healthy"
+            is_underfilled = False
+            is_hard_fail = False
+        elif ratio <= 0.98:
+            density_band = "DENSE"
+            status = "dense"
+            is_underfilled = False
+            is_hard_fail = False
+        else:
+            density_band = "OVERFLOW_RISK"
+            status = "overflow_risk"
+            is_underfilled = False
+            is_hard_fail = False
 
         return PageUtilization(
             estimated_ratio=ratio,
             status=status,
+            density_band=density_band,
             block_breakdown=breakdown,
             usable_height_mm=USABLE_PAGE_HEIGHT_MM,
             total_content_height_mm=round(total_height_mm, 1),
             target_min_ratio=min_target,
-            target_max_ratio=0.90,
+            target_max_ratio=0.95,
+            hard_fail_ratio=0.60,
             content_units=content_units_count,
             is_underfilled=is_underfilled,
             is_hard_fail=is_hard_fail,
+            publication_profile=profile,
         )
 
 
-def estimate_page_utilization(page: Any, page_type: str = "chapter_content") -> PageUtilization:
-    """Public helper to calculate page density and utilization metrics."""
-    return DensityEstimator.estimate_utilization(page, page_type=page_type)
+def calculate_semantic_completeness(
+    page: Any,
+    publication_profile: Optional[PublicationProfile] = None,
+    topic: Optional[str] = None,
+) -> PageCompletenessScore:
+    """Evaluate semantic information density, practical depth, and penalize repetitive filler/genre leakage."""
+    content = getattr(page, "content", page)
+    blocks = getattr(content, "blocks", []) if content else []
+    headline = (getattr(content, "headline", "") or "").lower()
+
+    # Extract all text from page
+    texts: List[str] = []
+    if getattr(content, "body", None):
+        texts.append(content.body)
+    for b in blocks:
+        for attr in ("text", "content", "explanation", "quote", "caption", "title"):
+            val = getattr(b, attr, None)
+            if val and isinstance(val, str):
+                texts.append(val)
+        if getattr(b, "items", None):
+            texts.extend([str(item) for item in b.items])
+        if getattr(b, "instructions", None):
+            texts.extend([str(inst) for inst in b.instructions])
+
+    full_text = " ".join(texts).lower()
+    total_words = len(full_text.split())
+
+    issues: List[str] = []
+    filler_penalty = 0.0
+    repetition_penalty = 0.0
+    genre_mismatch_penalty = 0.0
+
+    # 1. Generic filler detection
+    filler_patterns = [
+        r"\bit is important to understand\b",
+        r"\bthis concept plays an important role\b",
+        r"\bin today's fast-paced world\b",
+        r"\bby following these principles\b",
+        r"\bunderstanding this topic is crucial\b",
+        r"\bas we have discussed\b",
+        r"\bthis can help you achieve your goals\b",
+        r"\bit is worth noting that\b",
+        r"\bat the end of the day\b",
+        r"\bin conclusion, it is vital\b",
+        r"\bplays a vital role\b",
+        r"\bcrucial aspect of\b",
+    ]
+    for pattern in filler_patterns:
+        matches = len(re.findall(pattern, full_text))
+        if matches > 0:
+            penalty = matches * 0.25
+            filler_penalty += penalty
+            issues.append(f"Generic filler detected ({pattern}): {matches} occurrence(s)")
+
+    # 2. Repetition detection (repeated sentences or duplicated chunks)
+    sentences = [s.strip() for s in re.split(r"[.!?]+", full_text) if len(s.strip()) > 15]
+    if len(sentences) > len(set(sentences)):
+        duplicates = len(sentences) - len(set(sentences))
+        rep_pen = min(0.60, duplicates * 0.20)
+        repetition_penalty += rep_pen
+        issues.append(f"Repetitive text detected: {duplicates} duplicate sentence(s)")
+
+    # 3. Genre mismatch detection
+    profile = getattr(page, "publication_profile", publication_profile) or publication_profile
+    if profile == PublicationProfile.GENERAL_NONFICTION or (profile is None and topic and not any(t in topic.lower() for t in ["code", "python", "rust", "go", "software", "database", "programming"])):
+        tech_leaks = [
+            r"\bmaintainable, and robust against unexpected inputs\b",
+            r"\bkeep your implementations modular\b",
+            r"\bvalidate boundary conditions\b",
+            r"\bisolated inputs\b",
+            r"\bcode idioms\b",
+            r"\bunit test\b",
+            r"\bapi endpoint\b",
+        ]
+        for pattern in tech_leaks:
+            if re.search(pattern, full_text):
+                genre_mismatch_penalty += 0.35
+                issues.append(f"Technical template leakage detected in general non-fiction: {pattern}")
+
+    # 4. Component diversity and practical depth score
+    block_types = {getattr(b, "type", "") for b in blocks if getattr(b, "type", "")}
+    diversity_score = min(1.0, len(block_types) / 3.0) if block_types else (0.5 if total_words > 200 else 0.3)
+    explanation_depth = min(1.0, total_words / 250.0) if total_words >= 150 else 0.4
+    practical_value = 1.0 if any(t in block_types for t in ["checklist", "exercise", "callout", "comparison", "code", "terminal"]) else 0.5
+    example_quality = 1.0 if any(t in block_types for t in ["callout", "comparison", "code", "timeline"]) or "example" in full_text else 0.5
+
+    base_score = 0.3 * explanation_depth + 0.3 * practical_value + 0.2 * example_quality + 0.2 * diversity_score
+    final_score = max(0.0, min(1.0, base_score - filler_penalty - repetition_penalty - genre_mismatch_penalty))
+    passes = (final_score >= 0.70) and (filler_penalty <= 0.30) and (repetition_penalty <= 0.30) and (genre_mismatch_penalty == 0.0)
+
+    return PageCompletenessScore(
+        score=round(final_score, 2),
+        core_topic_coverage=round(explanation_depth, 2),
+        explanation_depth=round(explanation_depth, 2),
+        example_quality=round(example_quality, 2),
+        practical_value=round(practical_value, 2),
+        component_diversity=round(diversity_score, 2),
+        novelty=1.0 - round(min(1.0, repetition_penalty), 2),
+        evidence_quality=0.9,
+        filler_penalty=round(filler_penalty, 2),
+        repetition_penalty=round(repetition_penalty, 2),
+        genre_mismatch_penalty=round(genre_mismatch_penalty, 2),
+        passes_threshold=passes,
+        detected_issues=issues,
+    )
 
 
-def estimate_page_utilization(page: Any, page_type: str = "chapter_content") -> PageUtilization:
+def estimate_page_utilization(
+    page: Any,
+    page_type: str = "chapter_content",
+    publication_profile: Optional[PublicationProfile] = None,
+) -> PageUtilization:
     """Public helper to calculate page density and utilization metrics."""
-    return DensityEstimator.estimate_utilization(page, page_type=page_type)
+    return DensityEstimator.estimate_utilization(page, page_type=page_type, publication_profile=publication_profile)
 
 
 class OverflowDetector:

@@ -10,6 +10,7 @@ from vasukisquare.book.layout import (
     PAGE_TYPE_SPECS,
     TechnicalPageType,
     ContentBudget,
+    PublicationProfile,
 )
 from vasukisquare.book.models import (
     BookIntent,
@@ -291,9 +292,15 @@ class EditorialPlannerAgent:
             if not result.is_technical:
                 result.code_requirements = False
                 result.primary_programming_language = None
-            elif not result.primary_programming_language:
-                combined_text = f"{effective_topic} {prompt or ''}"
-                result.primary_programming_language = self._detect_language(combined_text)
+                if any(w in effective_topic.lower() for w in ["poem", "poetry", "verse", "sonnet"]):
+                    result.publication_profile = PublicationProfile.POETRY
+                elif not result.publication_profile or result.publication_profile == PublicationProfile.TECHNICAL:
+                    result.publication_profile = PublicationProfile.GENERAL_NONFICTION
+            else:
+                result.publication_profile = PublicationProfile.TECHNICAL
+                if not result.primary_programming_language:
+                    combined_text = f"{effective_topic} {prompt or ''}"
+                    result.primary_programming_language = self._detect_language(combined_text)
 
             return result
         except Exception as e:
@@ -424,6 +431,10 @@ class EditorialPlannerAgent:
         diagram_req = any(w in combined for w in diagram_keywords)
         domain_topic = "personal_development" if not is_technical else ("programming_guide" if primary_lang else "systems_architecture")
 
+        pub_profile = PublicationProfile.TECHNICAL if is_technical else (
+            PublicationProfile.POETRY if any(w in combined for w in ["poem", "poetry", "verse", "sonnet"]) else PublicationProfile.GENERAL_NONFICTION
+        )
+
         return BookIntent(
             topic=topic,
             title=resolved_title,
@@ -439,6 +450,7 @@ class EditorialPlannerAgent:
             desired_elements=desired_elements,
             target_pages=target_pages,
             is_technical=is_technical,
+            publication_profile=pub_profile,
             chapter_count=chapter_count,
             research_intensity="standard",
             code_requirements=code_req,
@@ -841,13 +853,13 @@ class EditorialPlannerAgent:
     def calculate_adaptive_chapter_count(target_pages: int) -> int:
         """Calculate the ideal chapter count so that every chapter has an opener and adequate content pages,
         while keeping the total physical page count close to target_pages."""
-        if target_pages <= 8:
+        if target_pages <= 12:
             return 1
-        elif target_pages <= 14:
+        elif target_pages <= 18:
             return 2
-        elif target_pages <= 22:
+        elif target_pages <= 26:
             return 3
-        elif target_pages <= 30:
+        elif target_pages <= 35:
             return 4
         elif target_pages <= 50:
             return 6
@@ -892,6 +904,23 @@ class EditorialPlannerAgent:
         curr_page_num += 1
 
         if target_total_pages <= 12:
+            # Short-Book Mode: Single consolidated TOC & Imprint frontmatter page
+            p_toc = PlannedPage(
+                page_number=curr_page_num,
+                page_type=LayoutType.TOC.value,
+                layout=LayoutType.TOC.value,
+                theme=Theme.LIGHT,
+                brief="Table of contents & publication imprint.",
+                page_purpose=PagePurpose(
+                    page_type="frontmatter",
+                    learning_goal="Overview of book structure, navigation, and publication imprint.",
+                    forbidden_components=["step", "code", "terminal"],
+                ),
+            )
+            frontmatter.append(p_toc)
+            all_pages.append(p_toc)
+            curr_page_num += 1
+        elif target_total_pages <= 16:
             p_title = PlannedPage(
                 page_number=curr_page_num,
                 page_type="imprint",

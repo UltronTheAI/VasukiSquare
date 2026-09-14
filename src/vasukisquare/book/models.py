@@ -13,6 +13,8 @@ from vasukisquare.book.layout import (
     PAGE_TYPE_SPECS,
     ContentBudget,
     ContentDensity,
+    PublicationProfile,
+    ContentCapacity,
 )
 from vasukisquare.design.theme import Theme, get_chapter_theme
 from vasukisquare.design.tokens import ColorToken, validate_color_token
@@ -243,6 +245,10 @@ class BookIntent(BaseModel):
     )
     target_pages: Optional[int] = Field(default=None, ge=1)
     is_technical: bool = Field(default=False, description="Whether the book is a software/engineering technical manual")
+    publication_profile: PublicationProfile = Field(
+        default=PublicationProfile.GENERAL_NONFICTION,
+        description="Genre publication profile: technical, general_nonfiction, educational, fiction, poetry, magazine, news, report",
+    )
     chapter_count: Optional[int] = Field(default=None, description="Explicit chapter count constraint if specified")
     research_intensity: str = Field(default="standard", description="standard, deep, academic")
     code_requirements: bool = Field(default=False)
@@ -255,6 +261,33 @@ class BookIntent(BaseModel):
         default=None,
         description="Main subject domain (e.g. habits, productivity, distributed_systems)",
     )
+
+
+class PageCompletenessScore(BaseModel):
+    """Semantic content completeness and information density evaluation."""
+
+    score: float = Field(default=1.0, ge=0.0, le=1.0, description="Overall semantic completeness score (0.0 to 1.0)")
+    core_topic_coverage: float = Field(default=1.0, ge=0.0, le=1.0)
+    explanation_depth: float = Field(default=1.0, ge=0.0, le=1.0)
+    example_quality: float = Field(default=1.0, ge=0.0, le=1.0)
+    practical_value: float = Field(default=1.0, ge=0.0, le=1.0)
+    component_diversity: float = Field(default=1.0, ge=0.0, le=1.0)
+    novelty: float = Field(default=1.0, ge=0.0, le=1.0)
+    evidence_quality: float = Field(default=1.0, ge=0.0, le=1.0)
+    filler_penalty: float = Field(default=0.0, ge=0.0, le=1.0)
+    repetition_penalty: float = Field(default=0.0, ge=0.0, le=1.0)
+    genre_mismatch_penalty: float = Field(default=0.0, ge=0.0, le=1.0)
+    passes_threshold: bool = Field(default=True)
+    detected_issues: List[str] = Field(default_factory=list)
+
+    @property
+    def total_score(self) -> float:
+        """Score expressed as a percentage 0.0 to 100.0."""
+        return self.score * 100.0
+
+
+# Alias PageContentBudget to ContentBudget
+PageContentBudget = ContentBudget
 
 
 class SectionPlan(BaseModel):
@@ -301,7 +334,9 @@ class PagePurpose(BaseModel):
     forbidden_components: List[str] = Field(default_factory=list, description="Explicitly forbidden blocks (e.g. ['step'] on concept pages)")
     is_hands_on: bool = Field(default=False, description="Whether this page requires runnable code/commands")
     content_depth: str = Field(default="normal", description="Content depth level: introductory, normal, deep")
-    minimum_content_units: int = Field(default=3, ge=1, description="Minimum distinct educational components required")
+    minimum_content_units: int = Field(default=4, ge=1, description="Minimum distinct educational components required")
+    estimated_content_capacity: str = Field(default="high", description="Estimated capacity: low, medium, high, very_high")
+    publication_profile: Optional[PublicationProfile] = None
     content_budget: Optional[ContentBudget] = Field(default=None, description="Detailed content and density allocation budget")
 
 
@@ -351,6 +386,11 @@ class BookPlan(BaseModel):
     all_planned_pages: List[PlannedPage] = Field(default_factory=list)
     total_pages: int = 0
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @property
+    def all_pages(self) -> List[PlannedPage]:
+        """Backward-compatible alias for all_planned_pages."""
+        return self.all_planned_pages
 
     @model_validator(mode="after")
     def calculate_total_pages_and_running_title(self) -> "BookPlan":

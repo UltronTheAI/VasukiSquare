@@ -130,26 +130,26 @@ def test_code_page_with_code_output_prose_passes():
             filename="functions_demo.py",
             code=(
                 "def calculate_tax(amount: float, rate: float = 0.08) -> float:\n"
-                "    \"\"\"Calculate total tax for given amount.\"\"\"\n"
                 "    return round(amount * rate, 2)\n\n"
-                "subtotal = 125.00\n"
-                "tax = calculate_tax(subtotal)\n"
-                "print(f'Subtotal: ${subtotal:.2f} | Tax: ${tax:.2f} | Total: ${subtotal + tax:.2f}')"
+                "print(f'Total: ${125.0 + calculate_tax(125.0):.2f}')"
             ),
-            caption="Listing 5.1: Function definition with default arguments.",
+            caption="Listing 5.1: Function definition with typed arguments.",
             line_numbers=True,
         ),
         OutputBlock(
             title="Console Output",
-            content="Subtotal: $125.00 | Tax: $10.00 | Total: $135.00",
+            content="Total: $135.00",
         ),
         CalloutBlock(
             title="Type Annotations",
             content="Always add type hints to function signatures. They make code self-documenting and prevent type-related bugs.",
             variant="tip",
         ),
-        TextBlock(
-            text="Functions can also be passed as first-class citizens to higher-order tools like `map()`, `filter()`, and custom decorators."
+        CommonMistakeBlock(
+            title="Mutable Default Arguments",
+            mistake_code="def add(x, l=[]):\n    l.append(x)\n    return l",
+            corrected_code="def add(x, l=None):\n    if l is None: l = []\n    l.append(x); return l",
+            explanation="Default list arguments retain state across multiple function calls.",
         ),
     ]
     page = Page(
@@ -291,3 +291,85 @@ def test_preflight_book_underfill_rate_threshold():
     assert report.all_valid is False
     assert report.underfilled_pages >= 2
     assert any("density qa" in err.lower() or "underfilled" in err.lower() for err in report.overall_warnings or report.page_reports[2].errors)
+
+
+def test_habits_general_nonfiction_repair_and_no_technical_leakage():
+    """General non-fiction repair must produce rich non-technical units without any programming jargon."""
+    sparse_habits = PageContent(
+        headline="The Power of Habit Loops",
+        blocks=[
+            TextBlock(text="Habits are repeated actions that shape your daily lifestyle.")
+        ],
+    )
+    from vasukisquare.book.layout import PublicationProfile
+    repaired = repair_underfilled_page(
+        sparse_habits,
+        primary_subject="Building Better Daily Habits",
+        publication_profile=PublicationProfile.GENERAL_NONFICTION,
+        topic="Building Better Daily Habits",
+    )
+
+    util = estimate_page_utilization(repaired, publication_profile=PublicationProfile.GENERAL_NONFICTION)
+    assert util.estimated_ratio >= 0.80
+    assert util.is_hard_fail is False
+    assert util.content_units >= 4
+
+    # Check zero technical leakage
+    for block in repaired.blocks:
+        b_text = getattr(block, "text", "") or getattr(block, "content", "")
+        assert "python" not in b_text.lower()
+        assert "boundary conditions" not in b_text.lower()
+        assert "modular implementations" not in b_text.lower()
+        assert "code idioms" not in b_text.lower()
+        assert getattr(block, "type", "") not in ("code", "terminal")
+
+
+def test_poetry_density_exempt():
+    """Poetry publication profile allows whitespace-heavy artistic layouts without underfill failures."""
+    from vasukisquare.book.layout import PublicationProfile
+    poem_content = PageContent(
+        headline="Quiet Morning",
+        blocks=[
+            TextBlock(text="A quiet dawn,\nThe kettle hums,\nThe world awakens slow.")
+        ],
+    )
+    util = estimate_page_utilization(poem_content, publication_profile=PublicationProfile.POETRY)
+    assert util.is_hard_fail is False
+    assert util.is_underfilled is False
+
+
+def test_semantic_completeness_validator():
+    """Semantic completeness validator rejects filler-heavy cliches and repetitive text."""
+    from vasukisquare.renderer.overflow import calculate_semantic_completeness
+    filler_content = PageContent(
+        headline="Modern Living",
+        blocks=[
+            TextBlock(text="In today's fast-paced world, it is important to remember that it is crucial to understand habits. As we have seen, it goes without saying that habits matter."),
+            TextBlock(text="In today's fast-paced world, it is important to remember that it is crucial to understand habits."),
+        ],
+    )
+    score = calculate_semantic_completeness(filler_content)
+    assert score.filler_penalty > 0
+    assert score.repetition_penalty > 0
+    assert score.total_score < 60.0
+
+
+@pytest.mark.asyncio
+async def test_short_book_mode_allocation():
+    """A 10-page book plan allocates 1 cover, 1 compact TOC, 1 opener, 6 content pages, and 1 references."""
+    from vasukisquare.agents.editorial import EditorialPlannerAgent
+    from vasukisquare.config import Settings
+
+    planner = EditorialPlannerAgent(settings=Settings(vasukisquare_mock_mode=True))
+    plan = await planner.generate_book_plan(
+        topic="Building Better Daily Habits",
+        title="Good Habits",
+        target_pages=10,
+    )
+    assert len(plan.all_pages) == 10
+    content_pages = [p for p in plan.all_pages if p.page_type == "chapter_content"]
+    assert len(content_pages) >= 5
+    assert plan.all_pages[0].layout == "cover"
+    assert plan.all_pages[1].layout == "toc"
+    assert plan.all_pages[-1].layout == "references"
+

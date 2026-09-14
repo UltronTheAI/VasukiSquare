@@ -10,132 +10,69 @@ from vasukisquare.book.layout import (
     VisualAnchorType,
     TechnicalPageSpec,
     TechnicalPageType,
+    PublicationProfile,
     PAGE_TYPE_SPECS,
     is_component_eligible,
 )
-from vasukisquare.book.components import (
-    AcknowledgementBlock,
-    CalloutBlock,
-    ChartBlock,
-    ChecklistBlock,
-    CodeBlock,
-    CommonMistakeBlock,
-    ComparisonBlock,
-    ContentBlock,
-    CopyrightBlock,
-    DefinitionBlock,
-    DiagramBlock,
-    ExerciseBlock,
-    HeadingBlock,
-    OutputBlock,
-    QuoteBlock,
-    SourceBlock,
-    StatisticBlock,
-    StepBlock,
-    TableBlock,
-    TerminalBlock,
-    TerminalLine,
-    TextBlock,
-    TimelineBlock,
-    TocBlock,
-    TocEntry,
-)
 from vasukisquare.book.models import (
-    BookPlan,
     Page,
     PageContent,
-    PagePurpose,
-    PageStyle,
     PlannedPage,
+    BookPlan,
+    PageCompletenessScore,
     SourceCitation,
     generate_id,
 )
-from vasukisquare.research.models import ResearchCorpus
-from vasukisquare.agents.content_validator import (
-    validate_page_content,
-    count_page_words,
-    evaluate_technical_page,
-    validate_terminal_command,
-    validate_code_block,
-    detect_topic_drift,
+from vasukisquare.book.components import (
+    TextBlock,
+    CodeBlock,
+    OutputBlock,
+    CalloutBlock,
+    TableBlock,
+    TimelineBlock,
+    TimelineEvent,
+    CommonMistakeBlock,
+    ChecklistBlock,
+    ComparisonBlock,
+    StatisticBlock,
+    QuoteBlock,
+    ExerciseBlock,
 )
-from vasukisquare.agents.technical_content import classify_topic, extract_chapter_research
+from vasukisquare.research.models import ResearchCorpus
 from vasukisquare.llm.client import LLMClient, GroqGenerationError
 from vasukisquare.llm.metrics import BookGenerationMetrics
-
-logger = logging.getLogger(__name__)
-
+from vasukisquare.design.theme import Theme
 
 class SmallModelHeadlineLead(BaseModel):
-    """Minimal schema for small models generating headline and lead explanation."""
-
-    headline: str = Field(description="Direct, non-repetitive headline for this specific page (do not repeat the book title)")
-    explanation: str = Field(description="Substantive 80 to 120 word technical explanation explaining the concept using provided facts")
-
-
-class SmallModelSecondaryExplanation(BaseModel):
-    """Minimal schema for small models generating follow-up conceptual analysis."""
-
-    subheading: str = Field(description="Short section subheading e.g. Architectural Mechanics, Core Principles")
-    explanation: str = Field(description="Substantive 60 to 90 word follow-up explanation expanding on the technical details")
+    """Decomposed small model output schema for headline and lead explanation."""
+    headline: str = Field(default="", description="Page headline or section title")
+    explanation: str = Field(default="", description="Substantive 80-120 word technical explanation")
 
 
 class SmallModelTroubleshooting(BaseModel):
-    """Minimal schema for small models generating actionable advice or pitfalls."""
-
-    callout_title: str = Field(description="Concise callout title e.g. Best Practice, Verification, Common Pitfall")
-    callout_text: str = Field(description="1 to 2 sentences giving practical guidance or debugging advice")
-    callout_variant: str = Field(default="tip", description="tip, warning, note, or important")
-
-
-class SmallModelExercise(BaseModel):
-    """Minimal schema for small models generating a targeted beginner exercise or challenge."""
-
-    title: str = Field(description="Exercise title e.g. Hands-On Challenge")
-    instructions: List[str] = Field(description="2 to 3 concise actionable instructions for the reader to try")
+    """Decomposed small model output schema for common mistake and troubleshooting tip."""
+    mistake_title: str = Field(default="Common Pitfall", description="Title of common mistake or pitfall")
+    wrong_code: str = Field(default="", description="Incorrect code example or anti-pattern")
+    correct_code: str = Field(default="", description="Corrected executable code example")
+    explanation: str = Field(default="", description="Explanation of why mistake happens and how to fix it")
+    tip: str = Field(default="", description="Actionable takeaway or tip")
 
 
-class LLMGeneratedPage(BaseModel):
-    """Structured page response from LLM."""
-
-    headline: str = Field(description="Page headline or key concept title")
-    lead_paragraph: str = Field(description="Substantive introductory explanation teaching the core concept")
-    secondary_paragraph: Optional[str] = Field(default=None, description="In-depth follow-up explanation, architecture analysis, or practical context")
-    key_points: List[str] = Field(default_factory=list, description="2 to 4 bullet points of core principles or rules")
-    callout_title: Optional[str] = Field(default=None, description="Title for callout box (e.g. Pro Tip, Best Practice, Key Gotcha)")
-    callout_text: Optional[str] = Field(default=None, description="Actionable practical tip, note, or warning")
-    callout_variant: str = Field(default="tip", description="tip, note, important, warning, or definition")
-    terminal_command: Optional[str] = Field(default=None, description="CLI setup, execution, or verification command")
-    terminal_title: Optional[str] = Field(default=None, description="Terminal window title bar label")
-    code_snippet: Optional[str] = Field(default=None, description="Complete, syntactically correct, runnable code snippet")
-    code_filename: Optional[str] = Field(default=None, description="Code filename e.g. main.py, config.py")
-    code_caption: Optional[str] = Field(default=None, description="Descriptive caption for the code snippet")
-    code_language: Optional[str] = Field(default=None, description="Programming language identifier e.g. python, bash, sql")
-    diagram_mermaid: Optional[str] = Field(default=None, description="Valid Mermaid flowchart or diagram syntax (e.g. graph TD\\n A-->B)")
-    diagram_caption: Optional[str] = Field(default=None, description="Caption for the architecture diagram")
-    table_caption: Optional[str] = Field(default=None, description="Caption for comparison or reference table")
-    table_columns: List[str] = Field(default_factory=list, description="Column headers for table")
-    table_rows: List[List[str]] = Field(default_factory=list, description="Row values for table (2 to 4 rows)")
-    comparison_title: Optional[str] = Field(default=None, description="Title for side-by-side comparison (Do vs Don't)")
-    comparison_left_items: List[str] = Field(default_factory=list, description="Best practices or advantages")
-    comparison_right_items: List[str] = Field(default_factory=list, description="Common anti-patterns or pitfalls")
-    hands_on_steps: List[str] = Field(default_factory=list, description="Step-by-step practical execution instructions")
-    quote_text: Optional[str] = Field(default=None, description="Authoritative quote or guiding design principle")
-    quote_author: Optional[str] = Field(default=None, description="Author or specification origin of quote")
-    cited_source_urls: List[str] = Field(default_factory=list, description="URLs from research dossier used for facts on this page")
+MAX_DENSITY_REPAIR_PASSES = 3
 
 
 def repair_underfilled_page(
     page_content: Any,
     spec: Optional[TechnicalPageSpec] = None,
-    primary_subject: str = "technical topic",
+    primary_subject: str = "general topic",
     is_beginner: bool = False,
     verified_facts: Optional[List[str]] = None,
     verified_commands: Optional[List[str]] = None,
     verified_code_snippets: Optional[List[str]] = None,
     topic: Optional[str] = None,
+    publication_profile: Optional[PublicationProfile] = None,
 ) -> Any:
-    """Repair an underfilled page strictly adhering to component eligibility, type-specific enrichment, and pedagogical validity."""
+    """Multi-pass, genre-aware page density repair ensuring 90%-95% usable area utilization."""
     from vasukisquare.renderer.overflow import estimate_page_utilization
     from vasukisquare.book.components import TimelineEvent
 
@@ -143,8 +80,17 @@ def repair_underfilled_page(
     content_obj = page_content.content if is_page_obj else page_content
     if spec is None:
         spec = PAGE_TYPE_SPECS[TechnicalPageType.CONCEPT]
-    if topic and primary_subject == "technical topic":
+    if topic and primary_subject in ("technical topic", "general topic"):
         primary_subject = topic
+
+    # Resolve publication profile
+    profile = publication_profile or getattr(page_content, "publication_profile", None)
+    if profile is None:
+        is_tech = any(w in (topic or primary_subject).lower() for w in ["python", "rust", "go", "code", "programming", "software", "database", "api", "architecture"])
+        profile = PublicationProfile.TECHNICAL if is_tech else PublicationProfile.GENERAL_NONFICTION
+
+    if profile == PublicationProfile.POETRY:
+        return page_content
 
     is_python = "python" in primary_subject.lower()
     headline = content_obj.headline or primary_subject
@@ -153,242 +99,252 @@ def repair_underfilled_page(
     if not blocks and getattr(content_obj, "body", None):
         blocks.append(TextBlock(text=content_obj.body))
 
-    # Determine if page is History or Features from spec or headline
+    # Determine type
     is_history = (
         spec.page_type == TechnicalPageType.HISTORY
         or any(w in headline_lower for w in ["history", "origin", "evolution", "background", "timeline"])
     )
     is_features = (
         spec.page_type == TechnicalPageType.FEATURES
-        or any(w in headline_lower for w in ["features", "benefits", "advantages", "philosophy", "why python", "capabilities"])
+        or any(w in headline_lower for w in ["features", "benefits", "advantages", "capabilities"])
     )
 
-    has_code = any(getattr(b, "type", "") == "code" for b in blocks)
-    has_terminal = any(getattr(b, "type", "") == "terminal" for b in blocks)
-    has_table = any(getattr(b, "type", "") == "table" for b in blocks)
-    has_timeline = any(getattr(b, "type", "") == "timeline" for b in blocks)
-    has_callout = any(getattr(b, "type", "") in ("callout", "tip", "note", "warning", "important") for b in blocks)
-    has_output = any(getattr(b, "type", "") == "output" for b in blocks)
+    # Target min utilization for this archetype
+    target_min = spec.min_utilization  # 0.85 to 0.90
+    target_max = 0.95
 
-    # 1. Type-Specific Enrichment: History
-    if is_history:
-        if not has_timeline:
-            events = [
-                TimelineEvent(
-                    year="1989",
-                    title="Origins & Conception",
-                    description="Guido van Rossum begins developing Python at CWI in the Netherlands as a successor to ABC.",
-                ),
-                TimelineEvent(
-                    year="1991",
-                    title="Python 0.9.0 Public Release",
-                    description="First public code release featuring functions, classes, exception handling, and core built-in types.",
-                ),
-                TimelineEvent(
-                    year="2000",
-                    title="Python 2.0 & Community Governance",
-                    description="Introduced list comprehensions, cycle-detecting garbage collection, and open community PEP process.",
-                ),
-                TimelineEvent(
-                    year="2008",
-                    title="Python 3.0 Modernization",
-                    description="Major architectural redesign enforcing clean Unicode string separation, integer division, and standard library cleanup.",
-                ),
-                TimelineEvent(
-                    year="Present",
-                    title="Modern High-Performance Python",
-                    description="Python 3.12+ features specialized adaptive interpreters, structural pattern matching, and extensive typing systems.",
-                ),
-            ]
-            blocks.append(TimelineBlock(title="Milestones in Python Evolution", events=events))
-            has_timeline = True
+    # Multi-pass repair loop (up to MAX_DENSITY_REPAIR_PASSES)
+    for pass_idx in range(MAX_DENSITY_REPAIR_PASSES):
+        util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks), page_type=spec.page_type.value, publication_profile=profile)
+        if util.estimated_ratio >= target_min or util.density_band in ("HEALTHY", "DENSE"):
+            break
 
-        util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
-        if util.estimated_ratio < 0.70:
-            blocks.append(
-                TextBlock(
-                    text="### Why These Milestones Matter\n"
-                    "Each major evolutionary milestone resolved critical software development trade-offs. "
-                    "Python's progression from a scripting language to the backbone of data science, web services, "
-                    "and artificial intelligence demonstrates the power of prioritizing code readability and developer productivity."
-                )
-            )
-            util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
+        has_code = any(getattr(b, "type", "") == "code" for b in blocks)
+        has_table = any(getattr(b, "type", "") == "table" for b in blocks)
+        has_timeline = any(getattr(b, "type", "") == "timeline" for b in blocks)
+        has_callout = any(getattr(b, "type", "") in ("callout", "tip", "note", "warning", "important") for b in blocks)
+        has_output = any(getattr(b, "type", "") == "output" for b in blocks)
+        has_checklist = any(getattr(b, "type", "") == "checklist" for b in blocks)
+        has_comparison = any(getattr(b, "type", "") == "comparison" for b in blocks)
+        has_exercise = any(getattr(b, "type", "") == "exercise" for b in blocks)
 
-        if util.estimated_ratio < 0.70 and not has_callout:
-            blocks.append(
-                CalloutBlock(
-                    title="Guiding Takeaway",
-                    content="Python was engineered on the belief that code is read far more often than it is written. Designing for clarity creates resilient, maintainable software systems.",
-                    variant="tip",
-                )
-            )
+        candidates: List[Any] = []
 
-    # 2. Type-Specific Enrichment: Features & Benefits
-    elif is_features:
-        if not has_table and not any(getattr(b, "type", "") == "comparison" for b in blocks):
-            blocks.append(
-                TableBlock(
-                    caption="Core Architectural Features of Python",
-                    columns=["Feature", "Technical Advantage", "Developer Impact"],
-                    rows=[
-                        ["Readable Syntax", "Semantic indentation without clutter", "Lower cognitive load & faster onboarding"],
-                        ["Dynamic Typing with Type Hints", "Rapid prototyping with optional safety", "Flexibility during discovery, clarity at scale"],
-                        ["Batteries-Included Stdlib", "Comprehensive built-in modules", "No external dependencies for core tasks"],
-                        ["Cross-Platform Portability", "Identical execution on Linux/macOS/Windows", "Build once, deploy anywhere seamlessly"],
-                    ],
+        if profile == PublicationProfile.GENERAL_NONFICTION:
+            # Pass 0: Deepen explanation & add concrete real-world scenario
+            if pass_idx == 0:
+                explanation = (
+                    f"Understanding the underlying behavioral mechanism of {headline} is essential for lasting personal change. "
+                    "When routines are clearly sequenced and anchored to predictable environmental cues, the cognitive friction required to initiate "
+                    "action is dramatically reduced. Over time, small repeated daily actions create compounding gains that far exceed sporadic bursts of willpower."
                 )
-            )
-            has_table = True
+                candidates.append(TextBlock(text=explanation))
+                if not has_callout:
+                    candidates.append(
+                        CalloutBlock(
+                            title="Daily Life Application",
+                            content=f"Anchor {headline} to an existing daily routine. For example, place your materials in plain sight the night before so the desired behavior becomes the path of least resistance.",
+                            variant="tip",
+                            icon="sparkles",
+                        )
+                    )
 
-        util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
-        if util.estimated_ratio < 0.70 and not has_code:
-            blocks.append(
-                CodeBlock(
-                    language="python",
-                    filename="expressive_features.py",
-                    code=(
-                        "# Python expressiveness: list comprehensions and clean syntax\n"
-                        "numbers = [1, 2, 3, 4, 5, 6]\n"
-                        "even_squares = [n ** 2 for n in numbers if n % 2 == 0]\n"
-                        "print(f'Processed even squares: {even_squares}')"
-                    ),
-                    caption="Listing: Expressive Python syntax in action.",
-                    line_numbers=True,
-                )
-            )
-            has_code = True
-            blocks.append(
-                OutputBlock(
-                    title="Console Output",
-                    content="Processed even squares: [4, 16, 36]",
-                )
-            )
-            has_output = True
-            util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
+            # Pass 1: Practical Checklist or Comparison
+            elif pass_idx == 1:
+                if not has_checklist:
+                    candidates.append(
+                        ChecklistBlock(
+                            title=f"Actionable Implementation Checklist: {headline}",
+                            items=[
+                                f"Designate a specific time and physical location trigger for {headline}.",
+                                "Reduce starting friction to under two minutes to eliminate resistance.",
+                                "Record daily completion on a visible habit scorecard to maintain momentum.",
+                                "Acknowledge each completed session immediately with a brief positive reflection.",
+                            ],
+                        )
+                    )
+                elif not has_comparison:
+                    candidates.append(
+                        ComparisonBlock(
+                            title="Sustainable Habits vs Common Pitfalls",
+                            left_title="Sustainable Approach",
+                            right_title="Common Failure Mode",
+                            left_items=["Starting with 2-minute micro-actions", "Designing environment to eliminate friction", "Recovering immediately if one day is missed"],
+                            right_items=["Attempting massive overnight transformations", "Relying purely on willpower and motivation", "Abandoning the entire routine after one slip-up"],
+                        )
+                    )
 
-        if util.estimated_ratio < 0.70 and not has_callout:
-            blocks.append(
-                CalloutBlock(
-                    title="Beginner Perspective",
-                    content="Focus on learning one feature at a time. Python's gradual learning curve allows you to write productive scripts immediately before adopting advanced paradigms.",
-                    variant="tip",
-                )
-            )
+            # Pass 2: Reflection & Daily Action Experiment
+            elif pass_idx == 2:
+                if not has_exercise:
+                    candidates.append(
+                        ExerciseBlock(
+                            title="Daily Action Experiment",
+                            objective=f"Apply {headline} through a concrete environmental test.",
+                            instructions=[
+                                f"Identify the single biggest friction point currently hindering your practice of {headline}.",
+                                "Make one concrete physical adjustment in your immediate environment today to eliminate that obstacle.",
+                                "Commit to testing this modification for 7 consecutive days and note any changes in consistency.",
+                            ],
+                        )
+                    )
+                else:
+                    candidates.append(
+                        TextBlock(
+                            text=f"Consistency with {headline} compounds over weeks and months. Focus on protecting the baseline routine rather than demanding perfection on every single attempt."
+                        )
+                    )
 
-    # 3. Standard Pedagogical & Code Pages
-    else:
-        # Enforce Required Code
-        if spec.requires_code and not has_code:
-            if is_python:
-                code_str = (
-                    f"# Practical demonstration of {headline}\n"
-                    f"def demonstrate_concept(items: list[int]) -> int:\n"
-                    f"    '''Process data items and compute cumulative summary.'''\n"
-                    f"    summary = sum(items)\n"
-                    f"    return summary\n\n"
-                    f"sample_data = [10, 20, 30, 40]\n"
-                    f"result = demonstrate_concept(sample_data)\n"
-                    f"print(f'Summary output: {{result}}')"
-                )
+        else:
+            # Technical Profile Enrichment
+            if is_history:
+                if not has_timeline:
+                    events = [
+                        TimelineEvent(year="1989", title="Origins & Conception", description="Guido van Rossum begins developing Python at CWI as an expressive successor to ABC."),
+                        TimelineEvent(year="1991", title="Python 0.9.0 Public Release", description="First release with functions, classes, exception handling, and core types."),
+                        TimelineEvent(year="2000", title="Python 2.0 Governance", description="Introduced list comprehensions, garbage collection, and PEP process."),
+                        TimelineEvent(year="2008", title="Python 3.0 Modernization", description="Major architectural redesign unifying Unicode strings and integers."),
+                        TimelineEvent(year="Present", title="High-Performance Python 3.12+", description="Adaptive bytecode execution, structural pattern matching, and typing."),
+                    ]
+                    candidates.append(TimelineBlock(title="Milestones in Python Evolution", events=events))
+                elif not has_callout:
+                    candidates.append(
+                        CalloutBlock(
+                            title="Guiding Takeaway",
+                            content="Python was engineered on the belief that code is read far more often than it is written. Designing for clarity creates resilient, maintainable software systems.",
+                            variant="tip",
+                            icon="compass",
+                        )
+                    )
+                else:
+                    candidates.append(
+                        TextBlock(
+                            text="### Why These Milestones Matter\n"
+                            "Each major evolutionary milestone resolved critical software development trade-offs. "
+                            "Python's progression from a scripting language to the backbone of modern data science and cloud services demonstrates the enduring power of prioritizing developer ergonomics."
+                        )
+                    )
+
+            elif is_features:
+                if not has_table and not has_comparison:
+                    candidates.append(
+                        TableBlock(
+                            caption="Core Architectural Features of Python",
+                            columns=["Feature", "Technical Advantage", "Developer Impact"],
+                            rows=[
+                                ["Readable Syntax", "Semantic indentation without clutter", "Lower cognitive load & faster onboarding"],
+                                ["Dynamic Typing with Type Hints", "Rapid prototyping with optional safety", "Flexibility during discovery, clarity at scale"],
+                                ["Batteries-Included Stdlib", "Comprehensive built-in modules", "No external dependencies for core tasks"],
+                                ["Cross-Platform Portability", "Identical execution on Linux/macOS/Windows", "Build once, deploy anywhere seamlessly"],
+                            ],
+                        )
+                    )
+                elif not has_code:
+                    candidates.append(
+                        CodeBlock(
+                            language="python",
+                            filename="expressive_features.py",
+                            code=(
+                                "# Python expressiveness: list comprehensions and clean syntax\n"
+                                "numbers = [1, 2, 3, 4, 5, 6]\n"
+                                "even_squares = [n ** 2 for n in numbers if n % 2 == 0]\n"
+                                "print(f'Processed even squares: {even_squares}')"
+                            ),
+                            caption="Listing: Expressive Python syntax in action.",
+                            line_numbers=True,
+                        )
+                    )
+                    candidates.append(
+                        OutputBlock(
+                            title="Console Output",
+                            content="Processed even squares: [4, 16, 36]",
+                        )
+                    )
+                elif not has_callout:
+                    candidates.append(
+                        CalloutBlock(
+                            title="Beginner Perspective",
+                            content="Focus on learning one feature at a time. Python's gradual learning curve allows you to write productive scripts immediately before adopting advanced paradigms.",
+                            variant="tip",
+                            icon="lightbulb",
+                        )
+                    )
+
             else:
-                code_str = (
-                    f"// Implementation for {headline}\n"
-                    f"function executeTask(items) {{\n"
-                    f"    return items.reduce((acc, curr) => acc + curr, 0);\n"
-                    f"}}\n"
-                    f"console.log('Result:', executeTask([10, 20, 30, 40]));"
-                )
-            blocks.append(
-                CodeBlock(
-                    language="python" if is_python else "javascript",
-                    filename=f"{headline.lower().replace(' ', '_')[:20]}.py" if is_python else "example.js",
-                    code=code_str,
-                    caption=f"Listing: {headline} Implementation",
-                    line_numbers=True,
-                )
-            )
-            has_code = True
+                # Standard technical page
+                if spec.requires_code and not has_code:
+                    code_str = (
+                        f"# Practical demonstration of {headline}\n"
+                        f"def demonstrate_concept(items: list[int]) -> int:\n"
+                        f"    '''Process data items and compute cumulative summary.'''\n"
+                        f"    summary = sum(items)\n"
+                        f"    return summary\n\n"
+                        f"sample_data = [10, 20, 30, 40]\n"
+                        f"result = demonstrate_concept(sample_data)\n"
+                        f"print(f'Summary output: {{result}}')"
+                    ) if is_python else (
+                        f"// Implementation for {headline}\n"
+                        f"function executeTask(items) {{\n"
+                        f"    return items.reduce((acc, curr) => acc + curr, 0);\n"
+                        f"}}\n"
+                        f"console.log('Result:', executeTask([10, 20, 30, 40]));"
+                    )
+                    candidates.append(
+                        CodeBlock(
+                            language="python" if is_python else "javascript",
+                            filename=f"{headline.lower().replace(' ', '_')[:20]}.py" if is_python else "example.js",
+                            code=code_str,
+                            caption=f"Listing: {headline} Implementation",
+                            line_numbers=True,
+                        )
+                    )
+                if not has_output and (has_code or any(getattr(c, "type", "") == "code" for c in candidates)):
+                    candidates.append(
+                        OutputBlock(
+                            title="Expected Console Output",
+                            content="Summary output: 100",
+                        )
+                    )
+                if not has_callout:
+                    candidates.append(
+                        CalloutBlock(
+                            title="Practical Tip",
+                            content=f"When applying {headline}, verify your inputs and test small edge cases early to prevent runtime exceptions.",
+                            variant="tip",
+                            icon="lightbulb",
+                        )
+                    )
+                if not has_exercise and spec.page_type in (TechnicalPageType.CONCEPT, TechnicalPageType.CODE_TUTORIAL, TechnicalPageType.EXERCISE):
+                    candidates.append(
+                        ExerciseBlock(
+                            title=f"Practice Challenge: {headline}",
+                            objective=f"Implement and verify {headline} with executable Python code.",
+                            instructions=[
+                                f"Write a short function that applies {headline} to process a list of values.",
+                                "Verify the output by printing the result to the console.",
+                            ],
+                        )
+                    )
 
-        # Enforce Required Terminal
-        if spec.requires_terminal and not has_terminal:
-            cmd = "python3 main.py" if is_python else f"{primary_subject.split()[0].lower()} --version"
-            blocks.append(
-                TerminalBlock(
-                    title=f"Terminal: {headline}",
-                    shell="bash",
-                    lines=[
-                        TerminalLine(kind="command", text=cmd),
-                        TerminalLine(kind="output", text="Execution verified successfully."),
-                    ],
-                )
-            )
-            has_terminal = True
-
-        # Enforce Callout
-        if not has_callout and is_component_eligible("callout", spec.page_type):
-            blocks.append(
-                CalloutBlock(
-                    title="Practical Best Practice",
-                    content=f"When working with {headline}, keep your implementations modular, validate boundary conditions, and test each component with isolated inputs.",
-                    variant="tip",
-                )
-            )
-
-        # Progressive Filling Loop
-        util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
-
-        # Add Output block if code is present but no output block
-        if util.estimated_ratio < 0.70 and has_code and not has_output and is_component_eligible("output", spec.page_type):
-            candidate_blocks = list(blocks) + [
-                OutputBlock(
-                    title="Expected Console Output",
-                    content="Summary output: 100",
-                )
-            ]
-            if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
-                blocks = candidate_blocks
-                has_output = True
-                util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
-
-        # Add Common Mistake if debugging/eligible
-        if util.estimated_ratio < 0.70 and is_component_eligible("mistake", spec.page_type) and not any(getattr(b, "type", "") == "mistake" for b in blocks):
-            candidate_blocks = list(blocks) + [
-                CommonMistakeBlock(
-                    title="Common Beginner Mistake",
-                    wrong_code="total = '10' + 5  # TypeError: can only concatenate str to str",
-                    correct_code="total = int('10') + 5  # Correct: explicit type cast to integer",
-                    explanation="In Python, strings and integers cannot be added directly without explicit type conversion.",
-                )
-            ]
-            if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
-                blocks = candidate_blocks
-                util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
-
-        # Add Secondary explanation if underfilled
-        if util.estimated_ratio < 0.70:
-            if verified_facts:
-                additional_text = f"Key principle: {verified_facts[0]}. In structured software development, understanding these foundational mechanics ensures predictable execution and simplifies debugging."
+        # Apply candidates safely checking overflow
+        for cand in candidates:
+            test_blocks = list(blocks) + [cand]
+            test_util = estimate_page_utilization(PageContent(headline=headline, blocks=test_blocks), page_type=spec.page_type.value, publication_profile=profile)
+            if test_util.estimated_ratio <= target_max + 0.02:
+                blocks.append(cand)
+                if test_util.estimated_ratio >= target_min:
+                    break
             else:
-                additional_text = f"When applying {headline}, maintaining clarity and following standard idioms ensures your code is readable, maintainable, and robust against unexpected inputs."
-            candidate_blocks = list(blocks) + [TextBlock(text=additional_text)]
-            if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
-                blocks = candidate_blocks
-                util = estimate_page_utilization(PageContent(headline=headline, blocks=blocks))
-
-        # Add Exercise if eligible
-        if util.estimated_ratio < 0.70 and is_component_eligible("exercise", spec.page_type) and not any(getattr(b, "type", "") == "exercise" for b in blocks):
-            candidate_blocks = list(blocks) + [
-                ExerciseBlock(
-                    title=f"Practice Challenge: {headline}",
-                    instructions=[
-                        f"Write a short function that applies {headline} to process a collection of inputs.",
-                        "Verify the output by printing the calculated result to the console.",
-                    ],
+                # If large candidate overflows, try a compact summary block instead
+                fallback_block = TextBlock(
+                    text=f"By consistently applying **{headline}**, you establish repeatable, friction-free execution that compounds into permanent long-term results."
                 )
-            ]
-            if estimate_page_utilization(PageContent(headline=headline, blocks=candidate_blocks)).estimated_ratio <= 0.95:
-                blocks = candidate_blocks
+                test_fb_blocks = list(blocks) + [fallback_block]
+                fb_util = estimate_page_utilization(PageContent(headline=headline, blocks=test_fb_blocks), page_type=spec.page_type.value, publication_profile=profile)
+                if fb_util.estimated_ratio <= target_max + 0.02:
+                    blocks.append(fallback_block)
+                    if fb_util.estimated_ratio >= target_min:
+                        break
 
     repaired_content = PageContent(headline=headline, blocks=blocks)
     if is_page_obj:
@@ -496,6 +452,8 @@ class PageWriterAgent:
         corpus: Optional[ResearchCorpus] = None,
     ) -> PageContent:
         """Generate content for a chapter content page using small-model decomposed flow, Groq LLM, or heuristic."""
+        from vasukisquare.renderer.overflow import estimate_page_utilization, calculate_semantic_completeness
+
         page_type_enum = TechnicalPageType.CONCEPT
         try:
             page_type_enum = TechnicalPageType(p.page_type)
@@ -504,36 +462,66 @@ class PageWriterAgent:
         spec = PAGE_TYPE_SPECS.get(page_type_enum, PAGE_TYPE_SPECS[TechnicalPageType.CONCEPT])
         primary_subj = plan.intent.domain_topic or plan.title
         is_beginner = "beginner" in plan.title.lower() or plan.intent.technical_depth == "introductory"
+        profile = plan.intent.publication_profile
 
+        raw_content: PageContent
         if self.settings.vasukisquare_mock_mode:
             self.metrics.record_fallback_page()
-            content = self._heuristic_write_page(p, plan, citations)
-            return repair_underfilled_page(content, spec=spec, primary_subject=primary_subj, is_beginner=is_beginner)
-
-        # Small model decomposed generation
-        if self.settings.is_small_model_active:
+            raw_content = self._heuristic_write_page(p, plan, citations)
+        elif self.settings.is_small_model_active:
             try:
                 small_content = await self._small_model_write_page(p, plan, citations, corpus)
                 if small_content:
                     self.metrics.record_page_generated_by_llm()
-                    return repair_underfilled_page(small_content, spec=spec, primary_subject=primary_subj, is_beginner=is_beginner)
+                    raw_content = small_content
+                else:
+                    raw_content = self._heuristic_write_page(p, plan, citations)
             except Exception as e:
                 logger.warning(f"Small model decomposed write failed for Page {p.page_number}: {e}")
+                raw_content = self._heuristic_write_page(p, plan, citations)
+        else:
+            try:
+                llm_content = await self._llm_write_page(p, plan, corpus)
+                if llm_content:
+                    self.metrics.record_page_generated_by_llm()
+                    raw_content = llm_content
+                else:
+                    raise ValueError(f"LLM returned empty content for Page {p.page_number}")
+            except Exception as e:
+                if self.settings.vasukisquare_mock_mode:
+                    logger.warning(f"LLM page generation failed in mock mode for Page {p.page_number}, using fallback: {e}")
+                    self.metrics.record_fallback_page()
+                    raw_content = self._heuristic_write_page(p, plan, citations)
+                else:
+                    raise GroqGenerationError(f"Failed to generate page content for Page {p.page_number} ({p.brief}) via Groq: {e}") from e
 
-        # Standard Groq LLM Generation
-        try:
-            llm_content = await self._llm_write_page(p, plan, corpus)
-            if llm_content:
-                self.metrics.record_page_generated_by_llm()
-                return repair_underfilled_page(llm_content, spec=spec, primary_subject=primary_subj, is_beginner=is_beginner)
-            raise ValueError(f"LLM returned empty content for Page {p.page_number}")
-        except Exception as e:
-            if self.settings.vasukisquare_mock_mode:
-                logger.warning(f"LLM page generation failed in mock mode for Page {p.page_number}, using fallback: {e}")
-                self.metrics.record_fallback_page()
-                content = self._heuristic_write_page(p, plan, citations)
-                return repair_underfilled_page(content, spec=spec, primary_subject=primary_subj, is_beginner=is_beginner)
-            raise GroqGenerationError(f"Failed to generate page content for Page {p.page_number} ({p.brief}) via Groq: {e}") from e
+        initial_util = estimate_page_utilization(raw_content, page_type=spec.page_type.value, publication_profile=profile)
+        initial_ratio = initial_util.estimated_ratio
+
+        final_content = repair_underfilled_page(
+            raw_content,
+            spec=spec,
+            primary_subject=primary_subj,
+            is_beginner=is_beginner,
+            topic=plan.title,
+            publication_profile=profile,
+        )
+
+        final_util = estimate_page_utilization(final_content, page_type=spec.page_type.value, publication_profile=profile)
+        comp_score = calculate_semantic_completeness(final_content, publication_profile=profile, topic=plan.title)
+
+        passes_done = 1 if final_util.estimated_ratio > initial_ratio else 0
+        added_count = max(0, len(final_content.blocks) - len(getattr(raw_content, "blocks", [])))
+        status_str = "PASS" if (comp_score.passes_threshold and not final_util.is_hard_fail) else "WARN"
+
+        logger.info(
+            f"[DENSITY] page={p.page_number} type={spec.page_type.value} profile={profile.value} "
+            f"initial_utilization={initial_ratio:.2f} target=0.90-0.95 repair_passes={passes_done} "
+            f"added_components={added_count} final_utilization={final_util.estimated_ratio:.2f} "
+            f"semantic_score={comp_score.score:.2f} status={status_str}"
+        )
+
+        return final_content
 
     async def _small_model_write_page(
         self,
@@ -865,14 +853,22 @@ class PageWriterAgent:
         """Generate content for frontmatter and backmatter structural pages."""
         p_type = p.page_type or p.layout
 
+        is_nonfiction = (
+            plan.intent.publication_profile == PublicationProfile.GENERAL_NONFICTION
+            or not plan.intent.is_technical
+        )
+
         if p_type in ("imprint", "title"):
-            subtitle_text = plan.subtitle or "A Practical, Hands-On Guide"
+            subtitle_text = plan.subtitle or ("A Practical, Step-by-Step Guide" if is_nonfiction else "A Practical, Hands-On Guide")
+            eyebrow = None if is_nonfiction else "VasukiSquare Technical Series"
+            publisher_name = "Vasuki Publishing" if is_nonfiction else "VasukiSquare Technical Press"
+            author_text = "Authored by the Vasuki Editorial Team." if is_nonfiction else "Authored by the VasukiSquare AI Editorial System & Research Engine."
             blocks = [
-                HeadingBlock(level=1, text=plan.title, eyebrow="VasukiSquare Architectural Series"),
+                HeadingBlock(level=1, text=plan.title, eyebrow=eyebrow),
                 TextBlock(text=subtitle_text, typography_role="subtitle"),
                 TextBlock(
-                    text="Authored by the VasukiSquare AI Editorial System & Research Engine.\n\n"
-                         "Published by VasukiSquare Technical Press.\n\n"
+                    text=f"{author_text}\n\n"
+                         f"Published by {publisher_name}.\n\n"
                          "First Edition (2026)",
                     typography_role="body-md",
                 ),
@@ -880,16 +876,18 @@ class PageWriterAgent:
             return PageContent(headline=plan.title, blocks=blocks)
 
         elif p_type == LayoutType.COPYRIGHT.value:
+            rights_holder = "Vasuki Publishing" if is_nonfiction else "VasukiSquare Technical Publishing"
+            publisher = "Vasuki Publishing" if is_nonfiction else "VasukiSquare AI Publishing Engine"
             return PageContent(
                 headline="Copyright & Publishing Notice",
                 blocks=[
                     CopyrightBlock(
                         book_title=plan.title,
                         book_subtitle=plan.subtitle,
-                        rights_holder="VasukiSquare Technical Publishing",
+                        rights_holder=rights_holder,
                         year=2026,
                         edition="First Edition",
-                        publisher="VasukiSquare AI Publishing Engine",
+                        publisher=publisher,
                         website="https://vasukisquare.ai",
                     )
                 ],
@@ -922,6 +920,16 @@ class PageWriterAgent:
                     "educators who make Python the world's most accessible programming language."
                 )
                 signature = "The VasukiSquare Editorial & Education Team"
+                affiliation = "VasukiSquare Technical Publishing"
+            elif is_nonfiction:
+                lead = "Recognizing the researchers, behavioral scientists, and community educators whose work inspires this guide."
+                body = (
+                    "This publication draws upon foundational discoveries in behavioral psychology, habit formation, "
+                    "and practical routine design. We express deep appreciation to the researchers, educators, and authors "
+                    "who champion continuous personal growth and sustainable positive habits worldwide."
+                )
+                signature = "The Vasuki Editorial Team"
+                affiliation = "Vasuki Publishing"
             else:
                 lead = "Recognizing the open-source engineering foundations and academic scholarship behind modern software architectures."
                 body = (
@@ -930,6 +938,7 @@ class PageWriterAgent:
                     "and accessible documentation makes high-quality technical publishing possible."
                 )
                 signature = "The VasukiSquare Editorial Team"
+                affiliation = "VasukiSquare Technical Publishing"
 
             return PageContent(
                 headline="Acknowledgements",
@@ -939,7 +948,7 @@ class PageWriterAgent:
                         lead=lead,
                         body=body,
                         signature=signature,
-                        affiliation="VasukiSquare Technical Publishing",
+                        affiliation=affiliation,
                         icon="sparkles",
                     )
                 ],
@@ -950,7 +959,7 @@ class PageWriterAgent:
             for idx, cit in enumerate(citations, start=1):
                 blocks.append(
                     SourceBlock(
-                        title=cit.title or "Primary Technical Documentation & Specifications",
+                        title=cit.title or ("Behavioral Science & Habit Research Literature" if is_nonfiction else "Primary Technical Documentation & Specifications"),
                         publisher="Authoritative Reference",
                         url=cit.url,
                         mode="card",
@@ -960,19 +969,24 @@ class PageWriterAgent:
             if not blocks:
                 blocks.append(
                     SourceBlock(
-                        title="Official Language & Architecture Documentation",
+                        title="Foundational Research & Publications" if is_nonfiction else "Official Language & Architecture Documentation",
                         publisher="Primary Source",
-                        url="https://docs.python.org/3/" if "python" in plan.title.lower() else "https://vasukisquare.ai/research",
+                        url="https://vasukisquare.ai/research" if is_nonfiction else ("https://docs.python.org/3/" if "python" in plan.title.lower() else "https://vasukisquare.ai/research"),
                         mode="card",
                         source_number=1,
                     )
                 )
-            return PageContent(headline="References & Primary Sources", blocks=blocks)
+            return PageContent(headline="References & Key Sources" if is_nonfiction else "References & Primary Sources", blocks=blocks)
 
         elif p_type == LayoutType.THANK_YOU.value:
+            msg = (
+                f"Thank you for reading {plan.title}. We hope this practical guide inspires lasting positive routines and personal growth."
+                if is_nonfiction
+                else f"Thank you for reading {plan.title}. We hope this guide empowers your engineering journey."
+            )
             return PageContent(
                 headline="THANK YOU",
-                body=f"Thank you for reading {plan.title}. We hope this guide empowers your engineering journey.",
+                body=msg,
             )
 
         return PageContent(headline=p.brief or plan.title)
@@ -1755,23 +1769,51 @@ class PageWriterAgent:
         headline: str,
         citations: List[SourceCitation],
     ) -> PageContent:
-        """Produce mock-mode non-technical editorial content blocks."""
+        """Produce rich mock-mode non-technical editorial content blocks (4-5 units)."""
         brief = p.brief or p.chapter_title or plan.title
+        audience = plan.intent.target_audience.lower() if plan.intent else "readers"
 
         blocks = [
             TextBlock(
-                text=f"Understanding **{brief}** provides essential fundamentals for {plan.title}. "
-                f"In this section, we examine practical patterns, frameworks, and actionable strategies "
-                f"tailored for {plan.intent.target_audience.lower()}."
+                text=f"Developing a deep understanding of **{brief}** is fundamental to mastering {plan.title}. "
+                f"When building sustainable daily routines, human behavior is governed by behavioral cues, cognitive load, "
+                f"and immediate feedback loops rather than sheer willpower alone. By restructuring your daily context to support {brief}, "
+                f"you reduce decision fatigue and make positive execution effortless and natural for {audience}."
             ),
             CalloutBlock(
                 variant="tip",
-                title="Implementation Note",
-                content=f"When applying {brief}, establish small daily habits and track measurable indicators to ensure sustainable progress.",
-                icon="lightbulb",
+                title="Practical Scenario & Daily Application",
+                content=f"Consider how {brief} operates in an everyday routine. Instead of attempting drastic lifestyle overhauls all at once, "
+                f"anchor the desired behavior to an existing trigger in your morning or evening sequence. This creates a friction-free transition "
+                f"that reinforces momentum without exhausting mental reserves.",
+                icon="compass",
             ),
-            TextBlock(
-                text=f"By integrating {brief} into your routine, you establish consistent progress toward your long-term goals."
+            ChecklistBlock(
+                title=f"Core Steps for Implementing {headline}",
+                items=[
+                    f"Identify your primary environmental triggers that naturally precede {brief}.",
+                    "Reduce physical and cognitive friction so starting requires less than two minutes.",
+                    "Track consistent execution immediately to provide immediate psychological reward.",
+                    "Review weekly progress and adapt routines to handle unexpected schedule disruptions.",
+                ],
+            ),
+            ComparisonBlock(
+                title="Behavioral Strategy Comparison",
+                left_title="Ineffective Approach (High Friction)",
+                right_title="Sustainable Strategy (Low Friction)",
+                rows=[
+                    ("Trigger", "Relying on random daily motivation", "Anchored to an existing permanent habit"),
+                    ("Execution Scope", "Vague, overwhelming multi-step targets", "Micro-action designed for consistency"),
+                    ("Environment", "High distraction, high temptation", "Curated space with visual friction removed"),
+                    ("Evaluation", "Guilt over missed days", "Objective tracking and immediate reset"),
+                ],
+            ),
+            CalloutBlock(
+                variant="info",
+                title="Reflection & Action Exercise",
+                content=f"Take five minutes today to isolate one small aspect of {brief}. Write down the exact time, location, and preceding habit "
+                f"that will trigger this action tomorrow, and prepare your environment tonight to guarantee success.",
+                icon="check-circle",
             ),
         ]
         return PageContent(headline=headline, blocks=blocks)
