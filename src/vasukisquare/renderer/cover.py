@@ -13,7 +13,13 @@ from vasukisquare.design.tokens import ColorToken, validate_color_token
 from vasukisquare.design.theme import Theme
 from vasukisquare.database.repository import BookRepository, CoverRepository
 
-logger = logging.getLogger(__name__)
+from vasukisquare.cover.contrast import (
+    CoverTextPalette,
+    get_contrasting_text_palette,
+    auto_correct_cover_html,
+    validate_cover_contrast,
+)
+from vasukisquare.cover.styles import ALL_COVER_STYLES
 
 
 class CoverRenderer:
@@ -42,7 +48,9 @@ class CoverRenderer:
 
     def render_source_artwork(self, plan: Union[CoverPlan, CoverDesignPlan]) -> str:
         """Render high-resolution 1600x2560 standalone cover HTML with SVG vector scenery."""
-        if hasattr(plan, "cover_style") and getattr(plan, "composition_style", None) is None and getattr(plan, "layout_style", None) is None:
+        cover_style = getattr(plan, "cover_style", None)
+        comp_style = getattr(plan, "composition_style", None)
+        if cover_style in ALL_COVER_STYLES or comp_style in ALL_COVER_STYLES or (cover_style and comp_style == cover_style):
             from vasukisquare.cover.renderer import CoverRenderer as ModularCoverRenderer
             mod_renderer = ModularCoverRenderer(self.templates_dir)
             return mod_renderer.render_source_artwork(plan)
@@ -50,26 +58,32 @@ class CoverRenderer:
         accent = getattr(plan, "accent_color", None) or ColorToken.BRAND_GREEN.value
         bg = getattr(plan, "background_color", None) or ColorToken.BRAND_TEAL_DEEP.value
 
+        palette = get_contrasting_text_palette(bg, accent)
+
         pattern_gen = CoverPatternGenerator()
         geom_type = getattr(plan, "decorative_geometry", "grid_overlay")
         geometric_svg = pattern_gen.generate_pattern(geom_type, accent)
 
         hero_icon = getattr(plan, "hero_icon", None)
         if hero_icon and hero_icon != "none":
-            hero_icon_svg = render_lucide_icon(hero_icon, size=80, color=accent)
+            hero_icon_svg = render_lucide_icon(hero_icon, size=80, color=palette.cover_accent)
         else:
             hero_icon_svg = ""
 
         template = self.env.get_template("cover.html")
-        return template.render(
+        raw_html = template.render(
             plan=plan,
+            palette=palette,
             geometric_svg=geometric_svg,
             hero_icon_svg=hero_icon_svg,
         )
+        return auto_correct_cover_html(raw_html, bg)
 
     def render_a4_cover_page(self, plan: Union[CoverPlan, CoverDesignPlan], book_id: str) -> Page:
         """Generate an A4 Page representation safely framing the art-directed cover composition."""
-        if hasattr(plan, "cover_style") and getattr(plan, "composition_style", None) is None and getattr(plan, "layout_style", None) is None:
+        cover_style = getattr(plan, "cover_style", None)
+        comp_style = getattr(plan, "composition_style", None)
+        if cover_style in ALL_COVER_STYLES or comp_style in ALL_COVER_STYLES or (cover_style and comp_style == cover_style):
             from vasukisquare.cover.renderer import CoverRenderer as ModularCoverRenderer
             mod_renderer = ModularCoverRenderer(self.templates_dir)
             return mod_renderer.render_a4_cover_page(plan, book_id)
@@ -77,29 +91,30 @@ class CoverRenderer:
         accent = getattr(plan, "accent_color", None) or ColorToken.BRAND_GREEN.value
         bg = getattr(plan, "background_color", None) or ColorToken.BRAND_TEAL_DEEP.value
 
+        palette = get_contrasting_text_palette(bg, accent)
+
         pattern_gen = CoverPatternGenerator()
         geom_type = getattr(plan, "decorative_geometry", "grid_overlay")
         geometric_svg = pattern_gen.generate_pattern(geom_type, accent)
 
         hero_icon = getattr(plan, "hero_icon", None)
         if hero_icon and hero_icon != "none":
-            icon_svg = render_lucide_icon(hero_icon, size=40, color=accent)
+            icon_svg = render_lucide_icon(hero_icon, size=40, color=palette.cover_accent)
         else:
             icon_svg = ""
 
         title_size = self._get_title_font_size(plan.title)
-        contrast = getattr(plan, "contrast_mode", "light")
-        is_light = contrast == "light"
 
-        html_body = self._compose_a4_html(
+        raw_html_body = self._compose_a4_html(
             plan=plan,
-            accent=accent,
+            accent=palette.cover_accent,
             bg=bg,
             geometric_svg=geometric_svg,
             icon_svg=icon_svg,
             title_size=title_size,
-            is_light=is_light,
+            palette=palette,
         )
+        html_body = auto_correct_cover_html(raw_html_body, bg)
 
         return Page(
             id=generate_id(),
@@ -107,7 +122,7 @@ class CoverRenderer:
             page_number=1,
             page_type=LayoutType.COVER.value,
             layout=LayoutType.COVER.value,
-            theme=Theme.DARK if not is_light else Theme.LIGHT,
+            theme=Theme.LIGHT if palette.is_light_bg else Theme.DARK,
             content=PageContent(headline=plan.title, body=plan.subtitle or ""),
             html=html_body,
         )
@@ -120,19 +135,23 @@ class CoverRenderer:
         geometric_svg: str,
         icon_svg: str,
         title_size: int,
-        is_light: bool = True,
+        palette: Optional[CoverTextPalette] = None,
+        is_light: Optional[bool] = None,
     ) -> str:
         """Assemble deterministic, high-contrast HTML based on composition style."""
+        if palette is None:
+            palette = get_contrasting_text_palette(bg, accent)
+
         style = plan.composition_style
         align = plan.title_alignment
 
-        title_color = "#001e2b" if is_light else "#ffffff"
-        subtitle_color = "#3d4f5b" if is_light else "#c1ccd6"
-        meta_color = "#5c6c7a" if is_light else "#a8b3bc"
-        border_color = "rgba(0,30,43,0.12)" if is_light else "rgba(255,255,255,0.12)"
-        badge_bg = "rgba(0,30,43,0.06)" if is_light else "rgba(255,255,255,0.06)"
-        watermark_color = "rgba(0,30,43,0.06)" if is_light else "rgba(255,255,255,0.06)"
-        card_bg = "rgba(255,255,255,0.85)" if is_light else "rgba(0,0,0,0.3)"
+        title_color = palette.cover_title
+        subtitle_color = palette.cover_subtitle
+        meta_color = palette.cover_metadata
+        border_color = palette.cover_border
+        badge_bg = palette.cover_badge_bg
+        watermark_color = "rgba(0,30,43,0.06)" if palette.is_light_bg else "rgba(255,255,255,0.06)"
+        card_bg = "rgba(255,255,255,0.85)" if palette.is_light_bg else "rgba(0,0,0,0.3)"
 
         # 1. Asymmetric Left Heavy Composition
         if style == "asymmetric_left":
