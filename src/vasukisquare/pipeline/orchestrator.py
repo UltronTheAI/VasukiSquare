@@ -338,7 +338,7 @@ class EbookGenerationPipeline:
             elif p.page_type == LayoutType.REFERENCES.value or p.layout == LayoutType.REFERENCES.value:
                 if state.research_corpus and state.research_corpus.documents:
                     ref_blocks = []
-                    for idx, doc in enumerate(state.research_corpus.documents[:6], start=1):
+                    for idx, doc in enumerate(state.research_corpus.documents[:4], start=1):
                         ref_blocks.append(
                             SourceBlock(
                                 title=doc.title or "Authoritative Domain Specification",

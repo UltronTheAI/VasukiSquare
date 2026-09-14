@@ -74,6 +74,8 @@ class LLMGeneratedPage(BaseModel):
     callout_title: Optional[str] = Field(default=None, description="Callout title")
     callout_text: Optional[str] = Field(default=None, description="Callout body text")
     callout_variant: Optional[str] = Field(default="tip", description="Callout variant: tip, note, important, warning, insight")
+    checklist_title: Optional[str] = Field(default=None, description="Actionable checklist title")
+    checklist_items: Optional[List[str]] = Field(default=None, description="Actionable checklist items")
     comparison_title: Optional[str] = Field(default=None, description="Comparison block title")
     comparison_left_items: Optional[List[str]] = Field(default=None, description="Left comparison items")
     comparison_right_items: Optional[List[str]] = Field(default=None, description="Right comparison items")
@@ -389,6 +391,17 @@ def repair_underfilled_page(
                     blocks.append(fallback_block)
                     if fb_util.estimated_ratio >= target_min:
                         break
+
+    # Final safety guard: trim trailing blocks if page exceeds target_max (0.95 / 0.98)
+    while len(blocks) > 2:
+        curr_util = estimate_page_utilization(
+            PageContent(headline=headline, blocks=blocks),
+            page_type=spec.page_type.value,
+            publication_profile=profile,
+        )
+        if curr_util.estimated_ratio <= target_max + 0.01:
+            break
+        blocks.pop()
 
     repaired_content = PageContent(headline=headline, blocks=blocks)
     if is_page_obj:
@@ -1834,7 +1847,7 @@ class PageWriterAgent:
         headline: str,
         citations: List[SourceCitation],
     ) -> PageContent:
-        """Produce rich mock-mode non-technical editorial content blocks (4-5 units)."""
+        """Produce rich mock-mode non-technical editorial content blocks (4 units, ~90% density)."""
         brief = p.brief or p.chapter_title or plan.title
         audience = plan.intent.target_audience.lower() if plan.intent else "readers"
 
@@ -1845,21 +1858,12 @@ class PageWriterAgent:
                 f"and immediate feedback loops rather than sheer willpower alone. By restructuring your daily context to support {brief}, "
                 f"you reduce decision fatigue and make positive execution effortless and natural for {audience}."
             ),
-            CalloutBlock(
-                variant="tip",
-                title="Practical Scenario & Daily Application",
-                content=f"Consider how {brief} operates in an everyday routine. Instead of attempting drastic lifestyle overhauls all at once, "
-                f"anchor the desired behavior to an existing trigger in your morning or evening sequence. This creates a friction-free transition "
-                f"that reinforces momentum without exhausting mental reserves.",
-                icon="compass",
-            ),
             ChecklistBlock(
                 title=f"Core Steps for Implementing {headline}",
                 items=[
-                    f"Identify your primary environmental triggers that naturally precede {brief}.",
-                    "Reduce physical and cognitive friction so starting requires less than two minutes.",
-                    "Track consistent execution immediately to provide immediate psychological reward.",
-                    "Review weekly progress and adapt routines to handle unexpected schedule disruptions.",
+                    f"Identify primary environmental triggers that naturally precede {brief}.",
+                    "Reduce physical and cognitive friction so starting requires under two minutes.",
+                    "Track consistent execution immediately to reinforce momentum.",
                 ],
             ),
             ComparisonBlock(
@@ -1869,22 +1873,20 @@ class PageWriterAgent:
                 left_items=[
                     "Relying on random daily motivation",
                     "Vague, overwhelming multi-step targets",
-                    "High distraction, high temptation environment",
-                    "Guilt over missed days",
+                    "High distraction, high temptation space",
                 ],
                 right_items=[
                     "Anchored to an existing permanent habit",
                     "Micro-action designed for consistency",
                     "Curated space with visual friction removed",
-                    "Objective tracking and immediate reset",
                 ],
             ),
             CalloutBlock(
-                variant="insight",
-                title="Reflection & Action Exercise",
-                content=f"Take five minutes today to isolate one small aspect of {brief}. Write down the exact time, location, and preceding habit "
-                f"that will trigger this action tomorrow, and prepare your environment tonight to guarantee success.",
-                icon="check-circle",
+                variant="tip",
+                title="Practical Scenario & Daily Application",
+                content=f"Consider how {brief} operates in an everyday routine. Instead of attempting drastic overhauls, "
+                f"anchor the desired behavior to an existing trigger in your morning or evening sequence to guarantee friction-free execution.",
+                icon="compass",
             ),
         ]
         return PageContent(headline=headline, blocks=blocks)

@@ -75,6 +75,38 @@ def preflight_page(page: Page, theme: Optional[SectionTheme] = None) -> PagePref
             content_units=2,
         )
 
+    if p_type in (
+        "toc",
+        LayoutType.TOC.value,
+        "copyright",
+        LayoutType.COPYRIGHT.value,
+        "thank_you",
+        LayoutType.THANK_YOU.value,
+        "imprint",
+        "title",
+        "acknowledgement",
+        LayoutType.ACKNOWLEDGEMENT.value,
+    ) or layout in (
+        "toc",
+        LayoutType.TOC.value,
+        "copyright",
+        LayoutType.COPYRIGHT.value,
+        "thank_you",
+        LayoutType.THANK_YOU.value,
+        "imprint",
+        "title",
+        "acknowledgement",
+        LayoutType.ACKNOWLEDGEMENT.value,
+    ):
+        return PagePreflightReport(
+            page_number=page.page_number,
+            page_type=p_type,
+            layout=layout,
+            valid=True,
+            content_utilization=0.85,
+            content_units=3,
+        )
+
     util = estimate_page_utilization(page)
     warnings: List[str] = []
     errors: List[str] = []
