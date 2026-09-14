@@ -46,10 +46,12 @@
     }
 
     /* Safe Content Area for physical A4 crop (220px top/bottom, 180px left/right) */
+    /* Safe Content Area for physical A4 crop (220px top, 160px bottom, 180px left/right) */
     .safe-content-area {
       position: absolute;
       top: 220px;
       bottom: 220px;
+      bottom: 160px;
       left: 180px;
       right: 180px;
       display: flex;
@@ -152,6 +154,14 @@
     }
 
     .cover-footer {
+    .cover-footer-strip {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      background-color: {{ (palette.cover_footer_bg if palette else "#001e2b") }};
+      z-index: 10;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -159,13 +169,25 @@
       border-top: 1px solid {{ (palette.cover_border if palette else "rgba(0, 30, 43, 0.12)") }};
       font-size: 18px;
       color: {{ (palette.cover_metadata if palette else "#5c6c7a") }};
+      padding: 40px 180px;
+      box-sizing: border-box;
+      border-top: 1px solid rgba(255, 255, 255, 0.12);
+      font-size: 15px;
+      color: {{ (palette.cover_footer_edition if palette else "#cbd5e1") }};
       font-weight: 500;
       letter-spacing: 1px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
     }
 
     .cover-footer-left {
       color: {{ (palette.cover_primary_text if palette else "#001e2b") }};
       font-weight: 600;
+      color: {{ (palette.cover_footer_author if palette else "#ffffff") }};
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-transform: none;
     }
   </style>
 </head>
@@ -201,12 +223,17 @@
           {% endif %}
         </div>
       </div>
+    </div>
 
       <footer class="cover-footer">
         <span class="cover-footer-left">{{ plan.author or "Vasuki" }}</span>
         <span>FIRST EDITION</span>
       </footer>
     </div>
+    <footer class="cover-footer-strip">
+      <span class="cover-footer-left">{{ plan.author or "Vasuki" }}</span>
+      <span>FIRST EDITION</span>
+    </footer>
   </div>
 </body>
 </html>

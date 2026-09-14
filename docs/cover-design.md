@@ -89,4 +89,36 @@ To guarantee absolute readability and eliminate decorative artwork interference:
 - **Preflight Validation**:
   - `CoverValidator.validate_cover()` checks title container opacity, absence of artwork line collisions, WCAG contrast targets, and layout safety margins.
 
+---
+
+## 6. Solid Full-Width Cover Footer Strip & Bottom Branding
+
+To ensure author and edition metadata are always legible regardless of background or artwork scenery complexity:
+- **Full-Width Coverage**:
+  - Spans 100% width (`width: 100%; left: 0; right: 0;`) and touches the physical bottom edge (`bottom: 0`).
+  - Solid dark theme-derived color (`#001e2b`, `brand-teal-deep`) with zero transparency (`opacity: 1`).
+- **Render Order Invariant**:
+  ```
+  cover background
+  ↓
+  cover artwork / vector scenery (z-index: 1)
+  ↓
+  bottom footer strip (z-index: 10, width: 100%, bottom: 0, bg: #001e2b)
+  ↓
+  author (left) + edition text (right)
+  ```
+- **Typography & Alignment Inside Strip**:
+  - **Author**: Left-aligned, vertically centered, high-contrast light text (`#ffffff`, contrast $> 15:1$).
+  - **Edition**: Right-aligned, vertically centered, tracked uppercase light/slate text (`#cbd5e1`, contrast $> 9:1$).
+  - **Horizontal Padding**: `40px 180px` on 1600×2560; `20px 40px` on A4.
+- **Automated Preflight Validation (`CoverValidator.validate_cover`)**:
+  - `footer_strip_exists`: Verifies footer strip element is present.
+  - `footer_strip_full_width`: Verifies footer strip spans 100% width.
+  - `footer_strip_touches_bottom`: Verifies footer strip touches the bottom edge (`bottom: 0`).
+  - `footer_metadata_inside_strip`: Verifies author and edition are contained within the footer strip.
+  - `author_contrast_pass`: Verifies author text contrast $\ge 4.5:1$ against footer background.
+  - `edition_contrast_pass`: Verifies edition text contrast $\ge 4.5:1$ against footer background.
+  - `no_metadata_over_artwork`: Verifies footer strip is opaque and layered above artwork (`z-index: 10`).
+
+
 

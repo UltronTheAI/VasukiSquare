@@ -168,19 +168,95 @@ def test_failing_cream_cover_example_good_habits():
 def test_independent_elements_validation():
     """Verify validate_cover_contrast checks title, subtitle, author, edition, category, and header independently."""
     bg = "#ffffff"
-    # Fails only edition
+    # Fails only edition (dark color #111827 on dark footer strip #001e2b)
     report = validate_cover_contrast(
         background_color=bg,
         title_color="#ffffff",
         subtitle_color="#cbd5e1",
-        author_color="#111827",
-        edition_color="#e5e7eb",  # Light gray on white - FAILS
+        author_color="#ffffff",
+        edition_color="#111827",  # Dark charcoal on dark footer #001e2b - FAILS
         category_color="#374151",
         container_bg="#001e2b",
+        footer_bg="#001e2b",
         auto_correct=True,
     )
     assert report.valid is False
     assert len(report.errors) == 1
     assert "Edition" in report.errors[0]
-    assert report.corrections_applied.get("edition") == "#4b5563"
+    assert report.corrections_applied.get("edition") == "#cbd5e1"
+
+
+def test_cover_footer_strip_invariants_and_preflight():
+    """Verify footer strip exists, is 100% width, touches bottom, contains metadata, and passes contrast across all 10 styles."""
+    planner = CoverPlannerAgent()
+    renderer = CoverRenderer()
+
+    for style_name in ALL_COVER_STYLES:
+        plan = CoverDesignPlan(
+            title="Systems Architecture & High-Scale Design",
+            subtitle="Distributed Consensus, Storage Engines, and Query Optimization",
+            category="Engineering",
+            author="Vasuki AI",
+            background_color="#f9fbfa",
+            cover_style=style_name,
+            cover_seed=777888,
+        )
+
+        # 1. 1600x2560 Source Artwork
+        html_source = renderer.render_source_artwork(plan)
+        assert '<footer class="cover-footer-strip"' in html_source
+        assert 'width: 100%' in html_source
+        assert 'bottom: 0' in html_source
+        assert 'background-color: #001e2b' in html_source
+        assert 'Vasuki AI' in html_source
+        assert 'FIRST EDITION' in html_source
+
+        # 2. A4 Page representation
+        page_a4 = renderer.render_a4_cover_page(plan, book_id="test-footer-strip")
+        assert '<footer class="cover-footer-strip"' in page_a4.html
+        assert 'width: 100%' in page_a4.html
+        assert 'bottom: 0' in page_a4.html
+        assert 'background-color: #001e2b' in page_a4.html
+        assert 'Vasuki AI' in page_a4.html
+        assert 'FIRST EDITION' in page_a4.html
+
+        # 3. Preflight Report flags
+        report_source = CoverValidator.validate_cover(plan, html_source)
+        assert report_source.valid is True
+        assert report_source.footer_strip_exists is True
+        assert report_source.footer_strip_full_width is True
+        assert report_source.footer_strip_touches_bottom is True
+        assert report_source.footer_metadata_inside_strip is True
+        assert report_source.author_contrast_pass is True
+        assert report_source.edition_contrast_pass is True
+        assert report_source.no_metadata_over_artwork is True
+
+
+def test_cover_footer_strip_preflight_catches_violations():
+    """Verify CoverValidator catches missing footer strip, transparent background, or misplaced metadata."""
+    plan = CoverDesignPlan(
+        title="Testing Violations",
+        author="Vasuki",
+        background_color="#ffffff",
+        cover_style="editorial_minimal",
+    )
+
+    # 1. Missing footer strip
+    html_no_footer = '<div class="cover-canvas"><div class="cover-title-container"><h1 style="color:#fff;">Testing Violations</h1></div><div>Vasuki FIRST EDITION</div></div>'
+    rep1 = CoverValidator.validate_cover(plan, html_no_footer)
+    assert rep1.valid is False
+    assert rep1.footer_strip_exists is False
+
+    # 2. Transparent footer strip
+    html_transparent = '<div class="cover-canvas"><div class="cover-title-container"><h1 style="color:#fff;">Testing Violations</h1></div><footer class="cover-footer-strip" style="width: 100%; bottom: 0; background-color: transparent;"><span style="color:#fff;">Vasuki</span><span style="color:#fff;">FIRST EDITION</span></footer></div>'
+    rep2 = CoverValidator.validate_cover(plan, html_transparent)
+    assert rep2.valid is False
+    assert rep2.no_metadata_over_artwork is False
+
+    # 3. Metadata outside strip
+    html_misplaced_meta = '<div class="cover-canvas"><div class="cover-title-container"><h1 style="color:#fff;">Testing Violations</h1></div><span>Vasuki</span><footer class="cover-footer-strip" style="width: 100%; bottom: 0; background-color: #001e2b;"><span>Empty Footer</span></footer></div>'
+    rep3 = CoverValidator.validate_cover(plan, html_misplaced_meta)
+    assert rep3.valid is False
+    assert rep3.footer_metadata_inside_strip is False
+
 

@@ -159,6 +159,7 @@ class CoverRenderer:
         if style == "asymmetric_left":
             return f"""
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden; border-left: 4px solid {accent};">
+            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px 96px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden; border-left: 4px solid {accent};">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.18; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>
@@ -180,6 +181,10 @@ class CoverRenderer:
                 <span style="color: {palette.cover_primary_text}; font-weight: 600;">{plan.author}</span>
                 <span style="letter-spacing: 0.5px;">FIRST EDITION</span>
               </div>
+              <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
+                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
+              </footer>
             </div>
             """
 
@@ -187,6 +192,7 @@ class CoverRenderer:
         elif style == "centered_editorial":
             return f"""
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 64px 52px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden; text-align: center;">
+            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 64px 52px 96px 52px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden; text-align: center;">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.16; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>
@@ -209,6 +215,10 @@ class CoverRenderer:
                 <span style="color: {palette.cover_primary_text}; font-weight: 600; letter-spacing: 1px;">{plan.author}</span>
                 <span style="font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
               </div>
+              <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
+                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
+              </footer>
             </div>
             """
 
@@ -216,6 +226,7 @@ class CoverRenderer:
         elif style == "framed_technical":
             return f"""
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 32px; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
+            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 32px 32px 80px 32px; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
               <div style="border: 1px solid {border_color}; height: 100%; width: 100%; box-sizing: border-box; padding: 40px; display: flex; flex-direction: column; justify-content: space-between; position: relative;">
                 <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.16; pointer-events: none; overflow: hidden;">
                   {geometric_svg}
@@ -248,6 +259,10 @@ class CoverRenderer:
                   <span style="font-family: monospace; font-size: 10px;">FIRST EDITION</span>
                 </div>
               </div>
+              <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 18px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
+                <span style="color: {palette.cover_footer_edition}; font-family: monospace; font-size: 10px;">FIRST EDITION</span>
+              </footer>
             </div>
             """
 
@@ -255,6 +270,7 @@ class CoverRenderer:
         elif style == "dense_blueprint":
             return f"""
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
+            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 48px 48px 96px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.22; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>
@@ -288,6 +304,10 @@ class CoverRenderer:
                 <div>AUDIENCE: <strong style="color: {palette.cover_primary_text};">{plan.audience}</strong></div>
                 <div style="color: {accent}; font-weight: 600;">FIRST EDITION</div>
               </div>
+              <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
+                <div style="color: {palette.cover_footer_author}; font-size: 12px; font-weight: 700;">AUTHOR: {plan.author}</div>
+                <div style="color: {palette.cover_footer_edition}; font-weight: 600; font-size: 11px; letter-spacing: 1px;">FIRST EDITION</div>
+              </footer>
             </div>
             """
 
@@ -296,6 +316,7 @@ class CoverRenderer:
             large_size = title_size + 4
             return f"""
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 60px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
+            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 60px 48px 96px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.12; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>
@@ -319,6 +340,10 @@ class CoverRenderer:
                 <span style="color: {palette.cover_primary_text}; font-weight: 600;">{plan.author}</span>
                 <span style="letter-spacing: 1px;">FIRST EDITION</span>
               </div>
+              <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
+                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
+              </footer>
             </div>
             """
 
@@ -326,6 +351,7 @@ class CoverRenderer:
         elif style == "bottom_weighted":
             return f"""
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
+            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px 96px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.22; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>
@@ -347,6 +373,10 @@ class CoverRenderer:
                 <span style="color: {palette.cover_primary_text}; font-weight: 600;">{plan.author}</span>
                 <span style="letter-spacing: 0.5px;">FIRST EDITION</span>
               </div>
+              <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
+                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
+              </footer>
             </div>
             """
 
@@ -357,6 +387,7 @@ class CoverRenderer:
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; display: flex; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
               <!-- Left Sidebar Band -->
               <div style="width: 90px; background: {sidebar_bg}; border-right: 2px solid {accent}; padding: 48px 16px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; position: relative; z-index: 3;">
+              <div style="width: 90px; background: {sidebar_bg}; border-right: 2px solid {accent}; padding: 48px 16px 96px 16px; display: flex; flex-direction: column; justify-content: space-between; align-items: center; position: relative; z-index: 3;">
                 <div style="writing-mode: vertical-rl; transform: rotate(180deg); font-size: 12px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: {accent};">
                   VASUKISQUARE
                 </div>
@@ -368,6 +399,7 @@ class CoverRenderer:
 
               <!-- Main Content Body -->
               <div style="flex: 1; padding: 56px 48px; display: flex; flex-direction: column; justify-content: space-between; position: relative; z-index: 2;">
+              <div style="flex: 1; padding: 56px 48px 96px 48px; display: flex; flex-direction: column; justify-content: space-between; position: relative; z-index: 2;">
                 <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.16; pointer-events: none; overflow: hidden;">
                   {geometric_svg}
                 </div>
@@ -388,6 +420,10 @@ class CoverRenderer:
                   <span>FIRST EDITION</span>
                 </div>
               </div>
+              <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
+                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
+              </footer>
             </div>
             """
 
@@ -395,6 +431,7 @@ class CoverRenderer:
         else:
             return f"""
             <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
+            <div class="cover-hero cover-hero-solid" style="background-color: {bg}; padding: 56px 48px 96px 48px; display: flex; flex-direction: column; justify-content: space-between; height: 100%; width: 100%; min-height: 297mm; max-height: 297mm; box-sizing: border-box; position: relative; overflow: hidden;">
               <div class="cover-pattern-layer" style="position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.18; pointer-events: none; overflow: hidden;">
                 {geometric_svg}
               </div>
@@ -416,6 +453,10 @@ class CoverRenderer:
                 <span style="color: {palette.cover_primary_text}; font-weight: 600;">{plan.author}</span>
                 <span style="letter-spacing: 0.5px;">FIRST EDITION</span>
               </div>
+              <footer class="cover-footer-strip" style="position: absolute; bottom: 0; left: 0; right: 0; width: 100%; background-color: {palette.cover_footer_bg}; z-index: 10; display: flex; justify-content: space-between; align-items: center; padding: 20px 48px; box-sizing: border-box; border-top: 1px solid rgba(255, 255, 255, 0.12);">
+                <span style="color: {palette.cover_footer_author}; font-weight: 700; font-size: 13px;">{plan.author}</span>
+                <span style="color: {palette.cover_footer_edition}; font-size: 10px; font-weight: 500; letter-spacing: 1.5px; text-transform: uppercase;">FIRST EDITION</span>
+              </footer>
             </div>
             """
 
