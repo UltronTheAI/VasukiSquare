@@ -175,7 +175,7 @@ def test_independent_elements_validation():
         subtitle_color="#cbd5e1",
         author_color="#ffffff",
         edition_color="#111827",  # Dark charcoal on dark footer #001e2b - FAILS
-        category_color="#374151",
+        category_color="#ffffff",
         container_bg="#001e2b",
         footer_bg="#001e2b",
         auto_correct=True,
@@ -258,5 +258,41 @@ def test_cover_footer_strip_preflight_catches_violations():
     rep3 = CoverValidator.validate_cover(plan, html_misplaced_meta)
     assert rep3.valid is False
     assert rep3.footer_metadata_inside_strip is False
+
+
+def test_cover_category_badge_dark_solid_contrast():
+    """Verify cover category badge has solid dark container background and high-contrast white text across various themes and styles."""
+    planner = CoverPlannerAgent()
+    renderer = CoverRenderer()
+
+    for bg in ["#ffffff", "#f9fbfa", "#001e2b", "#1a365d", "#e2e8f0"]:
+        palette = get_contrasting_text_palette(bg)
+        assert palette.cover_badge_bg == "#001e2b"
+        assert palette.cover_badge_text == "#ffffff"
+
+        # Contrast between #ffffff and #001e2b is ~17.5:1 (well above 4.5:1)
+        assert calculate_contrast_ratio(palette.cover_badge_text, palette.cover_badge_bg) >= 7.0
+
+    for cat in ["PRACTICAL GUIDE", "TECHNICAL GUIDE", "HANDBOOK", "NOVEL", "REPORT"]:
+        plan = CoverDesignPlan(
+            title="Category Badge Test",
+            category=cat,
+            author="Vasuki",
+            background_color="#f9fbfa",
+            cover_style="asymmetric_left",
+        )
+        html_src = renderer.render_source_artwork(plan)
+        assert "cover-category-badge" in html_src
+        assert cat in html_src
+        assert "#001e2b" in html_src
+        assert "#ffffff" in html_src
+
+        page_a4 = renderer.render_a4_cover_page(plan, book_id="badge-test")
+        assert "cover-category-badge" in page_a4.html
+        assert cat in page_a4.html
+        assert "#001e2b" in page_a4.html
+        assert "#ffffff" in page_a4.html
+
+
 
 

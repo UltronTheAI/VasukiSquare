@@ -170,7 +170,7 @@ class CoverRenderer:
               </div>
               <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid {border_color}; padding-bottom: 20px;">
                 <span style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">{company_header}</span>
-                <span style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: {meta_color}; background: {badge_bg}; padding: 4px 10px; border-radius: 4px;">{plan.category}</span>
+                <span class="cover-category-badge" style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: {palette.cover_badge_text}; background-color: {container_bg}; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); position: relative; z-index: 10; display: inline-block;">{plan.category}</span>
               </div>
               <div style="position: relative; z-index: 2; margin: auto 0; display: flex; flex-direction: column; gap: 16px; align-items: flex-start;">
                 {f'<div class="cover-icon-wrapper" style="margin-bottom: 4px;">{icon_svg}</div>' if icon_svg else ''}
@@ -199,7 +199,7 @@ class CoverRenderer:
               <div style="position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px;">
                 <span style="font-size: 13px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: {accent};">{company_header}</span>
                 <div style="width: 32px; height: 2px; background-color: {accent}; opacity: 0.8;"></div>
-                <span style="font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: {meta_color};">{plan.category}</span>
+                <span class="cover-category-badge" style="font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: {palette.cover_badge_text}; background-color: {container_bg}; padding: 4px 12px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); position: relative; z-index: 10; display: inline-block;">{plan.category}</span>
               </div>
               <div style="position: relative; z-index: 2; margin: auto 0; display: flex; flex-direction: column; align-items: center; gap: 20px; max-width: 580px;">
                 {f'<div class="cover-icon-wrapper" style="background: {badge_bg}; padding: 18px; border-radius: 50%; border: 1px solid {border_color};">{icon_svg}</div>' if icon_svg else ''}
@@ -233,13 +233,13 @@ class CoverRenderer:
                 <div style="position: absolute; bottom: -1px; right: -1px; width: 16px; height: 16px; border-bottom: 3px solid {accent}; border-right: 3px solid {accent};"></div>
 
                 <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid {border_color}; padding-bottom: 16px;">
-                  <span style="font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">{company_header} // {plan.category}</span>
-                  <span style="font-family: monospace; font-size: 11px; color: {meta_color};">REF: {plan.cover_seed}</span>
+                  <span style="font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">{company_header}</span>
+                  <span class="cover-category-badge" style="font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: {palette.cover_badge_text}; background-color: {container_bg}; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); position: relative; z-index: 10; display: inline-block;">{plan.category}</span>
                 </div>
 
                 <div style="position: relative; z-index: 2; margin: auto 0; display: flex; flex-direction: column; gap: 16px; align-items: flex-start;">
                   {f'<div style="margin-bottom: 4px;">{icon_svg}</div>' if icon_svg else ''}
-                  <span style="font-family: monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: {accent}; background: {badge_bg}; display: inline-block; padding: 4px 8px; border-radius: 2px; width: fit-content;">ENGINEERING GUIDE</span>
+                  <span class="cover-category-badge" style="font-family: monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: {palette.cover_badge_text}; background-color: {container_bg}; display: inline-block; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); width: fit-content; position: relative; z-index: 10;">ENGINEERING GUIDE</span>
                   <div class="cover-title-container" style="background-color: {container_bg}; padding: 24px 28px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 12px; text-align: left; width: fit-content; max-width: 100%; box-sizing: border-box; position: relative; z-index: 10;">
                     <h1 class="cover-title" style="font-family: \'Newsreader\', \'Lora\', \'Merriweather\', \'Playfair Display\', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.12; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
                       {plan.title}
@@ -277,7 +277,7 @@ class CoverRenderer:
                 <div style="display: flex; align-items: center; gap: 16px;">
                   {f'<div>{icon_svg}</div>' if icon_svg else ''}
                   <div style="height: 32px; width: 2px; background: {border_color};"></div>
-                  <span style="font-family: monospace; font-size: 12px; letter-spacing: 1px; color: {accent}; text-transform: uppercase;">{plan.category}</span>
+                  <span class="cover-category-badge" style="font-family: monospace; font-size: 11px; font-weight: 600; letter-spacing: 1.5px; color: {palette.cover_badge_text}; background-color: {container_bg}; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); text-transform: uppercase; position: relative; z-index: 10; display: inline-block;">{plan.category}</span>
                 </div>
                 <div class="cover-title-container" style="background-color: {container_bg}; padding: 24px 28px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 10px 20px -8px rgba(0, 0, 0, 0.4); display: flex; flex-direction: column; gap: 14px; text-align: left; width: fit-content; max-width: 100%; box-sizing: border-box; position: relative; z-index: 10;">
                   <h1 class="cover-title" style="font-family: \'Newsreader\', \'Lora\', \'Merriweather\', \'Playfair Display\', Georgia, serif; font-size: {title_size}px; font-weight: 700; line-height: 1.12; color: {title_color}; margin: 0; letter-spacing: -0.5px; word-break: break-word;">
@@ -305,7 +305,7 @@ class CoverRenderer:
               </div>
               <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 14px; font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: {accent};">{company_header}</span>
-                <span style="font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: {meta_color};">{plan.category}</span>
+                <span class="cover-category-badge" style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: {palette.cover_badge_text}; background-color: {container_bg}; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); position: relative; z-index: 10; display: inline-block;">{plan.category}</span>
               </div>
               <div style="position: relative; z-index: 2; margin: auto 0; display: flex; flex-direction: column; gap: 16px; align-items: flex-start;">
                 <div style="font-size: 64px; font-weight: 800; line-height: 0.9; color: {watermark_color}; letter-spacing: -2px; user-select: none;">
@@ -335,7 +335,7 @@ class CoverRenderer:
               </div>
               <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center;">
                 <span style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">{company_header}</span>
-                <span style="font-size: 11px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: {meta_color};">{plan.category}</span>
+                <span class="cover-category-badge" style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: {palette.cover_badge_text}; background-color: {container_bg}; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); position: relative; z-index: 10; display: inline-block;">{plan.category}</span>
               </div>
               <div style="position: relative; z-index: 2; margin-top: auto; padding-top: 40px; display: flex; flex-direction: column; gap: 16px; align-items: flex-start;">
                 {f'<div class="cover-icon-wrapper">{icon_svg}</div>' if icon_svg else ''}
@@ -365,7 +365,7 @@ class CoverRenderer:
                   {company_header}
                 </div>
                 {f'<div style="margin: 20px 0;">{icon_svg}</div>' if icon_svg else ''}
-                <div style="writing-mode: vertical-rl; transform: rotate(180deg); font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: {meta_color};">
+                <div class="cover-category-badge" style="writing-mode: vertical-rl; transform: rotate(180deg); font-size: 10px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: {palette.cover_badge_text}; background-color: {container_bg}; padding: 8px 6px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); position: relative; z-index: 10; display: inline-block;">
                   {plan.category}
                 </div>
               </div>
@@ -404,7 +404,7 @@ class CoverRenderer:
               </div>
               <div style="position: relative; z-index: 2; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid {border_color}; padding-bottom: 20px;">
                 <span style="font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: {accent};">{company_header}</span>
-                <span style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: {meta_color};">{plan.category}</span>
+                <span class="cover-category-badge" style="font-size: 11px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: {palette.cover_badge_text}; background-color: {container_bg}; padding: 4px 10px; border-radius: 4px; border: 1px solid rgba(255, 255, 255, 0.12); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25); position: relative; z-index: 10; display: inline-block;">{plan.category}</span>
               </div>
               <div style="position: relative; z-index: 2; margin: auto 0; display: flex; flex-direction: column; gap: 16px; align-items: {('center' if align == 'center' else 'flex-start')};">
                 {f'<div class="cover-icon-wrapper" style="margin-bottom: 6px;">{icon_svg}</div>' if icon_svg else ''}
