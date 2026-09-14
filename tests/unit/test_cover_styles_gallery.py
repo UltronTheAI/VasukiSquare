@@ -164,6 +164,53 @@ def test_cover_gallery_generator():
             content = f.read_text(encoding="utf-8")
             assert "How to Build Better Daily Habits" in content
             assert "Vasuki" in content
+            assert "cover-title-container" in content
+            assert "#001e2b" in content
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+def test_title_container_supports_short_and_long_multiline_titles():
+    """Verify title container automatically handles short, long, multiline titles and subtitles."""
+    planner = CoverPlannerAgent()
+    renderer = CoverRenderer()
+
+    test_cases = [
+        # Short title
+        ("Focus", "The Art of Doing One Thing", "editorial_minimal", "center"),
+        # Standard title (Good Habits)
+        ("Good Habits", "A Practical, Step-by-Step Guide to Lasting Change", "symbolic_object", "left"),
+        # Long multiline title
+        ("Architecting High-Throughput Distributed Streaming Systems", "An Advanced Guide to Storage Engines, Compaction, Replicated Logs, and Low-Latency Query Execution", "abstract_geometric", "left"),
+        # Multiline title with short subtitle
+        ("Modern\nData Architecture", "Practical Guide", "mountain_landscape", "center"),
+    ]
+
+    for title, subtitle, style, align in test_cases:
+        plan = CoverDesignPlan(
+            title=title,
+            subtitle=subtitle,
+            category="Engineering",
+            author="Vasuki AI",
+            background_color="#f9fbfa",
+            cover_style=style,
+            title_alignment=align,
+            cover_seed=999,
+        )
+
+        artwork_html = renderer.render_source_artwork(plan)
+        assert "cover-title-container" in artwork_html
+        assert "background-color: #001e2b" in artwork_html
+        assert "z-index: 10" in artwork_html
+        assert "color: #ffffff" in artwork_html
+
+        a4_page = renderer.render_a4_cover_page(plan, book_id="test-scaling")
+        assert "cover-title-container" in a4_page.html
+        assert "background-color: #001e2b" in a4_page.html
+        assert "color: #ffffff" in a4_page.html
+
+        report = CoverValidator.validate_cover(plan, artwork_html)
+        assert report.valid is True
+        assert len(report.errors) == 0
+
 

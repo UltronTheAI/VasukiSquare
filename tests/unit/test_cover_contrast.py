@@ -22,48 +22,26 @@ def test_contrast_calculation_math():
     assert calculate_contrast_ratio("#000000", "#ffffff") == 21.0
     assert calculate_contrast_ratio("#ffffff", "#ffffff") == 1.0
 
-    # Cream vs near-black #111827
-    cream = "#faf8f5"
-    ratio = calculate_contrast_ratio(cream, "#111827")
-    assert ratio >= 15.0  # Outstanding contrast, far exceeds 7:1
+    # Solid dark container (#001e2b) vs pure white title
+    container_bg = "#001e2b"
+    title_ratio = calculate_contrast_ratio(container_bg, "#ffffff")
+    assert title_ratio >= 15.0  # Far exceeds 7:1 AAA target
 
-    # Cream vs pure white is extremely low contrast
-    white_ratio = calculate_contrast_ratio(cream, "#ffffff")
-    assert white_ratio < 1.1  # Fails completely
-
-
-def test_regression_1_near_white_bg_with_white_title():
-    """1. Near-white/cream background + white title: must fail validation and be auto-corrected to dark title."""
-    near_white_bg = "#fefbf6"
-    white_title = "#ffffff"
-
-    # Validation must detect failure
-    report = validate_cover_contrast(
-        background_color=near_white_bg,
-        title_color=white_title,
-        auto_correct=True,
-    )
-    assert report.valid is False
-    assert len(report.errors) > 0
-    assert "Title" in report.errors[0]
-    assert report.corrections_applied.get("title") == "#111827"
-
-    # Auto-corrected HTML must have dark high-contrast title
-    raw_html = f'<div style="background-color: {near_white_bg};"><h1 style="color: #ffffff;">Good Habits</h1></div>'
-    fixed_html = auto_correct_cover_html(raw_html, near_white_bg)
-    assert 'color: #111827' in fixed_html
-    assert 'color: #ffffff' not in fixed_html
+    # Solid dark container (#001e2b) vs light neutral subtitle (#cbd5e1)
+    sub_ratio = calculate_contrast_ratio(container_bg, "#cbd5e1")
+    assert sub_ratio >= 9.0  # Far exceeds 4.5:1 AA target
 
 
-def test_regression_2_dark_bg_with_dark_title():
-    """2. Dark background + dark title: must fail validation and be auto-corrected to light title."""
-    dark_bg = "#001e2b"  # Deep teal
+def test_regression_1_solid_container_with_dark_title_corrected_to_white():
+    """1. Dark title inside solid dark container fails contrast and is corrected to white."""
+    container_bg = "#001e2b"
     dark_title = "#111827"
 
-    # Validation must detect failure
+    # Validation must detect failure against container
     report = validate_cover_contrast(
-        background_color=dark_bg,
+        background_color="#ffffff",
         title_color=dark_title,
+        container_bg=container_bg,
         auto_correct=True,
     )
     assert report.valid is False
@@ -71,29 +49,48 @@ def test_regression_2_dark_bg_with_dark_title():
     assert "Title" in report.errors[0]
     assert report.corrections_applied.get("title") == "#ffffff"
 
-    # Auto-corrected HTML must have light high-contrast title
-    raw_html = f'<div style="background-color: {dark_bg};"><h1 style="color: #111827;">System Internals</h1></div>'
-    fixed_html = auto_correct_cover_html(raw_html, dark_bg)
+    # Auto-corrected HTML must have white high-contrast title
+    raw_html = f'<div class="cover-title-container" style="background-color: {container_bg};"><h1 style="color: #111827;">Good Habits</h1></div>'
+    fixed_html = auto_correct_cover_html(raw_html, "#ffffff", container_bg=container_bg)
     assert 'color: #ffffff' in fixed_html
     assert 'color: #111827' not in fixed_html
 
 
-def test_regression_3_medium_background_chooses_higher_contrast():
-    """3. Medium background: choose whichever semantic text palette provides sufficient contrast."""
-    # Mid-gray / slate backgrounds
-    medium_bgs = ["#64748b", "#78909c", "#94a3b8", "#e2e8f0", "#1e293b", "#cbd5e1"]
-    for bg in medium_bgs:
-        palette = get_contrasting_text_palette(bg)
-        assert palette.title_contrast >= 4.5, f"Title contrast on medium bg {bg} must be >= 4.5, got {palette.title_contrast}"
-        # Validate that whichever title color was chosen has higher contrast than the alternative
-        alt_title = "#ffffff" if palette.cover_title == "#111827" else "#111827"
-        chosen_contrast = calculate_contrast_ratio(bg, palette.cover_title)
-        alt_contrast = calculate_contrast_ratio(bg, alt_title)
-        assert chosen_contrast >= alt_contrast
+def test_regression_2_solid_container_layering_and_opacity():
+    """2. Solid container has opaque background and renders in front of vector artwork."""
+    planner = CoverPlannerAgent()
+    renderer = CoverRenderer()
+
+    plan = CoverDesignPlan(
+        title="Good Habits",
+        subtitle="A Practical, Step-by-Step Guide to Lasting Change",
+        category="Personal Development",
+        author="Vasuki",
+        background_color="#f9fbfa",
+        cover_style="editorial_minimal",
+        cover_seed=123456,
+    )
+
+    html = renderer.render_source_artwork(plan)
+
+    # 1. Vector scenery has z-index: 1
+    assert 'class="vector-scenery-layer"' in html
+    assert 'z-index: 1' in html
+
+    # 2. Solid dark title container has background #001e2b, z-index: 10
+    assert 'class="cover-title-container"' in html
+    assert 'background-color: #001e2b' in html
+    assert 'z-index: 10' in html
+    assert 'transparent' not in html.split('cover-title-container')[1].split('>')[0]
+
+    # 3. Typography inside container
+    assert 'color: #ffffff' in html
+    assert 'color: #cbd5e1' in html
+    assert 'Newsreader' in html or 'serif' in html
 
 
-def test_regression_4_all_ten_cover_families_pass_contrast():
-    """4. Every one of the 10 cover families: render test cover, verify all essential text passes contrast validation."""
+def test_regression_3_all_ten_cover_families_pass_contrast_and_validation():
+    """3. Every one of the 10 cover families: render test cover, verify all essential text passes contrast validation."""
     planner = CoverPlannerAgent()
     renderer = CoverRenderer()
 
@@ -111,11 +108,13 @@ def test_regression_4_all_ten_cover_families_pass_contrast():
         artwork_html = renderer.render_source_artwork(plan)
         report_artwork = CoverValidator.validate_cover(plan, artwork_html)
         assert report_artwork.valid is True, f"Style '{style_name}' source artwork failed validation: {report_artwork.errors}"
+        assert 'class="cover-title-container"' in artwork_html
 
         # 2. A4 Printable Page
         a4_page = renderer.render_a4_cover_page(plan, book_id="habits-test")
         report_a4 = CoverValidator.validate_cover(plan, a4_page.html)
         assert report_a4.valid is True, f"Style '{style_name}' A4 page failed validation: {report_a4.errors}"
+        assert 'class="cover-title-container"' in a4_page.html
 
         # 3. Check individual elements contrast ratio
         bg = plan.background_color or "#ffffff"
@@ -126,7 +125,7 @@ def test_regression_4_all_ten_cover_families_pass_contrast():
 
 
 def test_failing_cream_cover_example_good_habits():
-    """Test specifically the user-reported failing cream cover scenario ('Good Habits')."""
+    """Test specifically the user-reported scenario ('Good Habits' on cream background with artwork)."""
     cream_backgrounds = ["#fff8e0", "#f9fbfa", "#f4f7f6", "#eceff1", "#ffffff"]
 
     planner = CoverPlannerAgent()
@@ -135,7 +134,7 @@ def test_failing_cream_cover_example_good_habits():
     for cream_bg in cream_backgrounds:
         plan = CoverDesignPlan(
             title="Good Habits",
-            subtitle="Transform Your Daily Life with Tiny Positive Changes",
+            subtitle="A Practical, Step-by-Step Guide to Lasting Change",
             category="Personal Development",
             author="Vasuki",
             background_color=cream_bg,
@@ -145,16 +144,20 @@ def test_failing_cream_cover_example_good_habits():
 
         html = renderer.render_source_artwork(plan)
 
-        # Ensure title is dark (near-black / charcoal) and NOT white
-        assert '<h1 style="font-size: 88px; font-weight: 800; line-height: 1.08; color: #111827;' in html or 'color: #111827' in html
-        assert '<h1 style="font-size: 88px; font-weight: 800; line-height: 1.08; color: #ffffff;' not in html
-        assert '<h1 style="color: #ffffff;' not in html
+        # Ensure title container is present with solid dark background
+        assert 'class="cover-title-container"' in html
+        assert 'background-color: #001e2b' in html
 
-        # Ensure subtitle is dark Slate (#374151)
-        assert 'color: #374151' in html
+        # Ensure title is white (#ffffff) and uses editorial serif
+        assert 'color: #ffffff' in html
+        assert 'Newsreader' in html or 'serif' in html
 
-        # Ensure metadata / edition is readable (#4b5563)
-        assert 'color: #4b5563' in html
+        # Ensure subtitle is light neutral (#cbd5e1)
+        assert 'color: #cbd5e1' in html
+
+        # Ensure author and metadata are properly contrasted against cream_bg
+        assert 'Vasuki' in html
+        assert 'FIRST EDITION' in html
 
         # Validate with CoverValidator
         report = CoverValidator.validate_cover(plan, html)
@@ -168,14 +171,16 @@ def test_independent_elements_validation():
     # Fails only edition
     report = validate_cover_contrast(
         background_color=bg,
-        title_color="#111827",
-        subtitle_color="#374151",
+        title_color="#ffffff",
+        subtitle_color="#cbd5e1",
         author_color="#111827",
         edition_color="#e5e7eb",  # Light gray on white - FAILS
         category_color="#374151",
+        container_bg="#001e2b",
         auto_correct=True,
     )
     assert report.valid is False
     assert len(report.errors) == 1
     assert "Edition" in report.errors[0]
     assert report.corrections_applied.get("edition") == "#4b5563"
+

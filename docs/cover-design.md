@@ -60,18 +60,33 @@ Covers are designed on a master high-resolution digital artwork canvas:
 
 ---
 
-## 5. Automatic Contrast-Aware Typography & WCAG Validation
+---
 
-Every cover text color is automatically derived from the actual cover background:
-- **`get_contrasting_text_palette(background_color)`**: Returns semantic tokens (`cover_title`, `cover_subtitle`, `cover_primary_text`, `cover_secondary_text`, `cover_metadata`, `cover_accent`, `cover_badge_bg`, `cover_badge_text`, `cover_border`, `cover_divider`).
-- **WCAG Targets**:
-  - `Title`: $\ge 7:1$ preferred (minimum $\ge 4.5:1$).
-  - `Subtitle`: $\ge 4.5:1$.
-  - `Author / Primary Text`: $\ge 4.5:1$.
-  - `Edition / Metadata`: $\ge 4.5:1$.
-  - `Category / Eyebrow`: $\ge 4.5:1$.
-  - `Header Labels`: $\ge 4.5:1$.
-- **Light & Cream Backgrounds**: Render very dark charcoal/near-black title (`#111827`), dark slate subtitle (`#374151`), and readable muted metadata (`#4b5563`).
-- **Dark Backgrounds**: Render crisp white title (`#ffffff`), light neutral subtitle (`#e2e8f0`), and readable light metadata (`#cbd5e1`).
-- **Preflight Validation & Auto-Correction**: `validate_cover_contrast()` inspects all text elements before export, automatically correcting any low-contrast color with its high-contrast semantic token.
+## 5. Solid Dark Title Container & Typography Hierarchy
+
+To guarantee absolute readability and eliminate decorative artwork interference:
+- **Layer Order Invariant**:
+  ```
+  canvas background
+  ↓
+  cover artwork / vector scenery (z-index: 1)
+  ↓
+  SOLID dark title container (z-index: 10, background: #001e2b)
+  ↓
+  title + subtitle
+  ```
+- **Solid Dark Title Container (`.cover-title-container`)**:
+  - Uses a solid, opaque theme-derived dark color (`#001e2b`, charcoal navy) with zero transparency.
+  - Comfortable internal padding (`48px 56px` on 1600x2560; `24px 28px` on A4).
+  - Clean editorial proportions, subtle border (`1px solid rgba(255,255,255,0.12)`), and elevation.
+  - Automatically sizes itself based on title/subtitle length across short, long, and multiline titles.
+- **Typography Inside Container**:
+  - **Title**: Pure/warm white (`#ffffff`), large editorial serif typography (`'Newsreader', 'Lora', 'Merriweather', 'Playfair Display', Georgia, serif`), dominant hierarchy.
+  - **Divider**: Integrated theme-derived accent rule (`#00ed64`).
+  - **Subtitle**: Soft light neutral (`#cbd5e1`, Slate 300), visually subordinate and highly readable.
+- **Outer Cover Chrome**:
+  - Author, edition (`FIRST EDITION`), and category badge adapt to outer background with contrast $\ge 4.5:1$.
+- **Preflight Validation**:
+  - `CoverValidator.validate_cover()` checks title container opacity, absence of artwork line collisions, WCAG contrast targets, and layout safety margins.
+
 

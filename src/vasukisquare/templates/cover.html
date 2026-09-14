@@ -90,11 +90,11 @@
       margin-bottom: auto;
       display: flex;
       flex-direction: column;
-      gap: 32px;
+      gap: 28px;
     }
 
     .cover-icon-wrapper {
-      margin-bottom: 12px;
+      margin-bottom: 8px;
     }
 
     .cover-icon-wrapper svg {
@@ -103,30 +103,52 @@
       stroke-width: 1.75;
     }
 
+    .cover-title-container {
+      background-color: {{ (palette.cover_container_bg if palette else "#001e2b") }};
+      padding: 48px 56px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      width: fit-content;
+      max-width: 100%;
+      box-sizing: border-box;
+      position: relative;
+      z-index: 10;
+    }
+
     .cover-title {
-      font-size: 88px;
+      font-family: 'Newsreader', 'Lora', 'Merriweather', 'Playfair Display', Georgia, serif;
+      font-size: 84px;
       font-weight: 700;
-      line-height: 1.08;
-      letter-spacing: -2px;
-      color: {{ (palette.cover_title if palette else "#001e2b") }};
-      max-width: 1200px;
+      line-height: 1.12;
+      letter-spacing: -1px;
+      color: {{ (palette.cover_title if palette else "#ffffff") }};
+      max-width: 1140px;
       word-break: break-word;
+      margin: 0;
     }
 
     .cover-subtitle {
-      font-size: 30px;
+      font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif;
+      font-size: 28px;
       font-weight: 400;
-      line-height: 1.40;
-      color: {{ (palette.cover_subtitle if palette else "#3d4f5b") }};
-      max-width: 1100px;
+      line-height: 1.45;
+      color: {{ (palette.cover_subtitle if palette else "#cbd5e1") }};
+      max-width: 1080px;
       word-break: break-word;
+      margin: 0;
+      opacity: 0.95;
     }
 
     .cover-divider {
-      width: 100px;
-      height: 4px;
-      background-color: {{ (palette.cover_divider if palette else plan.accent_color) or "#003d4f" }};
-      margin: 8px 0;
+      width: 60px;
+      height: 3px;
+      background-color: {{ (palette.cover_divider if palette else plan.accent_color) or "#00ed64" }};
+      border-radius: 2px;
+      margin: 2px 0;
     }
 
     .cover-footer {
@@ -171,12 +193,13 @@
         </div>
         {% endif %}
 
-        <div class="cover-divider"></div>
-
-        <h1 class="cover-title">{{ plan.title }}</h1>
-        {% if plan.subtitle %}
-        <p class="cover-subtitle">{{ plan.subtitle }}</p>
-        {% endif %}
+        <div class="cover-title-container">
+          <h1 class="cover-title">{{ plan.title }}</h1>
+          <div class="cover-divider"></div>
+          {% if plan.subtitle %}
+          <p class="cover-subtitle">{{ plan.subtitle }}</p>
+          {% endif %}
+        </div>
       </div>
 
       <footer class="cover-footer">
