@@ -996,12 +996,6 @@ class PageWriterAgent:
                     term_lines = [l for l in repaired if getattr(l, "text", "").strip()]
 
             if term_lines:
-                blocks.append(
-                    TerminalBlock(
-                        title=res.terminal_title or "Terminal Session",
-                        shell="bash",
-                        lines=term_lines,
-                    )
                 cand_terminal = TerminalBlock(
                     title=res.terminal_title or "Terminal Session",
                     shell="bash",
