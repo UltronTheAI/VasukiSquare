@@ -190,8 +190,9 @@ class ComponentRenderer:
         """Render colorful syntax-highlighted code block with language badge, optional filename, and caption."""
         if not block.code or not str(block.code).strip():
             return ""
+        from vasukisquare.agents.code_validator import normalize_code_language
         normalized_code = normalize_preformatted_text(block.code)
-        lang = (block.language or "text").lower().strip()
+        lang = normalize_code_language(block.language)
         try:
             lexer = get_lexer_by_name(lang, stripall=True)
         except Exception:

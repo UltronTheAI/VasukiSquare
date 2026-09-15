@@ -160,46 +160,14 @@ def validate_terminal_command(command: str) -> bool:
 
 
 def validate_code_block(code: str, language: str = "python") -> bool:
-    """Validate that code contains actual source code and not English prose, with AST verification for Python."""
+    """Validate that code contains actual source code, is syntactically complete, and delimiter-balanced."""
     if not code or not str(code).strip():
         return False
 
-    clean = str(code).strip().replace("\r\n", "\n").replace("\r", "\n").replace("\\n", "\n")
-    clean_lower = clean.lower()
-
-    # Reject prose introductions
-    for prefix in PROSE_PREFIXES:
-        if clean_lower.startswith(prefix) and not any(k in clean for k in ["def ", "class ", "import ", "const ", "{", "print("]):
-            return False
-
-    lang_lower = (language or "python").lower()
-    if lang_lower in ("python", "py"):
-        lines_no_repl = []
-        for line in clean.split("\n"):
-            if line.startswith(">>> ") or line.startswith("... "):
-                lines_no_repl.append(line[4:])
-            else:
-                lines_no_repl.append(line)
-        code_to_parse = "\n".join(lines_no_repl)
-        try:
-            ast.parse(code_to_parse)
-            return True
-        except SyntaxError:
-            pass
-
-    matches = 0
-    for pat in CODE_SYNTAX_PATTERNS:
-        if re.search(pat, clean, re.IGNORECASE):
-            matches += 1
-
-    has_assignment = bool(re.search(r'[\w\s]+=\s*[\w\d"\'{\[]+', clean))
-    has_brackets = "{" in clean or "(" in clean or "[" in clean
-
-    lines = [l.strip() for l in clean.split("\n") if l.strip()]
-    if len(lines) == 1 and len(lines[0].split()) > 10 and not (has_assignment or has_brackets or matches > 0):
-        return False
-
-    return matches >= 1 or (has_assignment and has_brackets)
+    from vasukisquare.agents.code_validator import validate_code_completeness, normalize_code_language
+    norm_lang = normalize_code_language(language)
+    is_valid, _ = validate_code_completeness(code, norm_lang)
+    return is_valid
 
 
 def validate_generated_section(

@@ -105,18 +105,22 @@ def classify_topic(topic: str, description: Optional[str] = None) -> TopicClassi
 
 def extract_code_blocks_from_text(text: str) -> List[Dict[str, str]]:
     """Extract code blocks enclosed in markdown backticks from research documents."""
+    from vasukisquare.agents.code_validator import normalize_code_language, validate_code_completeness
     blocks = []
     pattern = r"```([a-zA-Z0-9_-]*)\n(.*?)```"
     matches = re.findall(pattern, text, re.DOTALL)
     for lang, code in matches:
         clean_code = code.strip()
         if clean_code:
-            blocks.append({
-                "language": lang.strip() or "python",
-                "code": clean_code,
-                "filename": f"example.{lang.strip() or 'py'}",
-                "explanation": "Extracted from research documentation."
-            })
+            norm_lang = normalize_code_language(lang)
+            is_valid, _ = validate_code_completeness(clean_code, norm_lang)
+            if is_valid:
+                blocks.append({
+                    "language": norm_lang,
+                    "code": clean_code,
+                    "filename": f"example.{norm_lang if norm_lang != 'text' else 'py'}",
+                    "explanation": "Extracted from research documentation."
+                })
     return blocks
 
 

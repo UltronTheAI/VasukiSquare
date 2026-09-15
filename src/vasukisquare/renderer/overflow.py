@@ -703,6 +703,49 @@ def split_comparison_block(block: ComparisonBlock, max_items: int) -> Tuple[Comp
     return b1, b2
 
 
+def split_code_block(block: CodeBlock, available_height_mm: float) -> Tuple[CodeBlock, CodeBlock]:
+    """Split a CodeBlock cleanly across exact newline boundaries with continuation metadata.
+    
+    Guarantees:
+    - Never character-truncates (code[:N]).
+    - Splits strictly on full line boundaries.
+    - Preserves 100% of original lines (lines1 + lines2 == lines).
+    - Sets appropriate continuation caption on the second block.
+    """
+    code = block.code or ""
+    lines = code.split("\n")
+    if len(lines) <= 1:
+        return block, CodeBlock(code="", language=block.language)
+
+    header_h = 10.0 if (block.filename or block.language) else 0.0
+    caption_h = 7.0 if block.caption else 0.0
+    overhead = header_h + caption_h + 12.0
+
+    fit_lines_count = max(1, int((available_height_mm - overhead) // 4.8))
+    split_idx = min(max(1, fit_lines_count), len(lines) - 1)
+
+    lines1 = lines[:split_idx]
+    lines2 = lines[split_idx:]
+
+    b1 = CodeBlock(
+        code="\n".join(lines1),
+        language=block.language,
+        filename=block.filename,
+        caption=block.caption,
+        line_numbers=block.line_numbers,
+    )
+
+    cont_caption = f"{block.caption} (Cont.)" if block.caption else (f"{block.filename} (Cont.)" if block.filename else "Code (Cont.)")
+    b2 = CodeBlock(
+        code="\n".join(lines2),
+        language=block.language,
+        filename=block.filename,
+        caption=cont_caption,
+        line_numbers=block.line_numbers,
+    )
+    return b1, b2
+
+
 # =========================================================================
 # DYNAMIC PAGE SPLITTING AND CONTINUATION CREATION
 # =========================================================================
@@ -794,6 +837,14 @@ def find_safe_page_split(
                         has_overflowed = True
                         sub_split_success = True
 
+                elif isinstance(block, CodeBlock) and len(block.code.split("\n")) >= 6 and rem_space >= 35.0:
+                    c1, c2 = split_code_block(block, rem_space)
+                    if c1.code and c2.code:
+                        fit_blocks.append(c1)
+                        overflow_blocks.append(c2)
+                        has_overflowed = True
+                        sub_split_success = True
+
                 if not sub_split_success:
                     if not fit_blocks:
                         # Even the first block alone exceeds budget: force sub-split or keep first block
@@ -817,6 +868,11 @@ def find_safe_page_split(
                             fit_blocks.append(txt1)
                             if txt2.text:
                                 overflow_blocks.append(txt2)
+                        elif isinstance(block, CodeBlock) and len(block.code.split("\n")) >= 4:
+                            c1, c2 = split_code_block(block, safe_limit_mm)
+                            fit_blocks.append(c1)
+                            if c2.code:
+                                overflow_blocks.append(c2)
                         else:
                             fit_blocks.append(block)
                     else:

@@ -387,10 +387,26 @@ class ContentValidator:
                 elif b_type == "comparison" and not (getattr(b, "left_items", []) or getattr(b, "right_items", [])):
                     issues.append(f"Page {p.page_number} contains empty ComparisonBlock.")
                     empty_comp_issue = True
-        if not empty_comp_issue:
-            passed_checks.append("Empty visual component suppression")
+        # 8. Code block completeness and syntax validation across all languages
+        code_completeness_issue = False
+        for p in pages:
+            if p.layout in ("cover", "chapter_opener", "toc", "copyright", "imprint", "references", "thank_you"):
+                continue
+            for b in getattr(p.content, "blocks", []):
+                if getattr(b, "type", "") == "code":
+                    code_val = getattr(b, "code", "")
+                    code_lang = getattr(b, "language", "python")
+                    from vasukisquare.agents.code_validator import validate_code_completeness
+                    is_valid, code_issues = validate_code_completeness(code_val, code_lang)
+                    if not is_valid:
+                        issues.append(
+                            f"Page {p.page_number} contains incomplete or truncated {code_lang} code: {'; '.join(code_issues[:2])}"
+                        )
+                        code_completeness_issue = True
+        if not code_completeness_issue:
+            passed_checks.append("Code block completeness and delimiter balance")
 
-        # 8. Standard page validation (placeholders, topic drift, density)
+        # 9. Standard page validation (placeholders, topic drift, density)
         std_errors = cls.validate_book(pages, expected_topic=topic, expected_language=language)
         issues.extend(std_errors)
         if not std_errors:

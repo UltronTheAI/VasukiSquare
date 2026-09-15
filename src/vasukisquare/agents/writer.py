@@ -57,6 +57,11 @@ from vasukisquare.agents.content_validator import (
     validate_generated_section,
     ValidationResult,
 )
+from vasukisquare.agents.code_validator import (
+    normalize_code_language,
+    validate_code_completeness,
+    repair_incomplete_code,
+)
 from vasukisquare.research.models import ResearchCorpus
 from vasukisquare.llm.client import LLMClient, GroqGenerationError
 from vasukisquare.llm.metrics import BookGenerationMetrics
@@ -903,7 +908,7 @@ class PageWriterAgent:
             guidelines = (
                 f"1. Ground all technical details, APIs, code samples, commands, and concepts directly in the Research Dossier below.\n"
                 f"2. Never use generic placeholder sentences. Every sentence must teach concrete details about {plan.title}.\n"
-                f"3. If generating code, provide clean, runnable, syntactically valid {primary_lang} code.\n"
+                f"3. If generating code, provide clean, concise, syntactically complete {primary_lang} code (10-20 lines max). Every code snippet must be 100% complete with all delimiters closed, all statements finished, and no mid-line cutoff.\n"
                 f"4. Include an actionable CalloutBox (tip, best practice, or common pitfall).\n"
                 f"5. Populate cited_source_urls with the URLs from the dossier actually used."
             )
@@ -973,28 +978,43 @@ class PageWriterAgent:
         # 3. Visual Anchor Blocks
         anchor = p.visual_anchor or VisualAnchorType.TEXT
 
-        if is_tech and res.code_snippet and validate_code_block(res.code_snippet, res.code_language or primary_lang) and (anchor == VisualAnchorType.CODE or p.layout == LayoutType.CODE_FOCUS.value or "code" in (p.brief or "").lower()):
-            code_lang = res.code_language or primary_lang
-            blocks.append(
-                CodeBlock(
-                    language=code_lang if code_lang != "text" else "python",
-                    filename=res.code_filename or f"example_{p.page_number}.{ 'py' if code_lang == 'python' else 'ts' if code_lang in ('typescript', 'javascript') else 'sh' }",
-                    code=res.code_snippet,
-                    caption=res.code_caption or f"Listing {p.chapter_number}.{p.page_number % 5 + 1}: {p.brief}",
-                    line_numbers=True,
-                )
-            )
-            # Add Expected Output Block if provided
-            if res.expected_output and res.expected_output.strip():
+        if is_tech and res.code_snippet and (anchor == VisualAnchorType.CODE or p.layout == LayoutType.CODE_FOCUS.value or "code" in (p.brief or "").lower()):
+            code_lang = normalize_code_language(res.code_language or primary_lang)
+            code_snippet = res.code_snippet
+            is_valid_code, _ = validate_code_completeness(code_snippet, code_lang)
+            if not is_valid_code:
+                repaired = await repair_incomplete_code(self.llm_client, code_snippet, code_lang, topic=p.brief)
+                if repaired:
+                    code_snippet = repaired
+                    is_valid_code = True
+
+            if is_valid_code:
+                ext_map = {
+                    "python": "py", "typescript": "ts", "javascript": "js",
+                    "cpp": "cpp", "c": "c", "rust": "rs", "go": "go",
+                    "java": "java", "csharp": "cs", "bash": "sh", "sql": "sql",
+                }
+                ext = ext_map.get(code_lang, "txt")
                 blocks.append(
-                    OutputBlock(
-                        title="Expected Console Output",
-                        content=res.expected_output.strip(),
+                    CodeBlock(
+                        language=code_lang if code_lang != "text" else "python",
+                        filename=res.code_filename or f"example_{p.page_number}.{ext}",
+                        code=code_snippet,
+                        caption=res.code_caption or f"Listing {p.chapter_number}.{p.page_number % 5 + 1}: {p.brief}",
+                        line_numbers=True,
                     )
                 )
-            # Add Post-Code Explanation
-            if res.code_explanation and res.code_explanation.strip():
-                blocks.append(TextBlock(text=res.code_explanation.strip()))
+                # Add Expected Output Block if provided
+                if res.expected_output and res.expected_output.strip():
+                    blocks.append(
+                        OutputBlock(
+                            title="Expected Console Output",
+                            content=res.expected_output.strip(),
+                        )
+                    )
+                # Add Post-Code Explanation
+                if res.code_explanation and res.code_explanation.strip():
+                    blocks.append(TextBlock(text=res.code_explanation.strip()))
 
         if res.checklist_items:
             valid_items = [item.strip() for item in res.checklist_items if item and item.strip()]

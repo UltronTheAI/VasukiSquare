@@ -87,11 +87,14 @@ Stage 7: Final HTML Assembly & PDF Export
 ### Stage 5: Page Authoring & Repair (`PageWriterAgent.write_page`)
 - **Input**: `PlannedPageSpec`, `BookPlan`, and `ResearchCorpus`.
 - **Processing**:
-  - Authors structured component blocks (`HeroHeaderBlock`, `ParagraphBlock`, `CodeSnippetBlock`, `CalloutBlock`, `ComparisonTableBlock`, etc.) with zero raw markdown leakage.
+  - Authors structured component blocks (`HeroHeaderBlock`, `ParagraphBlock`, `CodeBlock`, `CalloutBlock`, `ComparisonBlock`, etc.) with zero raw markdown leakage.
+  - Enforces universal language alias normalization (`c++` -> `cpp`, `rs` -> `rust`, `js` -> `javascript`, `ts` -> `typescript`, `py` -> `python`, etc.).
+  - Runs language-aware syntax completeness validation (`validate_code_completeness`) checking delimiter balance (`()`, `{}`, `[]`), quote/string closure, Rust lifetime handling, and language AST/statement rules.
+  - Automatically triggers targeted LLM repair (`repair_incomplete_code`) if a generated code block is cut mid-statement or incomplete.
   - Formats 1 of 6 chapter opener templates on chapter boundary pages.
-  - Runs `PageRepairEngine` and `OverflowDetector` to calculate content density and prevent vertical A4 overflow.
+  - Runs `PageRepairEngine`, `split_code_block`, and `OverflowDetector` to calculate content density and perform lossless line-boundary code splitting with continuation captions (`Listing X.Y: ... (Cont.)`).
   - Pass 2 resolves dynamic Table of Contents starting page numbers and cited bibliography blocks.
-  - Executes 15-point Content Quality Audit (`ContentValidator.audit_book`).
+  - Executes 16-point Content Quality Audit (`ContentValidator.audit_book`).
 - **Output**: List of typed, validated `Page` models.
 - **Artifacts**: `pages/page_*.html`, `checkpoints/pages/page_*.json`.
 - **Failure Handling**: Individual page retry on schema validation error; checkpointing preserves all completed pages.
