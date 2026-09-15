@@ -909,14 +909,19 @@ class PageWriterAgent:
                 )
         research_context = "\n\n".join(dossier_chunks) if dossier_chunks else "No research dossier available."
 
+        page_type_enum = TechnicalPageType.CONCEPT
+        try:
+            page_type_enum = TechnicalPageType(p.page_type)
+        except (ValueError, TypeError):
+            pass
+        spec = PAGE_TYPE_SPECS.get(page_type_enum, PAGE_TYPE_SPECS[TechnicalPageType.CONCEPT])
+
         if is_tech:
             author_role = "principal technical author and software architect"
             guidelines = (
                 f"1. Ground all technical details, APIs, code samples, commands, and concepts directly in the Research Dossier below.\n"
                 f"2. Never use generic placeholder sentences. Every sentence must teach concrete details about {plan.title}.\n"
                 f"3. If generating code, provide clean, concise, syntactically complete {primary_lang} code (10-20 lines max). Every code snippet must be 100% complete with all delimiters closed, all statements finished, and no mid-line cutoff.\n"
-                f"4. Include an actionable CalloutBox (tip, best practice, or common pitfall).\n"
-                f"5. Populate cited_source_urls with the URLs from the dossier actually used."
                 f"4. Never create a terminal component without at least one executable command. If no meaningful command is appropriate, do not create a terminal component.\n"
                 f"5. Include an actionable CalloutBox (tip, best practice, or common pitfall).\n"
                 f"6. Populate cited_source_urls with the URLs from the dossier actually used."
@@ -970,11 +975,6 @@ class PageWriterAgent:
         blocks.append(TextBlock(text=lead_text))
 
         # 2. Terminal Block (Technical books only)
-        if is_tech and res.terminal_command and validate_terminal_command(res.terminal_command):
-            # Normalize escaped newlines and split into individual command lines
-            clean_cmd = res.terminal_command.replace("\r\n", "\n").replace("\r", "\n").replace("\\n", "\n")
-            cmd_lines = [c.strip() for c in clean_cmd.split("\n") if c.strip()]
-            term_lines = [TerminalLine(kind="command", text=c) for c in cmd_lines]
         if is_tech:
             term_lines: List[TerminalLine] = []
             if res.terminal_command and validate_terminal_command(res.terminal_command):
