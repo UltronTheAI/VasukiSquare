@@ -293,15 +293,28 @@ class ComponentRenderer:
     @classmethod
     def render_terminal(cls, block: TerminalBlock, theme: Theme = Theme.LIGHT) -> str:
         """Render dedicated editorial terminal/console block with semantic colored lines."""
+        from vasukisquare.agents.code_validator import terminal_has_meaningful_content
+        if not terminal_has_meaningful_content(block):
+            return ""
+
+        shell_lower = (block.shell or "bash").lower().strip()
+        is_ps = shell_lower in ("powershell", "ps", "pwsh")
+        default_cmd_prompt = "PS> " if is_ps else "$ "
+
         lines_html = []
         for line in (block.lines or []):
             if isinstance(line, TerminalLine):
                 kind = line.kind
                 raw_text = normalize_preformatted_text(line.text)
+                if not raw_text or not raw_text.strip():
+                    continue
                 sub_lines = raw_text.split("\n")
                 prompt_str = line.prompt or ("$ " if kind == "command" else "")
+                prompt_str = line.prompt or (default_cmd_prompt if kind == "command" else "")
                 
                 for idx, sub in enumerate(sub_lines):
+                    if not sub.strip():
+                        continue
                     txt = html.escape(sub)
                     prompt = html.escape(prompt_str if idx == 0 else ("  " if prompt_str else ""))
                     if kind == "command":
@@ -327,6 +340,10 @@ class ComponentRenderer:
                     if raw_stripped.startswith("$ ") or raw_stripped.startswith("# "):
                         prefix = raw_stripped[:2]
                         cmd = raw_stripped[2:]
+                    if raw_stripped.startswith("$ ") or raw_stripped.startswith("# ") or raw_stripped.startswith("PS> "):
+                        p_len = 4 if raw_stripped.startswith("PS> ") else 2
+                        prefix = raw_stripped[:p_len]
+                        cmd = raw_stripped[p_len:]
                         lines_html.append(
                             f'<div class="terminal-line is-command"><span class="terminal-prompt">{html.escape(prefix)}</span><span class="terminal-cmd">{html.escape(cmd)}</span></div>'
                         )

@@ -61,6 +61,8 @@ from vasukisquare.agents.code_validator import (
     normalize_code_language,
     validate_code_completeness,
     repair_incomplete_code,
+    terminal_has_meaningful_content,
+    repair_incomplete_terminal,
 )
 from vasukisquare.research.models import ResearchCorpus
 from vasukisquare.llm.client import LLMClient, GroqGenerationError
@@ -82,6 +84,10 @@ class LLMGeneratedPage(BaseModel):
     why_it_matters: Optional[str] = Field(default=None, description="Why this pattern is useful or common beginner mistake to avoid")
     terminal_title: Optional[str] = Field(default=None, description="Terminal window title")
     terminal_command: Optional[str] = Field(default=None, description="Terminal shell command")
+    terminal_command: Optional[str] = Field(
+        default=None,
+        description="Terminal shell command. Never create a terminal component without at least one executable command. If no meaningful command is appropriate, do not create a terminal component.",
+    )
     callout_title: Optional[str] = Field(default=None, description="Callout title")
     callout_text: Optional[str] = Field(default=None, description="Callout body text")
     callout_variant: Optional[str] = Field(default="tip", description="Callout variant: tip, note, important, warning, insight")
@@ -911,6 +917,9 @@ class PageWriterAgent:
                 f"3. If generating code, provide clean, concise, syntactically complete {primary_lang} code (10-20 lines max). Every code snippet must be 100% complete with all delimiters closed, all statements finished, and no mid-line cutoff.\n"
                 f"4. Include an actionable CalloutBox (tip, best practice, or common pitfall).\n"
                 f"5. Populate cited_source_urls with the URLs from the dossier actually used."
+                f"4. Never create a terminal component without at least one executable command. If no meaningful command is appropriate, do not create a terminal component.\n"
+                f"5. Include an actionable CalloutBox (tip, best practice, or common pitfall).\n"
+                f"6. Populate cited_source_urls with the URLs from the dossier actually used."
             )
         else:
             author_role = "expert editorial non-fiction author and subject specialist"
@@ -966,6 +975,26 @@ class PageWriterAgent:
             clean_cmd = res.terminal_command.replace("\r\n", "\n").replace("\r", "\n").replace("\\n", "\n")
             cmd_lines = [c.strip() for c in clean_cmd.split("\n") if c.strip()]
             term_lines = [TerminalLine(kind="command", text=c) for c in cmd_lines]
+        if is_tech:
+            term_lines: List[TerminalLine] = []
+            if res.terminal_command and validate_terminal_command(res.terminal_command):
+                # Normalize escaped newlines and split into individual command lines
+                clean_cmd = res.terminal_command.replace("\r\n", "\n").replace("\r", "\n").replace("\\n", "\n")
+                cmd_lines = [c.strip() for c in clean_cmd.split("\n") if c.strip()]
+                term_lines = [TerminalLine(kind="command", text=c) for c in cmd_lines if c.strip()]
+
+            # If terminal title was provided or spec requires terminal, but command was empty/invalid: attempt LLM repair
+            if not term_lines and (res.terminal_title or spec.requires_terminal):
+                repaired = await repair_incomplete_terminal(
+                    self.llm_client,
+                    title=res.terminal_title or f"Terminal: {p.brief}",
+                    topic=p.brief,
+                    shell="bash",
+                    context=res.lead_paragraph,
+                )
+                if repaired:
+                    term_lines = [l for l in repaired if getattr(l, "text", "").strip()]
+
             if term_lines:
                 blocks.append(
                     TerminalBlock(
@@ -973,7 +1002,13 @@ class PageWriterAgent:
                         shell="bash",
                         lines=term_lines,
                     )
+                cand_terminal = TerminalBlock(
+                    title=res.terminal_title or "Terminal Session",
+                    shell="bash",
+                    lines=term_lines,
                 )
+                if terminal_has_meaningful_content(cand_terminal):
+                    blocks.append(cand_terminal)
 
         # 3. Visual Anchor Blocks
         anchor = p.visual_anchor or VisualAnchorType.TEXT
@@ -1085,6 +1120,12 @@ class PageWriterAgent:
                 self.metrics.research.sources_used,
                 len(set(res.cited_source_urls))
             )
+        # Ensure no empty TerminalBlock is retained
+        blocks = [
+            b for b in blocks
+            if not (isinstance(b, TerminalBlock) or getattr(b, "type", "") == "terminal")
+            or terminal_has_meaningful_content(b)
+        ]
 
         page_content = PageContent(headline=headline, blocks=blocks)
         return page_content

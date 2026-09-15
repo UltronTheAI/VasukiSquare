@@ -388,6 +388,13 @@ class ContentValidator:
                     issues.append(f"Page {p.page_number} contains empty ComparisonBlock.")
                     empty_comp_issue = True
         # 8. Code block completeness and syntax validation across all languages
+                elif b_type == "terminal":
+                    from vasukisquare.agents.code_validator import terminal_has_meaningful_content
+                    if not terminal_has_meaningful_content(b):
+                        issues.append(f"Page {p.page_number} contains empty TerminalBlock with no executable commands.")
+                        empty_comp_issue = True
+        if not empty_comp_issue:
+            passed_checks.append("Empty visual component suppression")
         code_completeness_issue = False
         for p in pages:
             if p.layout in ("cover", "chapter_opener", "toc", "copyright", "imprint", "references", "thank_you"):

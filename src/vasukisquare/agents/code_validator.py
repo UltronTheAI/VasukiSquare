@@ -506,3 +506,105 @@ async def repair_incomplete_code(
 
     logger.error(f"[code-repair] exhausted {max_attempts} repair attempts for {lang} code. Rejecting truncated snippet.")
     return None
+
+
+def terminal_has_meaningful_content(block: Any) -> bool:
+    """Check if a TerminalBlock contains at least one meaningful, non-whitespace command or line."""
+    if not block:
+        return False
+
+    lines = getattr(block, "lines", None)
+    if lines is not None:
+        meaningful_count = 0
+        for line in lines:
+            if hasattr(line, "text"):
+                txt = getattr(line, "text", "")
+            elif isinstance(line, dict):
+                txt = line.get("text", "")
+            else:
+                txt = str(line)
+
+            clean_txt = txt.strip()
+            # Ignore whitespace or standalone prompt characters
+            if clean_txt and clean_txt not in ("$", ">", "#", ">>>", "PS>", "PS >"):
+                meaningful_count += 1
+        return meaningful_count > 0
+
+    for attr in ("command", "content", "terminal_command"):
+        val = getattr(block, attr, None)
+        if val and str(val).strip() and str(val).strip() not in ("$", ">", "#", ">>>", "PS>", "PS >"):
+            return True
+
+    return False
+
+
+async def repair_incomplete_terminal(
+    llm_client: Any,
+    title: Optional[str],
+    topic: Optional[str],
+    shell: str = "bash",
+    context: Optional[str] = None,
+    max_attempts: int = 2,
+) -> Optional[List[Any]]:
+    """Send empty or missing terminal block to LLM for targeted repair to generate executable CLI commands."""
+    from vasukisquare.book.components import TerminalLine
+    from vasukisquare.agents.content_validator import validate_terminal_command
+    from pydantic import BaseModel, Field
+
+    class TerminalRepairResult(BaseModel):
+        commands: List[str] = Field(
+            default_factory=list,
+            description="List of 1-3 realistic, executable shell commands for this title and topic without markdown fences or explanations",
+        )
+
+    clean_title = title or topic or "Terminal Execution"
+    clean_topic = topic or clean_title
+
+    repair_system_prompt = (
+        f"You are a principal systems engineer generating executable {shell} terminal commands.\n"
+        f"Generate ONLY the realistic command-line commands for the terminal window titled '{clean_title}'.\n\n"
+        f"CRITICAL REQUIREMENTS:\n"
+        f"1. Commands must be directly relevant to: '{clean_topic}'.\n"
+        f"2. Return 1 to 3 realistic, executable {shell} commands.\n"
+        f"3. Do NOT include markdown backtick fences (no ```).\n"
+        f"4. Do NOT include commentary, prose, explanations, or conversational text.\n"
+        f"5. Return strictly the executable command strings."
+    )
+
+    repair_user_prompt = (
+        f"Terminal Title: {clean_title}\n"
+        f"Section Topic: {clean_topic}\n"
+        f"Shell: {shell}\n"
+        f"{f'Context: {context}' if context else ''}\n\n"
+        f"Return the executable command(s) for this terminal block:"
+    )
+
+    for attempt in range(1, max_attempts + 1):
+        try:
+            res: TerminalRepairResult = await llm_client.invoke_structured(
+                schema=TerminalRepairResult,
+                system_prompt=repair_system_prompt,
+                user_prompt=repair_user_prompt,
+                stage=f"repair_terminal_att{attempt}",
+                temperature=0.1,
+            )
+
+            if res and res.commands:
+                valid_cmds = []
+                for cmd in res.commands:
+                    clean_cmd = str(cmd).strip()
+                    if clean_cmd.startswith("```"):
+                        clean_cmd = re.sub(r"^```[a-zA-Z0-9_-]*\n?", "", clean_cmd)
+                        clean_cmd = re.sub(r"\n?```$", "", clean_cmd).strip()
+                    clean_cmd = re.sub(r"^[\$#>]\s*", "", clean_cmd).strip()
+                    if clean_cmd and validate_terminal_command(clean_cmd):
+                        valid_cmds.append(clean_cmd)
+
+                if valid_cmds:
+                    logger.info(f"[terminal-repair] attempt={attempt} success=true title='{clean_title}' cmds={valid_cmds}")
+                    return [TerminalLine(kind="command", text=c) for c in valid_cmds]
+        except Exception as e:
+            logger.warning(f"[terminal-repair] attempt={attempt} failed with error: {e}")
+
+    logger.warning(f"[terminal-repair] exhausted {max_attempts} attempts for title='{clean_title}'. Omitting TerminalBlock.")
+    return None
