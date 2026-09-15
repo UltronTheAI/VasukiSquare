@@ -18,9 +18,9 @@ flowchart TD
         E[Stage 2: Deep Research\nResearchService & WebSearchTool]
         F[Stage 3: Editorial Planning\nBookPlan & Chapter Allocation]
         G[Stage 4: Cover Planning\nCoverPlanner & ContrastValidator]
-        H[Stage 5: Page Authoring\nPageWriterAgent & 6 Opener Styles]
-        I[Stage 6: Database Persistence\nBookRepo, PageRepo, CoverRepo]
-        J[Stage 7: HTML Assembly & PDF Export\nHtmlPageRenderer & PdfRenderer]
+        H[Stage 5: Page Authoring & Overflow Repair\nPageWriterAgent & 6 Opener Styles]
+        I[Stage 6: HTML Assembly, Preflight & PDF Export\nHtmlPageRenderer & PdfRenderer]
+        J[Stage 7: Canonical Database Persistence\nBookRepo, PageRepo, CoverRepo, AdRepo]
 
         D --> E --> F --> G --> H --> I --> J
     end

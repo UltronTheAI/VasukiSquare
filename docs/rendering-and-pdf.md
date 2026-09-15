@@ -42,6 +42,10 @@ async with async_playwright() as p:
 - **Font Settlement**: Explicit JavaScript promise (`document.fonts.ready`) ensures typography never flashes or shifts during rendering.
 - **Image Load Validation**: Waits for all SVG icons and raster graphics to complete loading before capturing the PDF snapshot.
 
+> [!NOTE]
+> **PDF is an Export Artifact, MongoDB is Canonical**:
+> While Playwright compiles pixel-perfect physical A4 PDFs for printing and offline reading, the **canonical representation** of every publication is the structured JSON and pre-rendered HTML stored in MongoDB. External web frontends (such as Next.js) consume MongoDB documents directly and never need to parse, upload, or extract content from `book.pdf`.
+
 ---
 
 ## 3. Zero-Overflow & Canonical Safe-Area Architecture

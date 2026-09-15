@@ -486,6 +486,8 @@ class CoverService:
             width=1600,
             height=2560,
             title=plan.title,
+            subtitle=plan.subtitle,
+            author=plan.author,
             design={
                 "concept_name": getattr(plan, "concept_name", ""),
                 "composition_style": plan.composition_style,

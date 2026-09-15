@@ -32,7 +32,7 @@ VasukiSquare solves the problem of unstructured, repetitive, and poorly formatte
 - **White-Label Publisher Branding**: Complete customization of author names, publishing imprints, copyright notices, edition names, and website URLs via `config.json`.
 - **Checkpoint & Resume Support**: Granular JSON stage and page checkpointing allows interrupted runs to resume seamlessly with `--resume`.
 - **15-Point Content Quality Audit**: Automated validation checks structure, density, semantic validity, and code formatting before final assembly.
-- **Optional MongoDB Persistence**: Navigable 3-collection document graph (`books`, `pages`, `covers`) with non-blocking failure tolerance.
+- **Production MongoDB Architecture**: Canonical 4-collection publication store (`books`, `pages`, `covers`, `ads`) with deterministic URL-safe slugs, featured slots 1..5, native ad inventory, atomic counters, and headless Next.js query support.
 
 ---
 
@@ -86,13 +86,13 @@ Stage 4: Cover Planning & Design (CoverPlanner & ContrastValidator)
 Stage 5: Page Authoring & Repair (PageWriterAgent & PageRepairEngine)
         │
         ▼
-Stage 6: Database Persistence (Optional MongoDB Linked Graph)
+Stage 6: HTML Assembly, Preflight Audit & PDF Export (HtmlPageRenderer & PdfRenderer)
         │
         ▼
-Stage 7: HTML Assembly & PDF Export (HtmlPageRenderer & PdfRenderer)
+Stage 7: Canonical Database Persistence (Optional MongoDB Linked Graph)
         │
         ▼
-Physical A4 PDF (book.pdf) & Canonical HTML (book.html)
+Physical A4 PDF (book.pdf) & Canonical Web Store (MongoDB)
 ```
 
 For full details on boundaries between deterministic Python rules, LLM reasoning, and rendering, see [System Architecture](docs/architecture.md).

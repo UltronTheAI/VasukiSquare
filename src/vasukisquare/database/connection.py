@@ -42,15 +42,18 @@ class DatabaseManager:
             BookRepository,
             PageRepository,
             CoverRepository,
+            AdRepository,
         )
 
         book_repo = BookRepository(self.db)
         page_repo = PageRepository(self.db)
         cover_repo = CoverRepository(self.db)
+        ad_repo = AdRepository(self.db)
 
         book_repo.create_indexes()
         page_repo.create_indexes()
         cover_repo.create_indexes()
+        ad_repo.create_indexes()
 
     def close(self) -> None:
         """Close the MongoDB connection."""

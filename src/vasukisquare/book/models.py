@@ -1,6 +1,7 @@
 import re
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Union
+from enum import Enum
+from typing import Any, Dict, List, Optional, Union, Generic, TypeVar, Literal
 from uuid import uuid4
 from pydantic import BaseModel, Field, model_validator, field_validator
 from vasukisquare.book.layout import (
@@ -16,6 +17,9 @@ from vasukisquare.book.layout import (
 )
 from vasukisquare.design.theme import Theme, get_chapter_theme
 from vasukisquare.design.tokens import ColorToken, validate_color_token
+
+CURRENT_SCHEMA_VERSION: int = 1
+CURRENT_RENDERER_VERSION: str = "0.1.0"
 
 
 def generate_id() -> str:
@@ -520,6 +524,189 @@ class ChapterMetadata(BaseModel):
         return self
 
 
+class PublicationStatus(str, Enum):
+    DRAFT = "draft"
+    PUBLISHED = "published"
+    UNPUBLISHED = "unpublished"
+
+
+class PublicationVisibility(str, Enum):
+    PUBLIC = "public"
+    PRIVATE = "private"
+
+
+class PublicationInfo(BaseModel):
+    """Publication lifecycle and visibility metadata."""
+
+    status: PublicationStatus = PublicationStatus.DRAFT
+    visibility: PublicationVisibility = PublicationVisibility.PUBLIC
+    published_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    @field_validator("status", mode="before")
+    @classmethod
+    def _validate_status(cls, v: Any) -> PublicationStatus:
+        if isinstance(v, str):
+            try:
+                return PublicationStatus(v.lower())
+            except ValueError:
+                return PublicationStatus.DRAFT
+        return v
+
+    @field_validator("visibility", mode="before")
+    @classmethod
+    def _validate_visibility(cls, v: Any) -> PublicationVisibility:
+        if isinstance(v, str):
+            try:
+                return PublicationVisibility(v.lower())
+            except ValueError:
+                return PublicationVisibility.PUBLIC
+        return v
+
+
+class FeaturedInfo(BaseModel):
+    """Homepage featured and pin position metadata."""
+
+    pinned: bool = False
+    position: Optional[int] = Field(default=None, ge=1, le=5)
+
+    @model_validator(mode="after")
+    def _validate_pin_position(self) -> "FeaturedInfo":
+        if not self.pinned and self.position is not None:
+            self.position = None
+        if self.pinned and self.position is None:
+            raise ValueError("Pinned books must have an explicit position between 1 and 5.")
+        return self
+
+
+class DiscoveryInfo(BaseModel):
+    """Normalized search and discovery metadata for fast title/tag indexing."""
+
+    search_title: str = ""
+    keywords: List[str] = Field(default_factory=list)
+    category: Optional[str] = None
+
+
+class SeoInfo(BaseModel):
+    """Search Engine Optimization and social card metadata for the web platform."""
+
+    title: str = ""
+    description: str = ""
+    canonical_slug: str = ""
+
+
+class BookStats(BaseModel):
+    """Lightweight counters for publication views and opens."""
+
+    views: int = Field(default=0, ge=0)
+    opens: int = Field(default=0, ge=0)
+
+
+class AdStats(BaseModel):
+    """Lightweight counters for advertisement impressions and clicks."""
+
+    impressions: int = Field(default=0, ge=0)
+    clicks: int = Field(default=0, ge=0)
+
+
+def validate_clean_ad_text(val: str, field_name: str) -> str:
+    """Ensure advertisement text does not contain arbitrary HTML tags or scripts."""
+    if not isinstance(val, str):
+        return ""
+    if re.search(r"<\s*[^>]+>", val) or re.search(r"javascript:|data:", val, re.IGNORECASE):
+        raise ValueError(f"Advertisement {field_name} must not contain HTML tags, scripts, or executable code.")
+    return val.strip()
+
+
+class Ad(BaseModel):
+    """Native advertisement structured data model for the future Next.js site."""
+
+    id: str = Field(default_factory=generate_id)
+    title: str
+    headline: str
+    description: str
+    sponsor: str
+    url: str
+    placements: List[str] = Field(default_factory=lambda: ["home_banner", "home_sidebar", "saved_banner", "saved_sidebar"])
+    priority: int = Field(default=1, ge=1, le=3)
+    active: bool = True
+    starts_at: Optional[datetime] = None
+    ends_at: Optional[datetime] = None
+    stats: AdStats = Field(default_factory=AdStats)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @field_validator("title")
+    @classmethod
+    def _validate_title(cls, v: str) -> str:
+        return validate_clean_ad_text(v, "title")
+
+    @field_validator("headline")
+    @classmethod
+    def _validate_headline(cls, v: str) -> str:
+        return validate_clean_ad_text(v, "headline")
+
+    @field_validator("description")
+    @classmethod
+    def _validate_description(cls, v: str) -> str:
+        return validate_clean_ad_text(v, "description")
+
+    @field_validator("sponsor")
+    @classmethod
+    def _validate_sponsor(cls, v: str) -> str:
+        return validate_clean_ad_text(v, "sponsor")
+
+    @field_validator("url")
+    @classmethod
+    def _validate_url(cls, v: str) -> str:
+        if not isinstance(v, str):
+            raise ValueError("URL must be a string.")
+        cleaned = v.strip()
+        if not re.match(r"^https?://[^\s/$.?#].[^\s]*$", cleaned, re.IGNORECASE):
+            raise ValueError("Advertisement URL must be a valid HTTP or HTTPS address.")
+        if re.search(r"javascript:|data:", cleaned, re.IGNORECASE):
+            raise ValueError("Advertisement URL must not use javascript or data schemes.")
+        return cleaned
+
+    @field_validator("priority")
+    @classmethod
+    def _validate_priority(cls, v: int) -> int:
+        if v not in (1, 2, 3):
+            raise ValueError("Advertisement priority must be 1, 2, or 3.")
+        return v
+
+    @field_validator("placements")
+    @classmethod
+    def _validate_placements(cls, v: List[str]) -> List[str]:
+        if not v:
+            raise ValueError("Placements list cannot be empty.")
+        clean_placements = []
+        for p in v:
+            if not isinstance(p, str) or not p.strip():
+                continue
+            if re.search(r"<\s*[^>]+>", p):
+                raise ValueError("Placement identifiers must not contain HTML tags.")
+            clean_placements.append(p.strip())
+        if not clean_placements:
+            raise ValueError("At least one valid placement identifier is required.")
+        return clean_placements
+
+
+T = TypeVar("T")
+
+
+class PaginatedResult(BaseModel, Generic[T]):
+    """Standardized deterministic pagination result for collections."""
+
+    items: List[T]
+    page: int = Field(ge=1)
+    limit: int = Field(ge=1)
+    total: int = Field(ge=0)
+    total_pages: int = Field(ge=0)
+    has_next: bool = False
+    has_previous: bool = False
+
+
 class Page(BaseModel):
     """Represents an individual A4 rendered page stored independently in MongoDB."""
 
@@ -539,6 +726,22 @@ class Page(BaseModel):
     sources: List[SourceCitation] = Field(default_factory=list)
     html: str = ""
     validation: Dict[str, Any] = Field(default_factory=dict)
+    schema_version: int = CURRENT_SCHEMA_VERSION
+    renderer_version: str = CURRENT_RENDERER_VERSION
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    @model_validator(mode="before")
+    @classmethod
+    def _backfill_page_metadata(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if "schema_version" not in data:
+                data["schema_version"] = CURRENT_SCHEMA_VERSION
+            if "renderer_version" not in data:
+                data["renderer_version"] = CURRENT_RENDERER_VERSION
+            if "updated_at" not in data:
+                data["updated_at"] = data.get("created_at") or datetime.now(timezone.utc)
+        return data
 
     @field_validator("theme", mode="before")
     @classmethod
@@ -593,38 +796,131 @@ class Cover(BaseModel):
     width: int = Field(default=1600)
     height: int = Field(default=2560)
     title: str
+    subtitle: Optional[str] = None
+    author: Optional[str] = None
     design: Dict[str, Any] = Field(default_factory=dict)
     html: str = ""
     image_path: Optional[str] = None
+    schema_version: int = CURRENT_SCHEMA_VERSION
+    renderer_version: str = CURRENT_RENDERER_VERSION
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    @property
-    def subtitle(self) -> Optional[str]:
-        return self.design.get("subtitle")
+    @model_validator(mode="before")
+    @classmethod
+    def _backfill_cover_metadata(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            design = data.get("design", {})
+            if isinstance(design, dict):
+                if not data.get("subtitle") and design.get("subtitle"):
+                    data["subtitle"] = design.get("subtitle")
+                if not data.get("author") and design.get("author"):
+                    data["author"] = design.get("author")
+            if "schema_version" not in data:
+                data["schema_version"] = CURRENT_SCHEMA_VERSION
+            if "renderer_version" not in data:
+                data["renderer_version"] = CURRENT_RENDERER_VERSION
+            if "updated_at" not in data:
+                data["updated_at"] = data.get("created_at") or datetime.now(timezone.utc)
+        return data
 
 
 class Book(BaseModel):
     """Represents the complete book entity stored in books collection."""
 
     id: str = Field(default_factory=generate_id)
+    schema_version: int = CURRENT_SCHEMA_VERSION
+    renderer_version: str = CURRENT_RENDERER_VERSION
     slug: str = ""
     title: str
     subtitle: Optional[str] = None
     running_title: Optional[str] = None
     author: Optional[str] = None
+    topic: str = ""
     prompt: str = ""
     description: str = ""
+    book_type: Optional[str] = None
+    publication_profile: Optional[str] = None
+    category: Optional[str] = None
+    target_audience: Optional[str] = None
+    tone: Optional[str] = None
+    technical_depth: Optional[str] = None
     status: str = "draft"
     chapter_count: int = 0
     page_count: int = 0
     starting_page_id: Optional[str] = None
     cover_id: Optional[str] = None
     chapters: List[ChapterMetadata] = Field(default_factory=list)
+    publication: PublicationInfo = Field(default_factory=PublicationInfo)
+    featured: FeaturedInfo = Field(default_factory=FeaturedInfo)
+    discovery: DiscoveryInfo = Field(default_factory=DiscoveryInfo)
+    seo: SeoInfo = Field(default_factory=SeoInfo)
+    stats: BookStats = Field(default_factory=BookStats)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_and_default_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            # Topic & prompt sync
+            if not data.get("topic") and data.get("prompt"):
+                data["topic"] = data["prompt"]
+            elif not data.get("prompt") and data.get("topic"):
+                data["prompt"] = data["topic"]
+
+            # Versions
+            if "schema_version" not in data:
+                data["schema_version"] = CURRENT_SCHEMA_VERSION
+            if "renderer_version" not in data:
+                data["renderer_version"] = CURRENT_RENDERER_VERSION
+
+            # Publication metadata
+            if "publication" not in data or not data["publication"]:
+                raw_status = data.get("status", "draft")
+                try:
+                    p_status = PublicationStatus(str(raw_status).lower())
+                except ValueError:
+                    p_status = PublicationStatus.DRAFT
+                data["publication"] = {
+                    "status": p_status,
+                    "visibility": PublicationVisibility.PUBLIC,
+                    "published_at": data.get("published_at") or (datetime.now(timezone.utc) if p_status == PublicationStatus.PUBLISHED else None),
+                    "updated_at": data.get("updated_at") or datetime.now(timezone.utc),
+                }
+
+            # Featured metadata
+            if "featured" not in data or not data["featured"]:
+                data["featured"] = {"pinned": False, "position": None}
+
+            # Discovery metadata
+            title = data.get("title", "")
+            if "discovery" not in data or not data["discovery"]:
+                data["discovery"] = {
+                    "search_title": slugify(title).replace("-", " ") if title else "",
+                    "keywords": data.get("keywords") or [],
+                    "category": data.get("category"),
+                }
+
+            # SEO metadata
+            if "seo" not in data or not data["seo"]:
+                sub = data.get("subtitle")
+                seo_title = f"{title}: {sub}"[:70] if sub else title[:70]
+                desc = data.get("description", "")
+                slug = data.get("slug") or slugify(title)
+                data["seo"] = {
+                    "title": seo_title,
+                    "description": desc[:160] if desc else "",
+                    "canonical_slug": slug,
+                }
+
+            # Stats metadata
+            if "stats" not in data or not data["stats"]:
+                data["stats"] = {"views": 0, "opens": 0}
+        return data
+
     @model_validator(mode="after")
-    def generate_slug_if_missing(self) -> "Book":
+    def sync_publication_and_metadata(self) -> "Book":
         if not self.author:
             from vasukisquare.config import get_app_config
             self.author = get_app_config().branding.author_name
@@ -638,6 +934,20 @@ class Book(BaseModel):
             else:
                 words = self.title.split()
                 self.running_title = " ".join(words[:5]) if len(words) > 5 else self.title
+        # Keep status field synchronized with publication.status
+        self.status = self.publication.status.value
+        # Ensure discovery search title is set
+        if not self.discovery.search_title and self.title:
+            self.discovery.search_title = self.title.strip().lower()
+        if not self.discovery.category and self.category:
+            self.discovery.category = self.category
+        # Ensure SEO canonical slug matches slug
+        if not self.seo.canonical_slug and self.slug:
+            self.seo.canonical_slug = self.slug
+        if not self.seo.title and self.title:
+            self.seo.title = f"{self.title}: {self.subtitle}"[:70] if self.subtitle else self.title[:70]
+        if not self.seo.description and self.description:
+            self.seo.description = self.description[:160]
         return self
 
 

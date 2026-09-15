@@ -3,6 +3,7 @@
 import asyncio
 import json
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Union
 from vasukisquare.config import Settings, get_settings, get_app_config
@@ -442,66 +443,8 @@ class EbookGenerationPipeline:
         else:
             logger.info(f"Book passed all quality audit checks: {audit_result['passed_checks']}")
 
-        # Stage 6: Database Persistence
-        if persist_db:
-            logger.info("Stage 6/7: Persisting Book, Pages, and Cover to MongoDB...")
-            try:
-                book_repo = BookRepository(self.db_manager.db)
-                page_repo = PageRepository(self.db_manager.db)
-                cover_repo = CoverRepository(self.db_manager.db)
-
-                # 1. Persist Book
-                chapters_meta = [
-                    ChapterMetadata(
-                        chapter_number=ch.chapter_number,
-                        title=ch.title,
-                        summary=ch.summary,
-                        icon=ch.icon,
-                        page_count=ch.page_budget,
-                    )
-                    for ch in state.book_plan.chapters
-                ]
-                book_entity = Book(
-                    title=state.book_plan.title,
-                    subtitle=state.book_plan.subtitle,
-                    running_title=state.book_plan.running_title,
-                    prompt=topic,
-                    description=state.book_plan.description,
-                    chapter_count=len(chapters_meta),
-                    page_count=len(state.pages),
-                    chapters=chapters_meta,
-                )
-                book_repo.create(book_entity)
-                state.book = book_entity
-
-                # 2. Update page book_ids and persist linked pages
-                for p in state.pages:
-                    p.book_id = book_entity.id
-
-                page_repo.insert_pages_linked(state.pages)
-                book_repo.update_starting_page(book_entity.id, state.pages[0].id)
-                book_entity.starting_page_id = state.pages[0].id
-
-                # 3. Persist Cover
-                cover_service = CoverService(
-                    settings=self.settings,
-                    renderer=self.cover_renderer,
-                    cover_repo=cover_repo,
-                    book_repo=book_repo,
-                )
-                cover_entity = await cover_service.generate_and_persist_cover(
-                    book_id=book_entity.id,
-                    plan=state.cover_plan,
-                    save_raster_image=save_raster_cover,
-                )
-                book_entity.cover_id = cover_entity.id
-                state.cover = cover_entity
-            except Exception as e:
-                logger.warning(f"Database persistence skipped or failed (non-blocking): {e}")
-                state.errors.append(f"MongoDB: {e}")
-
-        # Stage 7: Final HTML Assembly & PDF Rendering
-        logger.info("Stage 7/7: Assembling Final Book HTML and Exporting PDF...")
+        # Stage 6: Final Preflight Validation & PDF Export
+        logger.info("Stage 6/7: Assembling Final Book HTML and Exporting PDF...")
         from vasukisquare.renderer.preflight import preflight_book
         preflight_report = preflight_book(state.pages, book_theme=book_theme)
         preflight_json_path = out_dir / "preflight_report.json"
@@ -530,13 +473,142 @@ class EbookGenerationPipeline:
             await self.pdf_renderer.render_pdf_from_html(state.assembled_html, pdf_path)
             state.artifacts["book_pdf"] = str(pdf_path)
 
+        # Stage 7: Canonical Database Persistence (Final Repaired & Rendered Publication)
+        if persist_db:
+            logger.info("Stage 7/7: Persisting Final Repaired Publication to MongoDB...")
+            try:
+                self.db_manager.init_all_indexes()
+                book_repo = BookRepository(self.db_manager.db)
+                page_repo = PageRepository(self.db_manager.db)
+                cover_repo = CoverRepository(self.db_manager.db)
+
+                # 1. Prepare chapter metadata
+                chapters_meta = [
+                    ChapterMetadata(
+                        chapter_number=ch.chapter_number,
+                        title=ch.title,
+                        summary=ch.summary,
+                        icon=ch.icon,
+                        page_count=ch.page_budget,
+                    )
+                    for ch in state.book_plan.chapters
+                ]
+
+                # 2. Derive discovery and SEO metadata deterministically
+                book_title = state.book_plan.title
+                book_sub = state.book_plan.subtitle
+                seo_title = f"{book_title}: {book_sub}"[:70] if book_sub else book_title[:70]
+                seo_desc = (state.book_plan.description or topic)[:160]
+
+                keywords = list(state.intent.required_topics) if state.intent else []
+                if state.intent and state.intent.desired_elements:
+                    keywords.extend(state.intent.desired_elements)
+
+                category_name = state.cover_plan.category if state.cover_plan else (
+                    state.intent.book_type.replace("_", " ").title() if state.intent else "General"
+                )
+
+                from vasukisquare.book.models import (
+                    CURRENT_SCHEMA_VERSION,
+                    CURRENT_RENDERER_VERSION,
+                    PublicationInfo,
+                    PublicationStatus,
+                    PublicationVisibility,
+                    FeaturedInfo,
+                    DiscoveryInfo,
+                    SeoInfo,
+                    BookStats,
+                )
+
+                now = datetime.now(timezone.utc)
+                book_entity = Book(
+                    schema_version=CURRENT_SCHEMA_VERSION,
+                    renderer_version=CURRENT_RENDERER_VERSION,
+                    title=book_title,
+                    subtitle=book_sub,
+                    running_title=state.book_plan.running_title,
+                    author=state.cover_plan.author or resolved_author,
+                    topic=topic,
+                    prompt=prompt or topic,
+                    description=state.book_plan.description,
+                    book_type=state.intent.book_type if state.intent else "practical_guide",
+                    publication_profile=str(state.intent.publication_profile.value) if state.intent and state.intent.publication_profile else "general_nonfiction",
+                    category=category_name,
+                    target_audience=state.intent.target_audience if state.intent else "General Readers",
+                    tone=state.intent.tone if state.intent else "practical",
+                    technical_depth=state.intent.technical_depth if state.intent else "intermediate",
+                    status=PublicationStatus.DRAFT.value,
+                    chapter_count=len(chapters_meta),
+                    page_count=len(state.pages),
+                    chapters=chapters_meta,
+                    publication=PublicationInfo(
+                        status=PublicationStatus.DRAFT,
+                        visibility=PublicationVisibility.PUBLIC,
+                        published_at=None,
+                        updated_at=now,
+                    ),
+                    featured=FeaturedInfo(pinned=False, position=None),
+                    discovery=DiscoveryInfo(
+                        search_title=book_title.strip().lower(),
+                        keywords=keywords,
+                        category=category_name,
+                    ),
+                    seo=SeoInfo(
+                        title=seo_title,
+                        description=seo_desc,
+                        canonical_slug="",
+                    ),
+                    stats=BookStats(views=0, opens=0),
+                )
+
+                book_repo.create(book_entity)
+                state.book = book_entity
+
+                # 3. Update page book_ids and persist linked pages
+                for p in state.pages:
+                    p.book_id = book_entity.id
+                    p.schema_version = CURRENT_SCHEMA_VERSION
+                    p.renderer_version = CURRENT_RENDERER_VERSION
+
+                page_repo.insert_pages_linked(state.pages)
+                book_repo.update_starting_page(book_entity.id, state.pages[0].id)
+                book_entity.starting_page_id = state.pages[0].id
+
+                # 4. Persist Cover
+                cover_service = CoverService(
+                    settings=self.settings,
+                    renderer=self.cover_renderer,
+                    cover_repo=cover_repo,
+                    book_repo=book_repo,
+                )
+                cover_entity = await cover_service.generate_and_persist_cover(
+                    book_id=book_entity.id,
+                    plan=state.cover_plan,
+                    save_raster_image=save_raster_cover,
+                )
+                book_entity.cover_id = cover_entity.id
+                state.cover = cover_entity
+
+                # 5. Atomically transition publication to PUBLISHED
+                book_repo.update_publication_status(
+                    book_id=book_entity.id,
+                    status=PublicationStatus.PUBLISHED,
+                    visibility=PublicationVisibility.PUBLIC,
+                )
+                book_entity.publication.status = PublicationStatus.PUBLISHED
+                book_entity.publication.published_at = datetime.now(timezone.utc)
+                book_entity.status = PublicationStatus.PUBLISHED.value
+                logger.info(f"Book successfully published to MongoDB (id={book_entity.id}, slug='{book_entity.slug}')")
+            except Exception as e:
+                logger.warning(f"Database persistence skipped or failed (non-blocking): {e}")
+                state.errors.append(f"MongoDB: {e}")
+
         # Save generation metrics artifact
         metrics_json_path = out_dir / "generation_metrics.json"
         metrics_json_path.write_text(self.metrics.model_dump_json(indent=2), encoding="utf-8")
         state.artifacts["generation_metrics_json"] = str(metrics_json_path)
 
         # Save Book Manifest canonical record
-        from datetime import datetime, timezone
         manifest_data = {
             "topic": topic,
             "title": state.book_plan.title if state.book_plan else (state.intent.title if state.intent else topic),

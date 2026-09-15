@@ -24,10 +24,10 @@ Stage 4: Cover Planning & Design
 Stage 5: Page Authoring & Overflow Repair
     │
     ▼
-Stage 6: Database Persistence (Optional MongoDB)
+Stage 6: HTML Assembly, Preflight Audit & PDF Export
     │
     ▼
-Stage 7: Final HTML Assembly & PDF Export
+Stage 7: Canonical Database Persistence (Optional MongoDB)
 ```
 
 ---
@@ -101,23 +101,24 @@ Stage 7: Final HTML Assembly & PDF Export
 
 ---
 
-### Stage 6: Database Persistence (`DatabaseManager` & Repositories)
-- **Input**: Assembled `Book`, `Page` list, and `Cover`.
-- **Processing**:
-  - Persists `Book` root document in `books` collection.
-  - Generates bidirectional linked-list IDs (`previous_page_id`, `next_page_id`, `book_id`) and inserts into `pages` collection.
-  - Links `starting_page_id` and persists cover artwork in `covers` collection.
-- **Output**: Navigable MongoDB document graph.
-- **Failure Handling**: **Non-blocking**. If MongoDB is not running or `--no-db` is specified, the pipeline logs a warning and proceeds without interrupting PDF export.
-
----
-
-### Stage 7: HTML Assembly & PDF Export (`HtmlPageRenderer` & `PdfRenderer`)
-- **Input**: Validated `Page` list, `BookPlan`, and `AppConfig`.
+### Stage 6: HTML Assembly, Preflight Audit & PDF Export (`HtmlPageRenderer` & `PdfRenderer`)
+- **Input**: Repaired, re-linked, and validated `Page` list, `BookPlan`, and `AppConfig`.
 - **Processing**:
   - Runs `preflight_book` to check geometry and visual token integrity.
   - Combines individual page DOMs into canonical `book.html`.
   - Launches Playwright headless Chromium, waits for web fonts and assets to settle, and prints physical A4 `book.pdf`.
-  - Writes canonical `book_manifest.json` and `generation_metrics.json`.
+  - Writes canonical `book_manifest.json`, `preflight_report.json`, and `generation_metrics.json`.
 - **Output**: `book.html`, `book.pdf`, `book_manifest.json`, `preflight_report.json`, `generation_metrics.json`.
 - **Failure Handling**: Clear diagnostics if Playwright browser binaries are missing (`playwright install chromium`).
+
+---
+
+### Stage 7: Canonical Database Persistence (`DatabaseManager` & Repositories)
+- **Input**: Final preflight-validated `Book`, final repaired `Page` list, and `Cover`.
+- **Processing**:
+  - Persists `Book` root document in `books` collection (resolving deterministic slug collision and SEO canonicals).
+  - Persists the final repaired, renumbered, and re-linked physical pages into `pages` collection.
+  - Links `starting_page_id` and persists cover artwork in `covers` collection.
+  - Transitions publication lifecycle status from `"draft"` to `"published"` (`published_at = datetime.now()`).
+- **Output**: Navigable, complete MongoDB document graph ready for external Next.js consumption.
+- **Failure Handling**: **Non-blocking**. If MongoDB is not running or `--no-db` is specified, the pipeline logs an informational notice and completes PDF export without interruption.

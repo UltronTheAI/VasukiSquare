@@ -5,6 +5,8 @@ from vasukisquare.database.repository import (
     BookRepository,
     PageRepository,
     CoverRepository,
+    AdRepository,
+    select_weighted_ad,
 )
 
 __all__ = [
@@ -12,5 +14,7 @@ __all__ = [
     "BookRepository",
     "PageRepository",
     "CoverRepository",
+    "AdRepository",
+    "select_weighted_ad",
 ]
 
