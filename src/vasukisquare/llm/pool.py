@@ -132,7 +132,6 @@ def is_retryable_groq_error(error: Exception) -> GroqErrorClassification:
         "maximum context length",
         "context_length_exceeded",
         "exceeds maximum token",
-        "tokens per minute (tpm): limit",
     ]
     if any(ind in err_str for ind in impossible_limit_indicators):
         return GroqErrorClassification(

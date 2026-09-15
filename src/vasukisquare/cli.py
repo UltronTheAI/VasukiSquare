@@ -8,6 +8,18 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+# Ensure standard streams handle UTF-8 safely across Windows and legacy consoles
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from vasukisquare.config import get_settings, load_config, ConfigValidationError
 from vasukisquare.pipeline.orchestrator import EbookGenerationPipeline
 
@@ -170,7 +182,11 @@ async def main_async(args=None):
     if state.errors:
         print(" Warnings / Non-fatal Errors:")
         for err in state.errors:
-            print(f"   ! {err}")
+            try:
+                print(f"   ! {err}")
+            except Exception:
+                safe_err = str(err).encode("ascii", "replace").decode("ascii")
+                print(f"   ! {safe_err}")
     print("==========================================\n")
     return state
 
@@ -190,4 +206,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
