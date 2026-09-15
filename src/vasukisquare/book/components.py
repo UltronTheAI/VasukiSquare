@@ -194,13 +194,17 @@ class TextBlock(BaseModel):
     """Paragraph of text with optional rich formatting spans and semantic typography."""
 
     type: Literal["text"] = "text"
-    text: str = Field(description="Paragraph plain or markdown-like formatted text")
+    text: str = Field(default="", description="Paragraph plain or markdown-like formatted text")
     typography_role: Optional[str] = Field(default=None, description="DESIGN.md semantic typography role")
     spans: Optional[List[RichSpan]] = Field(default=None, description="Structured pre-parsed rich spans")
     rich_spans: Optional[List[RichSpan]] = Field(default=None, description="Alias for spans")
     paragraphs: Optional[List[str]] = Field(default=None, description="Optional multi-paragraph list")
 
     def model_post_init(self, __context: Any) -> None:
+        if not self.text and self.paragraphs:
+            self.text = "\n\n".join(self.paragraphs)
+        elif self.text and not self.paragraphs:
+            self.paragraphs = [p for p in self.text.split("\n\n") if p.strip()]
         if not self.spans and self.rich_spans:
             self.spans = self.rich_spans
         elif not self.rich_spans and self.spans:

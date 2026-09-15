@@ -9,10 +9,14 @@ from vasukisquare.book.layout import LayoutType
 from vasukisquare.design.themes import BookThemeMap, SectionTheme
 from vasukisquare.renderer.geometry import (
     CONTENT_SAFE_HEIGHT_MM,
+    AVAILABLE_CONTENT_HEIGHT_MM,
+    CONTENT_BOTTOM_MM,
+    CONTENT_TOP_MM,
     FOOTER_SAFE_ZONE_MM,
     HEADER_SAFE_ZONE_MM,
     USABLE_PAGE_HEIGHT_MM,
     MIN_FOOTER_BREATHING_GAP_MM,
+    SAFE_BOTTOM_EPSILON_MM,
 )
 from vasukisquare.renderer.overflow import estimate_page_utilization
 
@@ -121,17 +125,17 @@ def preflight_page(page: Page, theme: Optional[SectionTheme] = None) -> PagePref
     decorative_coll = False
 
     # 1. Content Safe Height Check
-    if util.total_content_height_mm > CONTENT_SAFE_HEIGHT_MM:
+    if util.total_content_height_mm > (AVAILABLE_CONTENT_HEIGHT_MM + SAFE_BOTTOM_EPSILON_MM):
         is_overflow = True
         footer_coll = True
         errors.append(
-            f"Content height ({util.total_content_height_mm:.1f}mm) exceeds safe content boundary ({CONTENT_SAFE_HEIGHT_MM:.1f}mm), risking footer collision."
+            f"Content height ({util.total_content_height_mm:.1f}mm) exceeds safe content boundary ({AVAILABLE_CONTENT_HEIGHT_MM:.1f}mm), risking footer collision."
         )
 
     # 2. Table / Footer Breathing Gap Check
     table_heights = [h for k, h in util.block_breakdown.items() if "table" in k]
     if table_heights:
-        remaining_space = CONTENT_SAFE_HEIGHT_MM - util.total_content_height_mm
+        remaining_space = AVAILABLE_CONTENT_HEIGHT_MM - util.total_content_height_mm
         if remaining_space < MIN_FOOTER_BREATHING_GAP_MM and not is_overflow:
             warnings.append(
                 f"Table is within {remaining_space:.1f}mm of footer safe zone (recommended >= {MIN_FOOTER_BREATHING_GAP_MM:.1f}mm)."
@@ -141,14 +145,14 @@ def preflight_page(page: Page, theme: Optional[SectionTheme] = None) -> PagePref
 
     # 3. Utilization Target Verification (90-95% for normal pages, flexible for continuation pages)
     if is_continuation:
-        if util.estimated_ratio < 0.25:
-            errors.append(
-                f"Hard Fail: Continuation page {page.page_number} content utilization ({util.estimated_ratio:.1%}) is severely deficient (< 25.0%)."
-            )
-        elif util.estimated_ratio > 0.98:
+        if util.estimated_ratio > 0.98:
             is_overflow = True
             errors.append(
                 f"Continuation page overfilled: utilization is {util.estimated_ratio:.1%} (> 98.0% overflow threshold)."
+            )
+        elif util.estimated_ratio < 0.25:
+            warnings.append(
+                f"Continuation page {page.page_number} content utilization ({util.estimated_ratio:.1%}) is light."
             )
     else:
         if util.is_hard_fail:

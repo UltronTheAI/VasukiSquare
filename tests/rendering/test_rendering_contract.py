@@ -248,7 +248,7 @@ def test_overflow_detection_and_repair():
     assert detector.is_overflowing(normal_page) is False
 
     # Massive overflowing page (> MAX_PAGE_CHARACTERS)
-    huge_text = "This is an extensive technical dissertation on asynchronous IO event loops and kernel epoll implementations. " * 40
+    huge_text = "This is an extensive technical dissertation on asynchronous IO event loops and kernel epoll implementations. " * 25
     overflow_page = Page(
         book_id="b1",
         page_number=2,

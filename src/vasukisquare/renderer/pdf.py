@@ -74,6 +74,69 @@ class PdfRenderer:
                 except Exception:
                     pass
 
+                # 3. Validate DOM layout and bounding boxes before PDF export
+                try:
+                    dom_validation = await page.evaluate("""
+                    () => {
+                        const pageDivs = Array.from(document.querySelectorAll('.page'));
+                        const results = [];
+                        for (let idx = 0; idx < pageDivs.length; idx++) {
+                            const pageEl = pageDivs[idx];
+                            const pageNum = parseInt(pageEl.getAttribute('data-page-number') || (idx + 1));
+                            const isCover = pageEl.classList.contains('layout-cover');
+                            const isOpener = pageEl.classList.contains('layout-chapter_opener');
+                            if (isCover) {
+                                results.push({ pageNum, valid: true, isCover: true });
+                                continue;
+                            }
+                            
+                            const pageRect = pageEl.getBoundingClientRect();
+                            const footerEl = pageEl.querySelector('.page-footer');
+                            // Content must strictly end above footer top with safety gap
+                            const footerTop = footerEl ? footerEl.getBoundingClientRect().top : (pageRect.bottom - 48);
+                            const allowedBottom = footerTop - 2.0; // tiny renderer tolerance
+                            
+                            const contentEls = Array.from(pageEl.querySelectorAll('.page-content > *'));
+                            let worstDelta = 0;
+                            let hasCollision = false;
+                            let culpritSelector = "";
+                            
+                            for (const el of contentEls) {
+                                const r = el.getBoundingClientRect();
+                                if (r.bottom > allowedBottom) {
+                                    hasCollision = true;
+                                    const delta = r.bottom - allowedBottom;
+                                    if (delta > worstDelta) {
+                                        worstDelta = delta;
+                                        culpritSelector = el.className || el.tagName.toLowerCase();
+                                    }
+                                }
+                            }
+                            
+                            results.push({
+                                pageNum,
+                                valid: !hasCollision,
+                                worstDelta: Math.round(worstDelta * 10) / 10,
+                                culprit: culpritSelector,
+                                scrollWidth: pageEl.scrollWidth,
+                                clientWidth: pageEl.clientWidth,
+                            });
+                        }
+                        return results;
+                    }
+                    """)
+                    
+                    failed_pages = [r for r in dom_validation if not r.get("valid")]
+                    if failed_pages:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        for f in failed_pages:
+                            logger.warning(
+                                f"[DOM LAYOUT WARNING] Page {f['pageNum']} content element '{f['culprit']}' enters reserved footer zone by {f['worstDelta']}px."
+                            )
+                except Exception:
+                    pass
+
                 await page.pdf(
                     path=str(out_path),
                     format="A4",
@@ -113,7 +176,74 @@ class PdfRenderer:
         )
         return await self.render_html_to_pdf(html_content, output_path)
 
+    async def inspect_dom_geometry(self, html_content: str) -> List[dict]:
+        """Inspect rendered Playwright DOM bounding boxes and verify layout safe area adherence."""
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=self.settings.chromium_headless)
+            page = await browser.new_page(viewport={"width": 794, "height": 1123})
+            await page.set_content(html_content, wait_until="load")
+            try:
+                await page.evaluate("() => document.fonts.ready")
+            except Exception:
+                pass
+            dom_validation = await page.evaluate("""
+            () => {
+                const pageDivs = Array.from(document.querySelectorAll('.page'));
+                const results = [];
+                for (let idx = 0; idx < pageDivs.length; idx++) {
+                    const pageEl = pageDivs[idx];
+                    const pageNum = parseInt(pageEl.getAttribute('data-page-number') || (idx + 1));
+                    const isCover = pageEl.classList.contains('layout-cover');
+                    const isOpener = pageEl.classList.contains('layout-chapter_opener');
+                    if (isCover) {
+                        results.push({ pageNum, valid: true, isCover: true, scrollWidth: pageEl.scrollWidth, clientWidth: pageEl.clientWidth });
+                        continue;
+                    }
+                    
+                    const pageRect = pageEl.getBoundingClientRect();
+                    const footerEl = pageEl.querySelector('.page-footer');
+                    const footerTop = footerEl ? footerEl.getBoundingClientRect().top : (pageRect.bottom - 48);
+                    const allowedBottom = footerTop - 2.0;
+                    
+                    const contentEls = Array.from(pageEl.querySelectorAll('.page-content > *'));
+                    let worstDelta = 0;
+                    let hasCollision = false;
+                    let culpritSelector = "";
+                    let maxBottom = 0;
+                    
+                    for (const el of contentEls) {
+                        const r = el.getBoundingClientRect();
+                        if (r.bottom > maxBottom) maxBottom = r.bottom;
+                        if (r.bottom > allowedBottom) {
+                            hasCollision = true;
+                            const delta = r.bottom - allowedBottom;
+                            if (delta > worstDelta) {
+                                worstDelta = delta;
+                                culpritSelector = el.className || el.tagName.toLowerCase();
+                            }
+                        }
+                    }
+                    
+                    results.push({
+                        pageNum,
+                        valid: !hasCollision,
+                        worstDelta: Math.round(worstDelta * 10) / 10,
+                        culprit: culpritSelector,
+                        maxBottom,
+                        footerTop,
+                        scrollWidth: pageEl.scrollWidth,
+                        clientWidth: pageEl.clientWidth,
+                    });
+                }
+                return results;
+            }
+            """)
+            await browser.close()
+            return dom_validation
+
     def render_sync(self, html_content: str, output_path: Union[str, Path]) -> Path:
         """Synchronous wrapper for rendering HTML to PDF."""
         return asyncio.run(self.render_html_to_pdf(html_content, output_path))
+
 

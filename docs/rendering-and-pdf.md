@@ -44,20 +44,37 @@ async with async_playwright() as p:
 
 ---
 
-## 3. Zero-Overflow & Page Repair Engine
+## 3. Zero-Overflow & Canonical Safe-Area Architecture
 
-In physical A4 printing, page content must never vertically overflow its container. VasukiSquare incorporates an automated overflow detection and repair engine (`src/vasukisquare/renderer/overflow.py`):
+In physical A4 printing, page content must never vertically overflow, enter, hide behind, or be clipped by the footer/bottom page boundary. VasukiSquare enforces a centralized geometric boundary model (`src/vasukisquare/renderer/geometry.py` and `src/vasukisquare/renderer/overflow.py`):
 
-1. **Content Density Estimation**: Calculates the physical vertical height of all component blocks on each page.
-2. **Dynamic Splitting**: If a page's content density exceeds 100% of the printable A4 safe zone, the repair engine splits the content across consecutive pages while preserving heading hierarchies.
-3. **Table of Contents Re-indexing**: When pages are dynamically split, Pass 2 updates chapter starting page numbers in the Table of Contents.
+1. **Canonical Safe Area Geometry**:
+   - `PAGE_HEIGHT_MM = 297.0mm`, `PAGE_WIDTH_MM = 210.0mm`.
+   - `HEADER_RESERVED_HEIGHT_MM = 18.0mm` (12mm header + 6mm gap).
+   - `FOOTER_RESERVED_HEIGHT_MM = 16.0mm` (10mm footer + 6mm gap).
+   - `BOTTOM_SAFETY_GAP_MM = 8.0mm` mandatory breathing room strictly preserved before footer safe zone.
+   - `CONTENT_TOP_MM = 42.0mm`, `CONTENT_BOTTOM_MM = 249.0mm`, `AVAILABLE_CONTENT_HEIGHT_MM = 207.0mm`.
+   - `SAFE_BOTTOM_EPSILON_MM = 1.0mm` renderer rounding tolerance.
+
+2. **Atomic Component Fit & Orphan Prevention**:
+   - Atomic cards, callouts, comparison boxes, steps, and figure+caption blocks are never split mid-card when insufficient space remains; they move cleanly to the next page.
+   - Orphaned headings at page bottoms are automatically prevented and moved with their succeeding section.
+
+3. **Sub-splitting for Tall Multi-Item Components**:
+   - Code snippets and terminal sessions are split strictly on exact newline boundaries with `(Cont.)` captions.
+   - Tables repeat column headers across split fragments.
+   - Checklists, steps, and comparisons partition at clean item boundaries.
+
+4. **Table of Contents Re-indexing**:
+   - When continuation pages are dynamically inserted, `regenerate_toc_pages` re-synchronizes chapter starting page numbers across the document.
 
 ---
 
-## 4. Preflight Audit
+## 4. Preflight Audit & DOM Geometry Inspection
 
-Before final PDF generation, `preflight_book` (`src/vasukisquare/renderer/preflight.py`) conducts automated preflight checks:
-- Verifies physical A4 dimensions across all pages.
+Before final PDF generation, `preflight_book` (`src/vasukisquare/renderer/preflight.py`) and Playwright DOM layout inspection (`src/vasukisquare/renderer/pdf.py`) conduct comprehensive visual QA:
+- **Playwright DOM Bounding Box Validation**: Inspects rendered DOM bounding boxes (`getBoundingClientRect()`) for `.page-content` vs `.page-footer` to guarantee zero visual collisions or overflow.
+- Verifies physical A4 dimensions and safe margins across all pages.
 - Verifies that chapter openers contain zero body text.
 - Validates alternating theme colors and contrast.
 - Ensures all page numbers are sequential and continuous.

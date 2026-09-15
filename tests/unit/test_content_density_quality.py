@@ -130,6 +130,9 @@ def test_code_page_with_code_output_prose_passes():
             filename="functions_demo.py",
             code=(
                 "def calculate_tax(amount: float, rate: float = 0.08) -> float:\n"
+                "    \"\"\"Calculate the sales tax for a given transaction amount.\"\"\"\n"
+                "    if amount < 0:\n"
+                "        raise ValueError('Amount cannot be negative')\n"
                 "    return round(amount * rate, 2)\n\n"
                 "print(f'Total: ${125.0 + calculate_tax(125.0):.2f}')"
             ),
@@ -144,12 +147,6 @@ def test_code_page_with_code_output_prose_passes():
             title="Type Annotations",
             content="Always add type hints to function signatures. They make code self-documenting and prevent type-related bugs.",
             variant="tip",
-        ),
-        CommonMistakeBlock(
-            title="Mutable Default Arguments",
-            mistake_code="def add(x, l=[]):\n    l.append(x)\n    return l",
-            corrected_code="def add(x, l=None):\n    if l is None: l = []\n    l.append(x); return l",
-            explanation="Default list arguments retain state across multiple function calls.",
         ),
     ]
     page = Page(

@@ -523,7 +523,7 @@ sub { vertical-align: sub; font-size: 0.75em; line-height: 0; }
   overflow-x: auto;
   white-space: pre-wrap;
   word-break: break-word;
-  max-height: 480px;
+  overflow-wrap: anywhere;
 }
 
 .code-caption {
@@ -603,7 +603,9 @@ sub { vertical-align: sub; font-size: 0.75em; line-height: 0; }
 
 .terminal-line {
   margin-bottom: 4px;
-  word-break: break-all;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: pre-wrap;
 }
 
 .terminal-line.is-command {
@@ -616,10 +618,13 @@ sub { vertical-align: sub; font-size: 0.75em; line-height: 0; }
 .terminal-prompt {
   color: var(--color-brand-green);
   user-select: none;
+  flex-shrink: 0;
 }
 
 .terminal-cmd {
   color: #ffffff;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .terminal-line.is-stdout {
