@@ -30,6 +30,7 @@ async def run_demo():
 
     pipeline = EbookGenerationPipeline(settings=settings)
 
+    resume = "--fresh" not in sys.argv
     state = await pipeline.run(
         topic=demo_topic,
         target_pages=40,
@@ -37,6 +38,7 @@ async def run_demo():
         generate_pdf=True,
         save_raster_cover=True,
         persist_db=True,
+        resume=resume,
     )
 
     print("\n" + "=" * 60)

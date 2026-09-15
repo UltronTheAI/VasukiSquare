@@ -452,3 +452,56 @@ def test_pool_available_at_tracking_and_earliest_wait():
     assert earliest_m == "model-b"
     assert 0.0 < earliest_wait <= 5.0
 
+
+# =========================================================================
+# 8. Page Writer Retries and Metrics Persistence
+# =========================================================================
+
+@pytest.mark.asyncio
+async def test_writer_retries_transient_failure_and_succeeds():
+    """PageWriterAgent._generate_content_page retries when _llm_write_page fails once, avoiding fallback."""
+    from vasukisquare.agents.writer import PageWriterAgent
+    from vasukisquare.llm.metrics import BookGenerationMetrics
+
+    metrics = BookGenerationMetrics()
+    settings = Settings(
+        _env_file=None,
+        vasukisquare_mock_mode=False,
+    )
+    writer = PageWriterAgent(settings=settings, metrics=metrics)
+
+    attempts = 0
+
+    async def fake_llm_write_page(p, plan, corpus):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise Exception("Transient network blip on first attempt")
+        return PageContent(
+            headline="Successful LLM Page",
+            blocks=[TextBlock(text="This page was generated successfully after retry.")],
+        )
+
+    with patch.object(writer, "_llm_write_page", side_effect=fake_llm_write_page):
+        plan = BookPlan(
+            title="Database Architecture",
+            subtitle="Internal Guide",
+            description="DB internals",
+            intent=BookIntent(topic="Databases", target_audience="Engineers"),
+        )
+        p = PlannedPage(
+            page_number=6,
+            page_type="chapter_content",
+            layout="editorial_standard",
+            chapter_number=1,
+            chapter_title="Storage",
+            brief="Page Layout",
+        )
+        content = await writer._generate_content_page(p, plan, citations=[])
+
+    assert attempts == 2
+    assert metrics.fallback_pages == 0
+    assert metrics.pages_generated_by_llm == 1
+    assert content.headline == "Successful LLM Page"
+
+

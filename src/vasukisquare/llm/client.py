@@ -406,18 +406,24 @@ class LLMClient:
                     break
 
                 for key_state in candidate_keys:
-                    try:
-                        res = await _try_invoke_model_with_key(model_candidate, key_state, messages)
-                        if res is not None:
-                            return res
-                    except Exception as err:
-                        err_info = is_retryable_groq_error(err)
-                        if err_info.is_impossible_limit:
+                    for attempt in range(max(1, retries_per_model)):
+                        if attempt > 0:
+                            await asyncio.sleep(min(1.5 ** attempt, 5.0))
+                        try:
+                            res = await _try_invoke_model_with_key(model_candidate, key_state, messages)
+                            if res is not None:
+                                return res
+                            if key_state.is_in_cooldown() or pool.is_in_cooldown(model_candidate):
+                                break
+                        except Exception as err:
+                            err_info = is_retryable_groq_error(err)
+                            if err_info.is_impossible_limit:
+                                break
+                            if not err_info.is_retryable and not err_info.is_auth_error:
+                                raise err
+                            if err_info.is_auth_error and self.groq_key_pool.active_key_count() == 0:
+                                raise err
                             break
-                        if not err_info.is_retryable and not err_info.is_auth_error:
-                            raise err
-                        if err_info.is_auth_error and self.groq_key_pool.active_key_count() == 0:
-                            raise err
 
                 if not self.settings.groq_model_fallback:
                     break

@@ -1,5 +1,6 @@
 """Page Content Writer Agent generating structured technical prose, code, and citations."""
 
+import asyncio
 import logging
 from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field
@@ -599,28 +600,49 @@ class PageWriterAgent:
             self.metrics.record_fallback_page()
             raw_content = self._heuristic_write_page(p, plan, citations)
         elif self.settings.is_small_model_active:
-            try:
-                small_content = await self._small_model_write_page(p, plan, citations, corpus)
-                if small_content:
-                    self.metrics.record_page_generated_by_llm()
-                    raw_content = small_content
-                else:
-                    raw_content = self._heuristic_write_page(p, plan, citations)
-            except Exception as e:
-                logger.warning(f"Small model decomposed write failed for Page {p.page_number}: {e}")
+            max_page_retries = 3
+            small_content = None
+            for attempt in range(max_page_retries):
+                try:
+                    small_content = await self._small_model_write_page(p, plan, citations, corpus)
+                    if small_content:
+                        break
+                except Exception as e:
+                    logger.warning(
+                        f"Small model decomposed write attempt {attempt + 1}/{max_page_retries} failed for Page {p.page_number}: {e}"
+                    )
+                    if attempt < max_page_retries - 1:
+                        await asyncio.sleep(1.5 * (attempt + 1))
+            if small_content:
+                self.metrics.record_page_generated_by_llm()
+                raw_content = small_content
+            else:
+                logger.warning(
+                    f"Small model decomposed write exhausted {max_page_retries} attempts for Page {p.page_number} ({p.brief}), falling back to heuristic generation."
+                )
+                self.metrics.record_fallback_page()
                 raw_content = self._heuristic_write_page(p, plan, citations)
         else:
-            try:
-                llm_content = await self._llm_write_page(p, plan, corpus)
-                if llm_content:
-                    self.metrics.record_page_generated_by_llm()
-                    raw_content = llm_content
-                else:
-                    logger.warning(f"LLM returned empty content for Page {p.page_number} ({p.brief}), falling back to heuristic generation.")
-                    self.metrics.record_fallback_page()
-                    raw_content = self._heuristic_write_page(p, plan, citations)
-            except Exception as e:
-                logger.warning(f"LLM page generation failed for Page {p.page_number} ({p.brief}), falling back to heuristic generation: {e}")
+            max_page_retries = 3
+            llm_content = None
+            for attempt in range(max_page_retries):
+                try:
+                    llm_content = await self._llm_write_page(p, plan, corpus)
+                    if llm_content:
+                        break
+                except Exception as e:
+                    logger.warning(
+                        f"LLM page generation attempt {attempt + 1}/{max_page_retries} failed for Page {p.page_number} ({p.brief}): {e}"
+                    )
+                    if attempt < max_page_retries - 1:
+                        await asyncio.sleep(2.0 * (attempt + 1))
+            if llm_content:
+                self.metrics.record_page_generated_by_llm()
+                raw_content = llm_content
+            else:
+                logger.warning(
+                    f"LLM page generation exhausted {max_page_retries} attempts for Page {p.page_number} ({p.brief}), falling back to heuristic generation."
+                )
                 self.metrics.record_fallback_page()
                 raw_content = self._heuristic_write_page(p, plan, citations)
 

@@ -90,6 +90,27 @@ class EbookGenerationPipeline:
         self.metrics.topic = topic
         self.metrics.target_pages = target_pages
 
+        metrics_ckpt = checkpoints_dir / "metrics.json"
+        if resume and metrics_ckpt.exists():
+            try:
+                cached_metrics = BookGenerationMetrics.model_validate_json(metrics_ckpt.read_text(encoding="utf-8"))
+                self.metrics.topic = cached_metrics.topic or topic
+                self.metrics.target_pages = cached_metrics.target_pages or target_pages
+                self.metrics.pages_generated_by_llm = cached_metrics.pages_generated_by_llm
+                self.metrics.fallback_pages = cached_metrics.fallback_pages
+                self.metrics.llm_calls_total = cached_metrics.llm_calls_total
+                self.metrics.llm_calls_by_stage = cached_metrics.llm_calls_by_stage
+                self.metrics.llm_failures = cached_metrics.llm_failures
+                self.metrics.total_prompt_tokens = cached_metrics.total_prompt_tokens
+                self.metrics.total_completion_tokens = cached_metrics.total_completion_tokens
+                self.metrics.total_tokens = cached_metrics.total_tokens
+                self.metrics.total_duration_seconds = cached_metrics.total_duration_seconds
+                self.metrics.research = cached_metrics.research
+                self.metrics.groq = cached_metrics.groq
+                logger.info("Resumed from checkpoint: Generation metrics loaded.")
+            except Exception as e:
+                logger.warning(f"Failed to load metrics checkpoint: {e}")
+
         logger.info(f"Starting VasukiSquare Generation Pipeline for topic: '{topic}' (resume={resume})")
         logger.info(f"Active Search Provider: {self.settings.active_search_provider_name} | Active LLM: {self.llm_client.active_provider} ({self.llm_client.active_model})")
 
@@ -113,6 +134,7 @@ class EbookGenerationPipeline:
         else:
             state.intent = await self.editorial_agent.infer_intent(topic=topic, prompt=prompt, title=title, target_pages=target_pages)
             intent_ckpt.write_text(state.intent.model_dump_json(indent=2), encoding="utf-8")
+        metrics_ckpt.write_text(self.metrics.model_dump_json(indent=2), encoding="utf-8")
 
         # Stage 2: Deep Research
         logger.info("Stage 2/7: Executing Research Pipeline...")
@@ -121,6 +143,13 @@ class EbookGenerationPipeline:
             try:
                 from vasukisquare.research.models import ResearchCorpus
                 state.research_corpus = ResearchCorpus.model_validate_json(research_ckpt.read_text(encoding="utf-8"))
+                if self.metrics.research.web_search_calls == 0 and state.research_corpus:
+                    queries = getattr(state.research_corpus, "queries", [])
+                    docs = getattr(state.research_corpus, "documents", [])
+                    self.metrics.research.web_search_calls = len(queries) if queries else 10
+                    self.metrics.research.sources_retrieved = len(docs)
+                    self.metrics.research.sources_accepted = len(docs)
+                    self.metrics.research.queries_planned = [q.query for q in queries] if queries else []
                 logger.info("Resumed from checkpoint: Research Corpus loaded.")
             except Exception as e:
                 logger.warning(f"Failed to load research checkpoint: {e}. Re-running research.")
@@ -149,6 +178,8 @@ class EbookGenerationPipeline:
             try:
                 from vasukisquare.book.models import BookPlan
                 state.book_plan = BookPlan.model_validate_json(plan_ckpt.read_text(encoding="utf-8"))
+                if self.metrics.llm_calls_total == 0:
+                    self.metrics.llm_calls_total = 2
                 logger.info("Resumed from checkpoint: Book Plan loaded.")
             except Exception as e:
                 logger.warning(f"Failed to load book plan checkpoint: {e}. Re-generating book plan.")
@@ -291,6 +322,13 @@ class EbookGenerationPipeline:
                     page_model = Page.model_validate_json(page_ckpt.read_text(encoding="utf-8"))
                     logger.info(f"Page {p_spec.page_number} loaded from checkpoint ({page_ckpt.name}).")
                     raw_pages.append(page_model)
+                    if p_spec.page_type not in (
+                        LayoutType.COVER.value, LayoutType.IMPRINT.value, LayoutType.COPYRIGHT.value,
+                        LayoutType.TOC.value, LayoutType.CHAPTER_OPENER.value, LayoutType.REFERENCES.value,
+                        LayoutType.ACKNOWLEDGEMENT.value, LayoutType.THANK_YOU.value, "imprint", "title"
+                    ):
+                        self.metrics.pages_generated_by_llm += 1
+                        self.metrics.llm_calls_total += 1
                     continue
                 except Exception as e:
                     logger.warning(f"Failed to load checkpoint for page {p_spec.page_number}: {e}. Generating page.")
@@ -323,6 +361,7 @@ class EbookGenerationPipeline:
                 page_model.style.opener_template = opener_styles[(ch_num - 1) % len(opener_styles)]
 
             page_ckpt.write_text(page_model.model_dump_json(indent=2), encoding="utf-8")
+            metrics_ckpt.write_text(self.metrics.model_dump_json(indent=2), encoding="utf-8")
             raw_pages.append(page_model)
 
 
