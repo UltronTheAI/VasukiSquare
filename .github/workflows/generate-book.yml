@@ -1,0 +1,120 @@
+name: Automated Book Generation (Queue)
+
+on:
+  schedule:
+    # Run twice weekly: Tuesday and Friday at 04:00 UTC (09:30 IST / 23:00 EST Mon,Thu / 20:00 PST Mon,Thu)
+    - cron: '0 4 * * 2,5'
+  workflow_dispatch:
+    inputs:
+      idea_id:
+        description: 'Target a specific idea ID from the queue (leave empty to claim highest-ranked ready idea)'
+        required: false
+        default: ''
+        type: string
+      category:
+        description: 'Optional category filter when claiming next idea from the queue'
+        required: false
+        default: ''
+        type: string
+      dry_run:
+        description: 'Claim idea and validate parameters, then revert status to READY without running generation'
+        required: false
+        default: false
+        type: boolean
+      no_pdf:
+        description: 'Skip Playwright PDF compilation and only output HTML, manifest, and JSON artifacts'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vasuki-generate-book
+  cancel-in-progress: false
+
+jobs:
+  generate-book:
+    name: Generate Ebook from Queue
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    env:
+      APP_ENV: production
+      LOG_LEVEL: INFO
+      LLM_PROVIDER: groq
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE || vars.MONGODB_DATABASE || 'vasukisquare' }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
+      PDF_OUTPUT_DIR: ./output
+      CHROMIUM_HEADLESS: 'true'
+      IDEA_PROCESSING_TIMEOUT_MINUTES: '180'
+      IDEA_MAX_ATTEMPTS: '3'
+      IDEA_COLLECTION: book_ideas
+      BOOK_COLLECTION: books
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install project dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Install Playwright Chromium & native system dependencies
+        run: |
+          playwright install --with-deps chromium
+
+      - name: Validate rendering engine dependencies
+        run: |
+          python -c "import vasukisquare; print(f'VasukiSquare v{vasukisquare.__version__} loaded successfully')"
+          python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); b = p.chromium.launch(headless=True); b.close(); p.stop(); print('Playwright Chromium rendering engine validated successfully')"
+
+      - name: Execute queue-driven book generation
+        run: |
+          mkdir -p output
+          
+          ARGS="--from-queue --output-dir ./output"
+          
+          if [ -n "${{ inputs.idea_id }}" ]; then
+            ARGS="$ARGS --idea-id '${{ inputs.idea_id }}'"
+          fi
+          
+          if [ -n "${{ inputs.category }}" ]; then
+            ARGS="$ARGS --category '${{ inputs.category }}'"
+          fi
+          
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          
+          if [ "${{ inputs.no_pdf }}" = "true" ]; then
+            ARGS="$ARGS --no-pdf"
+          fi
+          
+          echo "Executing: python scripts/generate_book.py $ARGS"
+          python scripts/generate_book.py $ARGS
+
+      - name: Upload generated book artifacts
+        if: always() && hashFiles('output/**') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-book-${{ github.run_id }}
+          path: |
+            output/*.pdf
+            output/*.html
+            output/book_manifest.json
+            output/generation_metrics.json
+          retention-days: 14
+

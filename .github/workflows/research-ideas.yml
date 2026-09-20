@@ -1,0 +1,111 @@
+name: Automated Book Idea Research
+
+on:
+  schedule:
+    # Run weekly on Sunday at 02:00 UTC (07:30 IST / 21:00 EST Sat / 18:00 PST Sat)
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      count:
+        description: 'Target number of accepted, production-ready book ideas to generate'
+        required: false
+        default: '5'
+        type: string
+      min_score:
+        description: 'Minimum composite bookworthiness score threshold (0.00 to 1.00)'
+        required: false
+        default: '0.70'
+        type: string
+      category:
+        description: 'Optional domain category filter (e.g. Technology, Leadership, Productivity)'
+        required: false
+        default: ''
+        type: string
+      dry_run:
+        description: 'Simulate research, deduplication, and scoring without writing to MongoDB'
+        required: false
+        default: false
+        type: boolean
+      verbose:
+        description: 'Enable verbose debug logging'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vasuki-research-ideas
+  cancel-in-progress: false
+
+jobs:
+  research-ideas:
+    name: Research Trending Book Ideas
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    env:
+      APP_ENV: production
+      LOG_LEVEL: INFO
+      LLM_PROVIDER: groq
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      MONGODB_URI: ${{ secrets.MONGODB_URI }}
+      MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE || vars.MONGODB_DATABASE || 'vasukisquare' }}
+      TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
+      SERPER_API_KEY: ${{ secrets.SERPER_API_KEY }}
+      BRAVE_SEARCH_API_KEY: ${{ secrets.BRAVE_SEARCH_API_KEY }}
+      RESEARCH_IDEA_COUNT: ${{ inputs.count || '5' }}
+      RESEARCH_MIN_SCORE: ${{ inputs.min_score || '0.70' }}
+      IDEA_COLLECTION: book_ideas
+      BOOK_COLLECTION: books
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+
+      - name: Lightweight package validation
+        run: |
+          python -c "import vasukisquare; print(f'VasukiSquare v{vasukisquare.__version__} loaded successfully')"
+          python -c "from vasukisquare.research.idea_researcher import IdeaResearchService; print('IdeaResearchService imported successfully')"
+
+      - name: Execute automated book idea research
+        run: |
+          mkdir -p artifacts
+          
+          ARGS="--count ${{ inputs.count || '5' }} --min-score ${{ inputs.min_score || '0.70' }} --export-json artifacts/research_ideas.json"
+          
+          if [ -n "${{ inputs.category }}" ]; then
+            ARGS="$ARGS --category '${{ inputs.category }}'"
+          fi
+          
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          
+          if [ "${{ inputs.verbose }}" = "true" ]; then
+            ARGS="$ARGS --verbose"
+          fi
+          
+          echo "Executing: python scripts/research_ideas.py $ARGS"
+          python scripts/research_ideas.py $ARGS
+
+      - name: Upload researched ideas JSON artifact
+        if: always() && hashFiles('artifacts/research_ideas.json') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: research-ideas-${{ github.run_id }}
+          path: artifacts/research_ideas.json
+          retention-days: 14
+

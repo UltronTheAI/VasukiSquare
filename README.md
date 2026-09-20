@@ -381,6 +381,7 @@ pytest tests/rendering -q
 | [**Getting Started**](docs/getting-started.md) | Step-by-step onboarding walkthrough for beginners |
 | [**User Guide**](docs/user-guide.md) | Practical generation workflows and options |
 | [**CLI Reference**](docs/cli-reference.md) | Exhaustive command-line arguments and flags |
+| [**Automation & GitHub Actions**](docs/automation.md) | Production scheduling, GitHub Actions workflows, and MongoDB queue lifecycle |
 | [**Configuration Guide**](docs/configuration.md) | Environment variables, `.env` options, and `config.json` |
 | [**LLM & Search Providers**](docs/providers.md) | Groq, Ollama, DuckDuckGo, SearXNG, and commercial search setup |
 | [**Customization Guide**](docs/customization.md) | Extending prompts, component blocks, color tokens, and themes |

@@ -8,6 +8,7 @@ Welcome to the central documentation index for **VasukiSquare**, an AI-powered t
 - [**Getting Started Guide**](getting-started.md): Installation prerequisites, virtual environment setup, configuration, and first book generation.
 - [**User Guide**](user-guide.md): Practical guide covering prompt creation, title constraints, page counts, output paths, and common workflows.
 - [**CLI Reference**](cli-reference.md): Full reference for all command-line arguments, options, types, and flags.
+- [**Automation & GitHub Actions**](automation.md): Production scheduling, GitHub Actions workflows, MongoDB queue lifecycle, and automated publishing cadence.
 - [**FAQ**](faq.md): Frequently asked commercial, technical, and licensing questions.
 
 ---
