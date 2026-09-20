@@ -3,7 +3,7 @@
 import math
 import random
 import re
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Union
 
 from pymongo import ASCENDING, DESCENDING, IndexModel, ReturnDocument
@@ -992,13 +992,44 @@ class BookIdeaRepository:
 
         return records
 
-    def claim_next_ready_idea(self, category: Optional[str] = None) -> Optional[BookIdea]:
-        """Atomically claim the highest-priority 'ready' idea for generation (transition to 'processing')."""
-        query: Dict[str, Any] = {"status": IdeaStatus.READY.value}
-        if category:
-            query["category"] = {"$regex": re.compile(re.escape(category), re.IGNORECASE)}
-
+    def claim_next_ready_idea(
+        self,
+        category: Optional[str] = None,
+        idea_id: Optional[str] = None,
+        stale_timeout_minutes: int = 180,
+        max_attempts: int = 3,
+    ) -> Optional[BookIdea]:
+        """Atomically claim the highest-priority 'ready' idea or recover a stale processing idea."""
         now = datetime.now(timezone.utc)
+        stale_threshold = now - timedelta(minutes=stale_timeout_minutes)
+
+        if idea_id:
+            query: Dict[str, Any] = {
+                "_id": idea_id,
+                "$or": [
+                    {"status": IdeaStatus.READY.value},
+                    {"status": IdeaStatus.FAILED.value, "attempt_count": {"$lt": max_attempts}},
+                    {
+                        "status": IdeaStatus.PROCESSING.value,
+                        "claimed_at": {"$lte": stale_threshold},
+                        "attempt_count": {"$lt": max_attempts},
+                    },
+                ],
+            }
+        else:
+            query = {
+                "$or": [
+                    {"status": IdeaStatus.READY.value},
+                    {
+                        "status": IdeaStatus.PROCESSING.value,
+                        "claimed_at": {"$lte": stale_threshold},
+                        "attempt_count": {"$lt": max_attempts},
+                    },
+                ]
+            }
+            if category:
+                query["category"] = {"$regex": re.compile(re.escape(category), re.IGNORECASE)}
+
         update = {
             "$set": {
                 "status": IdeaStatus.PROCESSING.value,

@@ -63,6 +63,8 @@ class Settings(BaseSettings):
     mongodb_database: str = Field(default="vasukisquare", alias="MONGODB_DATABASE")
     idea_collection: str = Field(default="book_ideas", alias="IDEA_COLLECTION")
     book_collection: str = Field(default="books", alias="BOOK_COLLECTION")
+    idea_processing_timeout_minutes: int = Field(default=180, alias="IDEA_PROCESSING_TIMEOUT_MINUTES")
+    idea_max_attempts: int = Field(default=3, alias="IDEA_MAX_ATTEMPTS")
 
     # Search & Retrieval
     search_provider: str = Field(default="auto", alias="SEARCH_PROVIDER")

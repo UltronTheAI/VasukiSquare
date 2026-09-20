@@ -850,6 +850,7 @@ class Book(BaseModel):
     page_count: int = 0
     starting_page_id: Optional[str] = None
     cover_id: Optional[str] = None
+    idea_id: Optional[str] = None
     chapters: List[ChapterMetadata] = Field(default_factory=list)
     publication: PublicationInfo = Field(default_factory=PublicationInfo)
     featured: FeaturedInfo = Field(default_factory=FeaturedInfo)

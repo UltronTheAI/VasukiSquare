@@ -21,7 +21,10 @@ if hasattr(sys.stderr, "reconfigure"):
         pass
 
 from vasukisquare.config import get_settings, load_config, ConfigValidationError
+from vasukisquare.database.connection import DatabaseManager
+from vasukisquare.database.repository import BookIdeaRepository
 from vasukisquare.pipeline.orchestrator import EbookGenerationPipeline
+from vasukisquare.research.models import IdeaStatus
 
 logging.basicConfig(
     level=logging.INFO,
@@ -39,8 +42,30 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--topic",
         type=str,
-        required=True,
-        help="The core topic or subject of the ebook to generate.",
+        default=None,
+        help="The core topic or subject of the ebook to generate (required in manual mode).",
+    )
+    parser.add_argument(
+        "--from-queue",
+        action="store_true",
+        help="Claim and generate the next ready book idea from MongoDB queue.",
+    )
+    parser.add_argument(
+        "--idea-id",
+        type=str,
+        default=None,
+        help="Target a specific idea ID from the queue (must be in ready or retryable state).",
+    )
+    parser.add_argument(
+        "--category",
+        type=str,
+        default=None,
+        help="Optional domain category filter when claiming an idea from the queue.",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Claim idea, validate parameters, and simulate queue workflow without running full generation.",
     )
     parser.add_argument(
         "--title",
@@ -63,8 +88,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--pages",
         type=int,
-        default=60,
-        help="Target page count for the ebook (default: 60).",
+        default=None,
+        help="Target page count for the ebook (default: 60 for manual, or from claimed idea).",
     )
     parser.add_argument(
         "--output-dir",
@@ -111,6 +136,9 @@ def parse_args(args=None):
     if parsed_args.prompt and parsed_args.prompt_file:
         parser.error("Arguments --prompt and --prompt-file are mutually exclusive. Please provide only one.")
 
+    if not parsed_args.from_queue and not parsed_args.idea_id and not parsed_args.topic:
+        parser.error("The following argument is required: --topic (or use --from-queue / --idea-id)")
+
     return parsed_args
 
 
@@ -143,16 +171,71 @@ async def main_async(args=None):
             sys.exit(1)
         prompt_text = prompt_path.read_text(encoding="utf-8").strip()
 
+    is_queue_mode = parsed_args.from_queue or bool(parsed_args.idea_id)
+    idea = None
+    idea_repo = None
+
+    if is_queue_mode:
+        db_manager = DatabaseManager(settings)
+        db = db_manager.get_database()
+        idea_repo = BookIdeaRepository(db, collection_name=settings.idea_collection)
+
+        idea = idea_repo.claim_next_ready_idea(
+            category=parsed_args.category,
+            idea_id=parsed_args.idea_id,
+            stale_timeout_minutes=settings.idea_processing_timeout_minutes,
+            max_attempts=settings.idea_max_attempts,
+        )
+        if not idea:
+            logger.info("No ready book ideas available. Nothing to generate.")
+            print("\n[QUEUE] No ready book ideas available in queue. Nothing to generate.\n")
+            return None
+
+        # Validate target page bounds (strictly 40-100 pages)
+        target_pages = parsed_args.pages or idea.pages
+        if target_pages < 40 or target_pages > 100:
+            reason = f"Idea target pages ({target_pages}) outside allowed 40-100 range."
+            logger.error(f"Rejecting idea {idea.id}: {reason}")
+            idea_repo.mark_rejected(idea.id, reason=reason)
+            print(f"\n[QUEUE ERROR] {reason} Idea marked as REJECTED.\n", file=sys.stderr)
+            return None
+
+        if parsed_args.dry_run:
+            idea_repo.update_status(idea.id, IdeaStatus.READY)
+            print("\n==========================================")
+            print(" DRY-RUN: Claimed Idea from Queue")
+            print(f" ID: {idea.id}")
+            print(f" Title: {idea.title}")
+            print(f" Topic: {idea.topic}")
+            print(f" Pages: {target_pages}")
+            print(f" Category: {idea.category}")
+            print(f" Prompt: {idea.prompt[:120] if idea.prompt else 'N/A'}")
+            print(" Status reverted to READY (No generation performed)")
+            print("==========================================\n")
+            return None
+
+        topic = idea.topic
+        title = parsed_args.title or idea.title
+        prompt_text = prompt_text or idea.prompt
+        idea_id = idea.id
+    else:
+        topic = parsed_args.topic
+        title = parsed_args.title
+        target_pages = parsed_args.pages if parsed_args.pages is not None else settings.default_target_pages
+        idea_id = None
+
     pipeline = EbookGenerationPipeline(settings=settings)
     out_dir = Path(parsed_args.output_dir)
 
     print("\n==========================================")
     print(f" {app_config.branding.engine_name}")
     print(f" Publisher: {app_config.branding.publication_name}")
-    print(f" Topic: {parsed_args.topic}")
-    if parsed_args.title:
-        print(f" Title: {parsed_args.title}")
-    print(f" Target Pages: {parsed_args.pages}")
+    if is_queue_mode and idea:
+        print(f" Queue Mode: ACTIVE (Idea ID: {idea.id})")
+    print(f" Topic: {topic}")
+    if title:
+        print(f" Title: {title}")
+    print(f" Target Pages: {target_pages}")
     if prompt_text:
         preview = prompt_text[:120] + "..." if len(prompt_text) > 120 else prompt_text
         print(f" Editorial Brief: {preview}")
@@ -161,16 +244,30 @@ async def main_async(args=None):
         print(" Mode: RESUME from checkpoints")
     print("==========================================\n")
 
-    state = await pipeline.run(
-        topic=parsed_args.topic,
-        title=parsed_args.title,
-        prompt=prompt_text,
-        target_pages=parsed_args.pages,
-        output_dir=out_dir,
-        generate_pdf=not parsed_args.no_pdf,
-        persist_db=not parsed_args.no_db,
-        resume=parsed_args.resume,
-    )
+    try:
+        state = await pipeline.run(
+            topic=topic,
+            title=title,
+            prompt=prompt_text,
+            target_pages=target_pages,
+            output_dir=out_dir,
+            generate_pdf=not parsed_args.no_pdf,
+            persist_db=not parsed_args.no_db,
+            resume=parsed_args.resume,
+            idea_id=idea_id,
+        )
+
+        if is_queue_mode and idea_repo and idea:
+            book_id = state.book.id if state.book else "generated"
+            out_path = state.artifacts.get("book_html") or state.artifacts.get("book_manifest_json") or str(out_dir)
+            idea_repo.mark_completed(idea.id, book_id=book_id, output_path=out_path)
+            logger.info(f"Idea {idea.id} successfully marked COMPLETED (book_id={book_id})")
+
+    except Exception as e:
+        if is_queue_mode and idea_repo and idea:
+            idea_repo.mark_failed(idea.id, error=str(e))
+            logger.error(f"Idea {idea.id} marked FAILED: {e}")
+        raise
 
     print("\n==========================================")
     print(" Generation Completed Successfully!")

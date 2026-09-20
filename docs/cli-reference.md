@@ -6,17 +6,19 @@ This document provides a comprehensive reference for all command-line arguments 
 
 ## 1. Invocation Syntax
 
-VasukiSquare provides two equivalent entry points:
+VasukiSquare provides two primary execution workflows:
 
-### 1. Unified Console Entry Point (Installed via `pip install -e .`):
+### A. Manual Topic Generation
+Generate a book from a manually specified topic and optional brief:
 ```bash
-vasukisquare [OPTIONS]
+python scripts/generate_book.py --topic "Building Better Daily Habits" --title "Good Habits" --pages 60
 ```
-*(or short alias `vasuki [OPTIONS]`)*
+*(or via installed console script `vasukisquare [OPTIONS]` / `vasuki [OPTIONS]`)*
 
-### 2. Standalone Script:
+### B. Automated Queue Generation
+Claim and generate the highest-priority researched book idea from MongoDB:
 ```bash
-python scripts/generate_book.py [OPTIONS]
+python scripts/generate_book.py --from-queue
 ```
 
 ---
@@ -25,11 +27,15 @@ python scripts/generate_book.py [OPTIONS]
 
 | Flag | Type | Default | Required | Description |
 |---|---|---|---|---|
-| `--topic` | `str` | None | **Yes** | The core subject or topic of the ebook to generate. |
+| `--topic` | `str` | `None` | **Yes (Manual)** | The core subject or topic of the ebook to generate (required if not using `--from-queue` or `--idea-id`). |
+| `--from-queue` | `flag` | `False` | No | Atomically claim and generate the next ready book idea from the MongoDB `book_ideas` queue. |
+| `--idea-id` | `str` | `None` | No | Target a specific idea ID from the queue to claim and generate. |
+| `--category` | `str` | `None` | No | Optional domain category filter when claiming an idea from the queue. |
+| `--dry-run` | `flag` | `False` | No | In queue mode, claim and validate the idea parameters and revert status to READY without running generation. |
 | `--title` | `str` | `None` | No | Explicit public-facing title. Must be ≤ 50 characters without commentary. |
 | `--prompt` | `str` | `None` | No | Editorial instructions specifying target audience, tone, required elements, and themes. Mutually exclusive with `--prompt-file`. |
 | `--prompt-file` | `str` | `None` | No | Path to a text file containing the editorial brief. Mutually exclusive with `--prompt`. |
-| `--pages` | `int` | `60` | No | Target physical A4 page count for the complete book. |
+| `--pages` | `int` | `60` (manual) | No | Target physical A4 page count for the complete book (strictly 40–100 pages for queue ideas). |
 | `--output-dir` | `str` | `./output` | No | Directory where generated book files, assets, checkpoints, and PDF are saved. |
 | `--no-pdf` | `flag` | `False` | No | Skip Playwright PDF compilation and only output HTML, manifest, and JSON artifacts. |
 | `--no-db` | `flag` | `False` | No | Skip persisting book, page, and cover records to MongoDB. |
@@ -42,7 +48,39 @@ python scripts/generate_book.py [OPTIONS]
 
 ## 3. Detailed Flag Descriptions
 
-### `--topic TOPIC` (Required)
+### `--from-queue` (Optional)
+Operates VasukiSquare in automated pipeline mode. It atomically queries MongoDB for the highest-ranked `ready` book idea (or recovers a stale `processing` claim), sets its status to `processing`, feeds its stored `topic`, `title`, `prompt`, and `pages` into the generation orchestrator, links the generated book record, and transitions the idea status to `completed` upon success (or `failed` if an error occurs).
+
+If no ready ideas are found in the queue, the CLI prints a clean notification and exits with status 0.
+
+**Example:**
+```bash
+python scripts/generate_book.py --from-queue
+```
+
+---
+
+### `--idea-id IDEA_ID` (Optional)
+Claims and generates a specific book idea by its MongoDB document ID. The idea must be in `ready` state or eligible for retry.
+
+**Example:**
+```bash
+python scripts/generate_book.py --idea-id "idea_tech_deep_learning_2026"
+```
+
+---
+
+### `--dry-run` (Optional)
+When used with `--from-queue` or `--idea-id`, claims the idea, verifies that all parameters (including 40–100 page bounds) are valid, displays the resolved generation plan, and reverts the idea status back to `ready` in MongoDB without invoking LLMs or rendering pages.
+
+**Example:**
+```bash
+python scripts/generate_book.py --from-queue --dry-run
+```
+
+---
+
+### `--topic TOPIC` (Required in Manual Mode)
 The primary topic of the publication. The engine uses this string to classify whether the book is technical or non-technical, generate research queries, infer target audience, and outline chapters.
 
 **Example:**
@@ -82,11 +120,11 @@ vasukisquare \
 ---
 
 ### `--pages PAGES` (Optional, Default: `60`)
-Target number of physical A4 pages. The editorial planner distributes this budget across frontmatter, chapter openers, deep-dive section pages, reference listings, and backmatter.
+Target number of physical A4 pages. The editorial planner distributes this budget across frontmatter, chapter openers, deep-dive section pages, reference listings, and backmatter. Automated queue ideas strictly enforce the 40–100 page boundary.
 
 **Example:**
 ```bash
-vasukisquare --topic "Linux CLI Mastery" --pages 30
+vasukisquare --topic "Linux CLI Mastery" --pages 50
 ```
 
 ---
@@ -151,4 +189,3 @@ Resumes an incomplete or interrupted generation job from stage checkpoints (`int
 ```bash
 vasukisquare --topic "Cloud Architecture" --output-dir "./output/cloud" --resume
 ```
-

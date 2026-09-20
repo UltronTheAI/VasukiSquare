@@ -222,7 +222,7 @@ class MockCollection:
         if "$inc" in update_dict:
             for k, v in update_dict["$inc"].items():
                 inc_nested(doc, k, v)
-        return doc
+        return dict(doc)
 
     def _create_indexes(self, idx_list):
         self.indexes.extend(idx_list)

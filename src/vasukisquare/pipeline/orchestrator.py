@@ -73,6 +73,7 @@ class EbookGenerationPipeline:
         save_raster_cover: bool = False,
         persist_db: bool = True,
         resume: bool = False,
+        idea_id: Optional[str] = None,
     ) -> GenerationState:
         """Execute the full 7-stage pipeline synchronously or asynchronously with checkpointing & resume support."""
         if target_pages is None:
@@ -540,6 +541,7 @@ class EbookGenerationPipeline:
                     status=PublicationStatus.DRAFT.value,
                     chapter_count=len(chapters_meta),
                     page_count=len(state.pages),
+                    idea_id=idea_id,
                     chapters=chapters_meta,
                     publication=PublicationInfo(
                         status=PublicationStatus.DRAFT,
