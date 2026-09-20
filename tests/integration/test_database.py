@@ -205,6 +205,24 @@ class MockCollection:
         self.update_many = MagicMock(side_effect=self._update_many)
         self.delete_one = MagicMock(side_effect=self._delete_one)
         self.delete_many = MagicMock(side_effect=self._delete_many)
+        self.find_one_and_update = MagicMock(side_effect=self._find_one_and_update)
+
+    def _find_one_and_update(self, filter_dict, update_dict, sort=None, return_document=None):
+        matching = [d for d in self.store.values() if match_doc(d, filter_dict)]
+        if not matching:
+            return None
+        if sort:
+            for k, direction in reversed(sort):
+                rev = (direction == -1 or direction == DESCENDING)
+                matching.sort(key=lambda d: (get_nested(d, k) is None, get_nested(d, k)), reverse=rev)
+        doc = matching[0]
+        if "$set" in update_dict:
+            for k, v in update_dict["$set"].items():
+                set_nested(doc, k, v)
+        if "$inc" in update_dict:
+            for k, v in update_dict["$inc"].items():
+                inc_nested(doc, k, v)
+        return doc
 
     def _create_indexes(self, idx_list):
         self.indexes.extend(idx_list)

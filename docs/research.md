@@ -80,3 +80,28 @@ Every reference entry displays:
 - Publisher / Domain Imprint
 - Clean Canonical URL
 - Source Citation Badge
+
+---
+
+## 6. Automated Book-Idea Research & Lifecycle
+
+VasukiSquare provides an autonomous trending topic research engine (`IdeaResearchService` and `scripts/research_ideas.py`):
+
+1. **Trend Discovery**: Gathers real-time and evergreen market demand signals across tech, leadership, and lifestyle domains.
+2. **Catalog Deduplication**: Compares candidate ideas against existing books and historical ideas stored in MongoDB across 4 levels:
+   - Normalized exact title match
+   - Normalized topic match
+   - Token & 2-gram/3-gram shingle Jaccard overlap
+   - Semantic angle differentiation (allowing genuinely distinct angles on broad subjects)
+3. **Intentional Page Count Selection**: Strict 40–100 page budget mapped to subject complexity (40–50 beginner, 50–70 practical, 70–85 technical deep dive, 85–100 comprehensive).
+4. **Production Prompt Synthesis**: Constructs full editorial briefs defining scope, audience, exclusions, structure, and factual standards.
+5. **MongoDB Persistence & JSON Export**: Stores accepted ideas in `book_ideas` with status `ready` and supports `--export-json` for offline inspection.
+
+### Running Idea Research
+```bash
+# Research 5 ready ideas and save to MongoDB
+python scripts/research_ideas.py --count 5
+
+# Dry-run research with custom score threshold and JSON export
+python scripts/research_ideas.py --count 3 --min-score 0.75 --dry-run --export-json artifacts/ideas.json
+```

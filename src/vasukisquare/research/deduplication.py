@@ -1,7 +1,7 @@
 """Deduplication and near-duplicate detection for research documents."""
 
 import re
-from typing import List, Set
+from typing import Any, Dict, List, Optional, Set, Union
 from vasukisquare.research.models import SourceDocument, normalize_url
 
 
@@ -97,4 +97,209 @@ class DeduplicationService:
                 pruned_docs.append(doc)
 
         return pruned_docs
+
+
+# ==============================================================================
+# BOOK IDEA MULTI-LEVEL DEDUPLICATION
+# ==============================================================================
+
+STOP_WORDS = {
+    "a", "an", "the", "and", "or", "in", "of", "to", "for", "with", "on", "at", "by",
+    "from", "into", "about", "guide", "handbook", "complete", "practical", "introduction",
+    "getting", "started", "mastering", "essential", "ultimate", "beginners", "noobs",
+    "zero", "hero", "learn", "building", "build", "modern", "deep", "dive",
+}
+
+
+def normalize_title(title: str) -> str:
+    """Normalize book title for collision and deduplication detection."""
+    if not title:
+        return ""
+    cleaned = re.sub(r"[^\w\s]", " ", title.lower()).strip()
+    words = [w for w in cleaned.split() if w not in STOP_WORDS and len(w) > 1]
+    return " ".join(words)
+
+
+def normalize_topic(topic: str) -> str:
+    """Normalize topic string for deduplication."""
+    if not topic:
+        return ""
+    cleaned = re.sub(r"[^\w\s]", " ", topic.lower()).strip()
+    words = [w for w in cleaned.split() if w not in STOP_WORDS and len(w) > 1]
+    return " ".join(words)
+
+
+class IdeaDedupMatch:
+    """Result of a candidate idea deduplication evaluation."""
+
+    def __init__(
+        self,
+        is_duplicate: bool,
+        reason: Optional[str] = None,
+        similarity_score: float = 0.0,
+        matched_record_id: Optional[str] = None,
+        matched_title: Optional[str] = None,
+        distinct_angle_accepted: bool = False,
+    ):
+        self.is_duplicate = is_duplicate
+        self.reason = reason
+        self.similarity_score = similarity_score
+        self.matched_record_id = matched_record_id
+        self.matched_title = matched_title
+        self.distinct_angle_accepted = distinct_angle_accepted
+
+    def to_dict(self) -> dict:
+        return {
+            "is_duplicate": self.is_duplicate,
+            "reason": self.reason,
+            "similarity_score": round(self.similarity_score, 3),
+            "matched_record_id": self.matched_record_id,
+            "matched_title": self.matched_title,
+            "distinct_angle_accepted": self.distinct_angle_accepted,
+        }
+
+
+class IdeaDeduplicationService:
+    """Multi-level deduplication engine comparing candidate ideas against historical MongoDB books and ideas."""
+
+    def __init__(
+        self,
+        token_similarity_threshold: float = 0.75,
+        shingle_similarity_threshold: float = 0.65,
+    ):
+        self.token_threshold = token_similarity_threshold
+        self.shingle_threshold = shingle_similarity_threshold
+
+    def has_distinct_angle(
+        self,
+        candidate_angle: str,
+        candidate_summary: str,
+        historical_angle: str,
+        historical_summary: str,
+    ) -> bool:
+        """Evaluate whether a candidate on a similar subject has a genuinely distinct angle/focus."""
+        if not candidate_angle or not (historical_angle or historical_summary):
+            return False
+
+        # Compare angle tokens
+        cand_angle_tokens = tokenize_text(candidate_angle)
+        hist_angle_tokens = tokenize_text(historical_angle or historical_summary)
+
+        angle_overlap = jaccard_similarity(cand_angle_tokens, hist_angle_tokens)
+        # Low overlap in angle description indicates a distinct angle
+        return angle_overlap < 0.40
+
+    def check_duplicate(
+        self,
+        candidate_title: str,
+        candidate_topic: str,
+        candidate_summary: str = "",
+        candidate_angle: str = "",
+        candidate_keywords: Optional[List[str]] = None,
+        historical_records: Optional[List[Dict[str, Any]]] = None,
+    ) -> IdeaDedupMatch:
+        """Perform multi-level deduplication against historical books and ideas."""
+        if not historical_records:
+            return IdeaDedupMatch(is_duplicate=False, similarity_score=0.0)
+
+        cand_title_norm = normalize_title(candidate_title)
+        cand_topic_norm = normalize_topic(candidate_topic)
+        cand_tokens = tokenize_text(f"{candidate_title} {candidate_topic} {candidate_summary}")
+        if candidate_keywords:
+            cand_tokens.update(tokenize_text(" ".join(candidate_keywords)))
+        cand_shingles = get_shingles(f"{candidate_title} {candidate_summary}", k=2)
+
+        highest_sim = 0.0
+        best_match_title = None
+        best_match_id = None
+
+        for rec in historical_records:
+            rec_id = str(rec.get("id") or rec.get("_id") or "")
+            rec_title = rec.get("title", "")
+            rec_topic = rec.get("topic", "") or rec_title
+            rec_summary = rec.get("summary", "") or rec.get("description", "")
+            rec_angle = rec.get("angle", "")
+            rec_status = rec.get("status", "ready")
+
+            # Ignore previously rejected ideas unless they were rejected for being low quality
+            if rec_status == "rejected" and "duplicate" in (rec.get("rejection_reason") or "").lower():
+                # Still check against root books, but avoid rejection loops on identical rejection reasons
+                pass
+
+            hist_title_norm = normalize_title(rec_title)
+            hist_topic_norm = normalize_topic(rec_topic)
+
+            # Level 1: Exact Normalized Title Match
+            if cand_title_norm and hist_title_norm and cand_title_norm == hist_title_norm:
+                # Check if angle is genuinely distinct
+                if self.has_distinct_angle(candidate_angle, candidate_summary, rec_angle, rec_summary):
+                    return IdeaDedupMatch(
+                        is_duplicate=False,
+                        similarity_score=0.95,
+                        matched_record_id=rec_id,
+                        matched_title=rec_title,
+                        distinct_angle_accepted=True,
+                    )
+                return IdeaDedupMatch(
+                    is_duplicate=True,
+                    reason=f"Duplicate title matching existing record '{rec_title}'",
+                    similarity_score=1.0,
+                    matched_record_id=rec_id,
+                    matched_title=rec_title,
+                )
+
+            # Level 2: Exact Normalized Topic Match
+            if cand_topic_norm and hist_topic_norm and cand_topic_norm == hist_topic_norm:
+                if self.has_distinct_angle(candidate_angle, candidate_summary, rec_angle, rec_summary):
+                    return IdeaDedupMatch(
+                        is_duplicate=False,
+                        similarity_score=0.85,
+                        matched_record_id=rec_id,
+                        matched_title=rec_title,
+                        distinct_angle_accepted=True,
+                    )
+                return IdeaDedupMatch(
+                    is_duplicate=True,
+                    reason=f"Same core topic and thesis as existing record '{rec_title}'",
+                    similarity_score=0.90,
+                    matched_record_id=rec_id,
+                    matched_title=rec_title,
+                )
+
+            # Level 3: Token & Shingle Jaccard Similarity
+            hist_tokens = tokenize_text(f"{rec_title} {rec_topic} {rec_summary}")
+            hist_shingles = get_shingles(f"{rec_title} {rec_summary}", k=2)
+
+            token_sim = jaccard_similarity(cand_tokens, hist_tokens)
+            shingle_sim = jaccard_similarity(cand_shingles, hist_shingles)
+            composite_sim = max(token_sim, shingle_sim)
+
+            if composite_sim > highest_sim:
+                highest_sim = composite_sim
+                best_match_title = rec_title
+                best_match_id = rec_id
+
+            if token_sim >= self.token_threshold or shingle_sim >= self.shingle_threshold:
+                if self.has_distinct_angle(candidate_angle, candidate_summary, rec_angle, rec_summary):
+                    return IdeaDedupMatch(
+                        is_duplicate=False,
+                        similarity_score=composite_sim,
+                        matched_record_id=rec_id,
+                        matched_title=rec_title,
+                        distinct_angle_accepted=True,
+                    )
+                return IdeaDedupMatch(
+                    is_duplicate=True,
+                    reason=f"High conceptual overlap (similarity: {composite_sim:.2f}) with existing record '{rec_title}'",
+                    similarity_score=composite_sim,
+                    matched_record_id=rec_id,
+                    matched_title=rec_title,
+                )
+
+        return IdeaDedupMatch(
+            is_duplicate=False,
+            similarity_score=highest_sim,
+            matched_record_id=best_match_id,
+            matched_title=best_match_title,
+        )
 

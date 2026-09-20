@@ -6,7 +6,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Union
 
-from pymongo import ASCENDING, DESCENDING, IndexModel
+from pymongo import ASCENDING, DESCENDING, IndexModel, ReturnDocument
 from pymongo.collection import Collection
 from pymongo.database import Database
 from pymongo.errors import PyMongoError
@@ -23,6 +23,7 @@ from vasukisquare.book.models import (
     PageStyle,
     slugify,
 )
+from vasukisquare.research.models import BookIdea, IdeaStatus
 
 
 class BookRepository:
@@ -786,3 +787,312 @@ def select_weighted_ad(
     if rng is not None:
         return rng.choices(eligible, weights=weights, k=1)[0]
     return random.choices(eligible, weights=weights, k=1)[0]
+
+
+class BookIdeaRepository:
+    """Repository for BookIdea persistence, lifecycle transitions, and catalog deduplication lookups."""
+
+    def __init__(self, db: Database, collection_name: str = "book_ideas"):
+        self.db: Database = db
+        self.collection: Collection = db[collection_name]
+
+    def create_indexes(self) -> None:
+        """Ensure required indexes on book_ideas collection."""
+        self.collection.create_indexes([
+            IndexModel([("slug", ASCENDING)], unique=True, name="book_ideas_slug_unique"),
+            IndexModel(
+                [("status", ASCENDING), ("created_at", DESCENDING)],
+                name="book_ideas_status_created_idx",
+            ),
+            IndexModel([("status", ASCENDING)], name="book_ideas_status_idx"),
+            IndexModel([("created_at", DESCENDING)], name="book_ideas_created_at_idx"),
+            IndexModel([("scores.bookworthiness", DESCENDING)], name="book_ideas_bookworthiness_idx"),
+            IndexModel(
+                [
+                    ("title", "text"),
+                    ("topic", "text"),
+                    ("summary", "text"),
+                    ("keywords", "text"),
+                ],
+                name="book_ideas_text_search",
+            ),
+        ])
+
+    def resolve_unique_slug(self, base_slug: str, exclude_idea_id: Optional[str] = None) -> str:
+        """Resolve a collision-safe slug for an idea (e.g. distributed-systems, distributed-systems-2)."""
+        base = slugify(base_slug) or "idea"
+        existing = self.collection.find_one({"slug": base})
+        if not existing:
+            return base
+        if exclude_idea_id and (existing.get("_id") == exclude_idea_id or existing.get("id") == exclude_idea_id):
+            return base
+
+        pattern = f"^{re.escape(base)}(?:-([0-9]+))?$"
+        matches = self.collection.find({"slug": {"$regex": pattern}}, {"slug": 1, "_id": 1, "id": 1})
+        taken_suffixes = set()
+        for doc in matches:
+            if exclude_idea_id and (doc.get("_id") == exclude_idea_id or doc.get("id") == exclude_idea_id):
+                continue
+            s = doc.get("slug", "")
+            if s == base:
+                taken_suffixes.add(1)
+            else:
+                m = re.match(pattern, s)
+                if m and m.group(1):
+                    try:
+                        taken_suffixes.add(int(m.group(1)))
+                    except ValueError:
+                        pass
+
+        cand = 2
+        while cand in taken_suffixes:
+            cand += 1
+        return f"{base}-{cand}"
+
+    def create(self, idea: BookIdea) -> BookIdea:
+        """Insert a new book idea document ensuring unique slug."""
+        if not idea.slug:
+            idea.slug = slugify(idea.title)
+        idea.slug = self.resolve_unique_slug(idea.slug, exclude_idea_id=idea.id)
+
+        data = idea.model_dump()
+        data["_id"] = data["id"]
+        self.collection.insert_one(data)
+        return idea
+
+    def get_by_id(self, idea_id: str) -> Optional[BookIdea]:
+        """Find a book idea by ID."""
+        doc = self.collection.find_one({"_id": idea_id})
+        if not doc:
+            return None
+        doc.pop("_id", None)
+        return BookIdea(**doc)
+
+    def get_by_slug(self, slug: str) -> Optional[BookIdea]:
+        """Find a book idea by unique slug."""
+        doc = self.collection.find_one({"slug": slug})
+        if not doc:
+            return None
+        doc.pop("_id", None)
+        return BookIdea(**doc)
+
+    def get_by_status(
+        self,
+        status: Union[IdeaStatus, str],
+        limit: int = 20,
+    ) -> List[BookIdea]:
+        """Retrieve ideas by status ordered by bookworthiness score and creation date."""
+        status_val = status.value if isinstance(status, IdeaStatus) else str(status).lower()
+        docs = self.collection.find({"status": status_val}).sort([
+            ("scores.bookworthiness", DESCENDING),
+            ("created_at", DESCENDING),
+        ]).limit(limit)
+
+        items = []
+        for doc in docs:
+            doc.pop("_id", None)
+            items.append(BookIdea(**doc))
+        return items
+
+    def list_ideas(
+        self,
+        status: Optional[Union[IdeaStatus, str]] = None,
+        category: Optional[str] = None,
+        min_score: Optional[float] = None,
+        page: int = 1,
+        limit: int = 20,
+    ) -> PaginatedResult[BookIdea]:
+        """Retrieve paginated book ideas with optional status, category, and minimum score filters."""
+        page = max(1, page)
+        limit = max(1, limit)
+        filter_q: Dict[str, Any] = {}
+
+        if status is not None:
+            status_val = status.value if isinstance(status, IdeaStatus) else str(status).lower()
+            filter_q["status"] = status_val
+
+        if category:
+            filter_q["category"] = {"$regex": re.compile(re.escape(category), re.IGNORECASE)}
+
+        if min_score is not None:
+            filter_q["scores.bookworthiness"] = {"$gte": min_score}
+
+        total = self.collection.count_documents(filter_q) if hasattr(self.collection, "count_documents") else len(list(self.collection.find(filter_q)))
+        skip = (page - 1) * limit
+        cursor = self.collection.find(filter_q).sort([
+            ("scores.bookworthiness", DESCENDING),
+            ("created_at", DESCENDING),
+        ]).skip(skip).limit(limit)
+
+        items = []
+        for doc in cursor:
+            doc.pop("_id", None)
+            items.append(BookIdea(**doc))
+
+        total_pages = math.ceil(total / limit) if total > 0 else 1
+        return PaginatedResult[BookIdea](
+            items=items,
+            page=page,
+            limit=limit,
+            total=total,
+            total_pages=total_pages,
+            has_next=page < total_pages,
+            has_previous=page > 1,
+        )
+
+    def get_historical_records(self, limit: int = 1000) -> List[Dict[str, Any]]:
+        """Retrieve existing book titles, topics, slugs, and historical ideas for deduplication."""
+        records: List[Dict[str, Any]] = []
+
+        # 1. Existing published and draft books from 'books' collection
+        try:
+            books_col = self.db["books"]
+            book_cursor = books_col.find(
+                {},
+                {"_id": 1, "title": 1, "subtitle": 1, "topic": 1, "slug": 1, "description": 1, "category": 1},
+            ).limit(limit)
+            for b in book_cursor:
+                records.append({
+                    "id": str(b.get("_id", "")),
+                    "source_type": "book",
+                    "title": b.get("title", ""),
+                    "subtitle": b.get("subtitle", ""),
+                    "topic": b.get("topic", "") or b.get("title", ""),
+                    "slug": b.get("slug", ""),
+                    "summary": b.get("description", ""),
+                    "angle": "",
+                    "category": b.get("category", ""),
+                    "status": "published",
+                })
+        except Exception:
+            pass
+
+        # 2. Historical book ideas from 'book_ideas' collection
+        try:
+            idea_cursor = self.collection.find(
+                {},
+                {"_id": 1, "title": 1, "topic": 1, "slug": 1, "summary": 1, "angle": 1, "category": 1, "status": 1, "rejection_reason": 1},
+            ).limit(limit)
+            for idea_doc in idea_cursor:
+                records.append({
+                    "id": str(idea_doc.get("_id", "")),
+                    "source_type": "idea",
+                    "title": idea_doc.get("title", ""),
+                    "subtitle": "",
+                    "topic": idea_doc.get("topic", ""),
+                    "slug": idea_doc.get("slug", ""),
+                    "summary": idea_doc.get("summary", ""),
+                    "angle": idea_doc.get("angle", ""),
+                    "category": idea_doc.get("category", ""),
+                    "status": idea_doc.get("status", "ready"),
+                    "rejection_reason": idea_doc.get("rejection_reason", ""),
+                })
+        except Exception:
+            pass
+
+        return records
+
+    def claim_next_ready_idea(self, category: Optional[str] = None) -> Optional[BookIdea]:
+        """Atomically claim the highest-priority 'ready' idea for generation (transition to 'processing')."""
+        query: Dict[str, Any] = {"status": IdeaStatus.READY.value}
+        if category:
+            query["category"] = {"$regex": re.compile(re.escape(category), re.IGNORECASE)}
+
+        now = datetime.now(timezone.utc)
+        update = {
+            "$set": {
+                "status": IdeaStatus.PROCESSING.value,
+                "claimed_at": now,
+                "updated_at": now,
+            },
+            "$inc": {"attempt_count": 1},
+        }
+
+        doc = self.collection.find_one_and_update(
+            query,
+            update,
+            sort=[("scores.bookworthiness", DESCENDING), ("created_at", ASCENDING)],
+            return_document=ReturnDocument.AFTER,
+        )
+        if not doc:
+            return None
+        doc.pop("_id", None)
+        return BookIdea(**doc)
+
+    def mark_completed(
+        self,
+        idea_id: str,
+        book_id: str,
+        output_path: Optional[str] = None,
+    ) -> Optional[BookIdea]:
+        """Mark an idea as successfully completed and link its generated book ID."""
+        now = datetime.now(timezone.utc)
+        update = {
+            "$set": {
+                "status": IdeaStatus.COMPLETED.value,
+                "completed_at": now,
+                "updated_at": now,
+                "generation.book_id": book_id,
+                "generation.output_path": output_path,
+            }
+        }
+        res = self.collection.update_one({"_id": idea_id}, update)
+        if res.matched_count == 0:
+            return None
+        return self.get_by_id(idea_id)
+
+    def mark_failed(self, idea_id: str, error: str) -> Optional[BookIdea]:
+        """Mark an idea as failed with diagnostic error details."""
+        now = datetime.now(timezone.utc)
+        update = {
+            "$set": {
+                "status": IdeaStatus.FAILED.value,
+                "updated_at": now,
+                "generation.error": error,
+            }
+        }
+        res = self.collection.update_one({"_id": idea_id}, update)
+        if res.matched_count == 0:
+            return None
+        return self.get_by_id(idea_id)
+
+    def mark_rejected(self, idea_id: str, reason: str) -> Optional[BookIdea]:
+        """Mark an idea as rejected (duplicate, stale, low quality, etc.)."""
+        now = datetime.now(timezone.utc)
+        update = {
+            "$set": {
+                "status": IdeaStatus.REJECTED.value,
+                "rejection_reason": reason,
+                "updated_at": now,
+            }
+        }
+        res = self.collection.update_one({"_id": idea_id}, update)
+        if res.matched_count == 0:
+            return None
+        return self.get_by_id(idea_id)
+
+    def update_status(
+        self,
+        idea_id: str,
+        status: Union[IdeaStatus, str],
+        rejection_reason: Optional[str] = None,
+    ) -> Optional[BookIdea]:
+        """Update the status of an idea document."""
+        status_val = status.value if isinstance(status, IdeaStatus) else str(status).lower()
+        now = datetime.now(timezone.utc)
+        update_fields: Dict[str, Any] = {
+            "status": status_val,
+            "updated_at": now,
+        }
+        if rejection_reason:
+            update_fields["rejection_reason"] = rejection_reason
+
+        res = self.collection.update_one({"_id": idea_id}, {"$set": update_fields})
+        if res.matched_count == 0:
+            return None
+        return self.get_by_id(idea_id)
+
+    def delete_idea(self, idea_id: str) -> bool:
+        """Delete an idea document by ID."""
+        res = self.collection.delete_one({"_id": idea_id})
+        return res.deleted_count > 0

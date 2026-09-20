@@ -61,6 +61,8 @@ class Settings(BaseSettings):
     # MongoDB
     mongodb_uri: str = Field(default="mongodb://localhost:27017", alias="MONGODB_URI")
     mongodb_database: str = Field(default="vasukisquare", alias="MONGODB_DATABASE")
+    idea_collection: str = Field(default="book_ideas", alias="IDEA_COLLECTION")
+    book_collection: str = Field(default="books", alias="BOOK_COLLECTION")
 
     # Search & Retrieval
     search_provider: str = Field(default="auto", alias="SEARCH_PROVIDER")
@@ -76,6 +78,8 @@ class Settings(BaseSettings):
     research_max_sources: int = Field(default=30, alias="RESEARCH_MAX_SOURCES")
     research_max_pages_per_source: int = Field(default=5, alias="RESEARCH_MAX_PAGES_PER_SOURCE")
     min_research_sources: int = Field(default=3, alias="MIN_RESEARCH_SOURCES")
+    research_idea_count: int = Field(default=5, alias="RESEARCH_IDEA_COUNT")
+    research_min_score: float = Field(default=0.70, alias="RESEARCH_MIN_SCORE")
 
     # Generation Defaults
     default_language: str = Field(default="en", alias="DEFAULT_LANGUAGE")

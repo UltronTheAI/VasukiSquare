@@ -421,9 +421,71 @@ export async function getWeightedAd(placement: string) {
 
 ---
 
+### 3.5 `book_ideas` Collection
+
+Represents automated, trending book ideas throughout their lifecycle:
+`candidate` $\to$ `ready` $\to$ `processing` $\to$ `completed` / `failed` / `rejected`.
+
+```json
+{
+  "_id": "uuid-v4",
+  "topic": "High-Throughput Vector Databases and ANN Indexing",
+  "title": "Vector Databases in Production",
+  "slug": "vector-databases-in-production",
+  "pages": 75,
+  "prompt": "Create an authoritative, beautifully structured 75-page technology book...",
+  "category": "Technology",
+  "audience": "Senior Backend Engineers and ML Infrastructure Architects",
+  "book_type": "practical_guide",
+  "summary": "A comprehensive 75-page guide covering Vector Databases in Production.",
+  "angle": "Practical internals of HNSW, IVF-PQ, quantization benchmarks, and distributed vector storage.",
+  "why_now": "Rapid expansion of semantic search and enterprise retrieval augmented generation systems.",
+  "keywords": ["vector database", "HNSW", "ANN search", "embeddings", "RAG"],
+  "research_queries": ["Vector Databases in Production core architecture", "Vector Databases practical patterns"],
+  "sources": [
+    {
+      "title": "Documentation & Reference",
+      "url": "https://en.wikipedia.org/wiki/Vector_database",
+      "publisher": "Authoritative Reference",
+      "accessed_at": "2026-09-20T07:54:00Z"
+    }
+  ],
+  "trend_signals": [
+    {
+      "source": "Editorial Discovery",
+      "signal": "Rapid growth of AI infrastructure and search demand",
+      "weight": 0.85
+    }
+  ],
+  "scores": {
+    "trend": 0.85,
+    "uniqueness": 0.90,
+    "bookworthiness": 0.88,
+    "evergreen": 0.82,
+    "confidence": 1.0,
+    "composite": 0.866
+  },
+  "similar_to": [],
+  "status": "ready",
+  "rejection_reason": null,
+  "attempt_count": 0,
+  "created_at": "2026-09-20T07:54:00Z",
+  "updated_at": "2026-09-20T07:54:00Z",
+  "claimed_at": null,
+  "completed_at": null,
+  "generation": {
+    "book_id": null,
+    "output_path": null,
+    "error": null
+  }
+}
+```
+
+---
+
 ## 10. Verification & Test Suite
 
-The database persistence layer is verified through automated test suites covering all 30 production scenarios in `tests/integration/test_database.py`:
+The database persistence layer is verified through automated test suites covering all production scenarios in `tests/integration/test_database.py` and `tests/unit/test_idea_repository.py`:
 - Schema versioning and renderer tags
 - Deterministic slug collision resolution
 - Pinned book bounds (1..5) and conflict reassignment
@@ -432,3 +494,5 @@ The database persistence layer is verified through automated test suites coverin
 - Weighted ad selection and URL sanitization
 - Cascading deletion integrity
 - Atomic counter increments
+- Book idea lifecycle transitions and atomic job claiming (`claim_next_ready_idea`)
+- Historical catalog retrieval for multi-level idea deduplication

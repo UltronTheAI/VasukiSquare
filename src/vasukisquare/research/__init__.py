@@ -1,5 +1,3 @@
-"""Research domain: models, deduplication, ranking, planning, and pipeline service."""
-
 from vasukisquare.research.models import (
     SourceType,
     SourceDocument,
@@ -10,16 +8,31 @@ from vasukisquare.research.models import (
     ResearchPlan,
     ResearchCorpus,
     ResearchDossier,
+    ResearchBundle,
+    IdeaStatus,
+    IdeaSource,
+    TrendSignal,
+    IdeaScores,
+    IdeaGenerationInfo,
+    BookIdea,
+    RawTrendDiscovery,
+    TrendDiscoveryList,
+    DetailedIdeaPrompt,
     normalize_url,
 )
 from vasukisquare.research.deduplication import (
     DeduplicationService,
+    IdeaDeduplicationService,
+    IdeaDedupMatch,
     is_near_duplicate,
     jaccard_similarity,
+    normalize_title,
+    normalize_topic,
 )
-from vasukisquare.research.ranking import SourceRanker
+from vasukisquare.research.ranking import SourceRanker, IdeaRanker
 from vasukisquare.research.planner import ResearchPlanner
 from vasukisquare.research.service import ResearchService
+from vasukisquare.research.idea_researcher import IdeaResearchService
 
 __all__ = [
     "SourceType",
@@ -31,11 +44,27 @@ __all__ = [
     "ResearchPlan",
     "ResearchCorpus",
     "ResearchDossier",
+    "ResearchBundle",
+    "IdeaStatus",
+    "IdeaSource",
+    "TrendSignal",
+    "IdeaScores",
+    "IdeaGenerationInfo",
+    "BookIdea",
+    "RawTrendDiscovery",
+    "TrendDiscoveryList",
+    "DetailedIdeaPrompt",
     "normalize_url",
     "DeduplicationService",
+    "IdeaDeduplicationService",
+    "IdeaDedupMatch",
     "is_near_duplicate",
     "jaccard_similarity",
+    "normalize_title",
+    "normalize_topic",
     "SourceRanker",
+    "IdeaRanker",
     "ResearchPlanner",
     "ResearchService",
+    "IdeaResearchService",
 ]
