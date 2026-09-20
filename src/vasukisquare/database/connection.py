@@ -36,6 +36,10 @@ class DatabaseManager:
         """Set a custom database instance (e.g. for testing)."""
         self._db = value
 
+    def get_database(self) -> Database:
+        """Get the configured database instance."""
+        return self.db
+
     def init_all_indexes(self) -> None:
         """Initialize all required MongoDB indexes across collections."""
         from vasukisquare.database.repository import (

@@ -361,3 +361,21 @@ def test_completed_idea_terminal_cannot_update(mock_db, idea_repo):
     assert updated is not None
     assert updated.status == IdeaStatus.COMPLETED  # Stays COMPLETED
 
+
+def test_database_manager_get_database_compatibility(mock_db):
+    """DatabaseManager provides both .db and .get_database() returning the configured Database."""
+    from vasukisquare.database.connection import DatabaseManager
+    db_mgr = DatabaseManager(db=mock_db)
+    assert db_mgr.db is mock_db
+    assert db_mgr.get_database() is mock_db
+
+
+@pytest.mark.asyncio
+async def test_queue_mode_with_real_db_manager(mock_db):
+    """Queue mode works end-to-end when DatabaseManager is instantiated directly with mock db."""
+    from vasukisquare.database.connection import DatabaseManager
+    real_db_mgr = DatabaseManager(db=mock_db)
+    with patch("vasukisquare.cli.DatabaseManager", return_value=real_db_mgr):
+        result = await main_async(["--from-queue"])
+        assert result is None
+
