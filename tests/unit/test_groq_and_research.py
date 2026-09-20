@@ -1,18 +1,16 @@
 """Unit and regression tests for Groq LLM client prompt construction with arbitrary braces,
 research planning structured output, and research service integration."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List
 
 from vasukisquare.config import Settings
-from vasukisquare.llm.client import LLMClient, GroqGenerationError
+from vasukisquare.llm.client import LLMClient
 from vasukisquare.llm.metrics import BookGenerationMetrics
-from vasukisquare.research.models import ResearchPlan, ResearchQuery, SourceDocument, SourceType
+from vasukisquare.research.models import ResearchPlan, ResearchQuery
 from vasukisquare.research.planner import ResearchPlanner
-from vasukisquare.research.service import ResearchService
 
 
 class DummyOutputSchema(BaseModel):

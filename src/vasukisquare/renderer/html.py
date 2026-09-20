@@ -9,7 +9,6 @@ from vasukisquare.design.icons import IconColorResolver, render_lucide_icon, res
 from vasukisquare.renderer.components import ComponentRenderer
 from vasukisquare.renderer.overflow import (
     PageRepairEngine,
-    OverflowDetector,
     estimate_page_utilization,
     regenerate_toc_pages,
 )

@@ -1,8 +1,8 @@
 """Developer documentation and technical blog extraction tool."""
 
 import logging
-from typing import List, Optional
-from pydantic import BaseModel, Field
+from typing import List
+from pydantic import BaseModel
 from vasukisquare.research.models import SourceDocument, SourceType
 from vasukisquare.tools.base import BaseTool
 from vasukisquare.tools.fetcher import WebpageFetcherTool, FetchParams

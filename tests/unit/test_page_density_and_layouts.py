@@ -1,7 +1,6 @@
 """Unit tests for Page Density Estimation, 16 Layout Families, Underfilled Page Repair,
 Topic Watermark Icons, Quality Scoring, and Proportional Chapter Budgeting."""
 
-import pytest
 from vasukisquare.book.layout import (
     PageComplexity,
     LayoutType,
@@ -11,7 +10,6 @@ from vasukisquare.book.layout import (
 from vasukisquare.book.models import (
     Page,
     PageContent,
-    BookPlan,
     PlannedChapter,
     SectionPlan,
     VisualAnchorType,
@@ -19,7 +17,6 @@ from vasukisquare.book.models import (
 from vasukisquare.book.components import (
     TextBlock,
     CodeBlock,
-    TerminalBlock,
     CalloutBlock,
     DiagramBlock,
     StepBlock,
@@ -27,15 +24,10 @@ from vasukisquare.book.components import (
     ChecklistBlock,
     ChecklistItem,
     ComparisonBlock,
-    ExerciseBlock,
-    QuoteBlock,
-    StatisticBlock,
-    TableBlock,
 )
 from vasukisquare.renderer.overflow import (
     estimate_page_utilization,
     PageUtilization,
-    USABLE_PAGE_HEIGHT_MM,
 )
 from vasukisquare.agents.writer import repair_underfilled_page
 from vasukisquare.agents.content_validator import (
@@ -46,7 +38,6 @@ from vasukisquare.agents.content_validator import (
 from vasukisquare.design.icons import (
     resolve_topic_decorative_icon,
     render_lucide_icon,
-    ICON_MAP,
 )
 from vasukisquare.renderer.html import HtmlPageRenderer
 from vasukisquare.agents.editorial import EditorialPlannerAgent

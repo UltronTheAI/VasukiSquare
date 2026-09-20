@@ -3,7 +3,6 @@
 import pytest
 from vasukisquare.book.components import (
     CodeBlock,
-    ContentBlock,
     TextBlock,
     TocBlock,
     TocEntry,
@@ -14,7 +13,6 @@ from vasukisquare.book.models import (
     BookPlan,
     Page,
     PageContent,
-    PlannedChapter,
     PlannedPage,
 )
 from vasukisquare.agents.writer import PageWriterAgent

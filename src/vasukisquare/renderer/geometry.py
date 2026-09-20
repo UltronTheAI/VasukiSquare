@@ -1,8 +1,7 @@
 """Central physical page geometry, safe zones, and component bounding box definitions for A4."""
 
 from dataclasses import dataclass
-from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 # Standard ISO 216 Physical A4 Dimensions

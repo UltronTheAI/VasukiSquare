@@ -1,13 +1,10 @@
 """Unit tests for scripts/research_ideas.py CLI argument parsing and execution."""
 
-import sys
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
-import pytest
 
 from scripts.research_ideas import build_parser, main
-from vasukisquare.research.models import BookIdea, IdeaScores, IdeaStatus
+from vasukisquare.research.models import BookIdea, IdeaScores
 
 
 def test_cli_parser_defaults():

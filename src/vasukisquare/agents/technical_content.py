@@ -243,7 +243,7 @@ def extract_chapter_research(
                         "explanation": f"Verifies installation of {tech_name}."
                     })
                 key_terms = [
-                    {"term": f"{tech_name}", "definition": f"Core technical runtime and system component."},
+                    {"term": f"{tech_name}", "definition": "Core technical runtime and system component."},
                 ]
             elif chapter.chapter_number == 2:
                 cli_commands = [

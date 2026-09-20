@@ -1,22 +1,13 @@
 """Comprehensive unit and integration tests for root-level config.json branding customization."""
 
 import json
-from pathlib import Path
 import pytest
 from vasukisquare.config import (
-    AppConfig,
-    BrandingConfig,
-    EditionConfig,
-    CopyrightConfig,
-    BookDefaultsConfig,
     ConfigValidationError,
     load_config,
-    get_app_config,
     reset_app_config,
-    get_default_config,
-    DEFAULT_CONFIG_DICT,
 )
-from vasukisquare.book.models import CoverDesignPlan, Book, BookIntent, BookPlan, PlannedPage
+from vasukisquare.book.models import CoverDesignPlan, BookIntent, BookPlan, PlannedPage
 from vasukisquare.book.components import CopyrightBlock
 from vasukisquare.renderer.components import ComponentRenderer
 from vasukisquare.renderer.html import HtmlPageRenderer

@@ -1,6 +1,5 @@
 """Unit tests for Book, ChapterMetadata, Page, PageContent, PageStyle, SourceCitation, and Cover models."""
 
-import pytest
 from vasukisquare.book.models import (
     Book,
     ChapterMetadata,

@@ -3,7 +3,7 @@
 import ast
 import logging
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 logger = logging.getLogger("vasukisquare.code_validator")
 

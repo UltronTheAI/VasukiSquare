@@ -1,13 +1,11 @@
 """Unit and integration tests for Dynamic Page Insertion and Semantic Overflow Pagination."""
 
-import pytest
 from vasukisquare.book.components import (
     CalloutBlock,
     ChecklistBlock,
     ChecklistItem,
     CodeBlock,
     ComparisonBlock,
-    HeadingBlock,
     StepBlock,
     StepItem,
     TableBlock,
@@ -19,24 +17,17 @@ from vasukisquare.book.layout import LayoutType
 from vasukisquare.book.models import (
     Page,
     PageContent,
-    PageStyle,
-    generate_id,
 )
 from vasukisquare.design.theme import Theme
 from vasukisquare.renderer.overflow import (
-    DensityEstimator,
     DynamicPaginator,
     OverflowDetector,
-    PageRepairEngine,
     USABLE_PAGE_HEIGHT_MM,
-    create_continuation_page,
     estimate_page_utilization,
-    find_safe_page_split,
     regenerate_toc_pages,
     split_checklist_block,
     split_step_block,
     split_table_block,
-    split_text_block,
 )
 from vasukisquare.renderer.preflight import preflight_book, preflight_page
 from vasukisquare.renderer.html import HtmlPageRenderer

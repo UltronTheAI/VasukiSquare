@@ -1,7 +1,7 @@
 """WCAG-compliant contrast calculation, automatic semantic palette generator, and cover contrast validator."""
 
 import re
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple
 from pydantic import BaseModel, Field
 
 

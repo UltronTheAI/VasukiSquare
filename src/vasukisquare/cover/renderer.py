@@ -3,7 +3,7 @@
 import logging
 import random
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from vasukisquare.book.layout import LayoutType
@@ -24,10 +24,8 @@ from vasukisquare.cover.styles import ALL_COVER_STYLES, CoverStyle
 from vasukisquare.cover.contrast import (
     get_contrasting_text_palette,
     auto_correct_cover_html,
-    validate_cover_contrast,
 )
 from vasukisquare.design.theme import Theme
-from vasukisquare.design.tokens import ColorToken, validate_color_token
 
 logger = logging.getLogger(__name__)
 

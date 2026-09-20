@@ -3,7 +3,6 @@
 import shutil
 import tempfile
 from pathlib import Path
-import pytest
 
 from vasukisquare.book.models import BookIntent, CoverDesignPlan
 from vasukisquare.cover.planner import CoverPlannerAgent
@@ -20,7 +19,7 @@ from vasukisquare.cover.primitives import (
     generate_typographic_poster_accents,
 )
 from vasukisquare.cover.renderer import CoverRenderer, render_cover_gallery
-from vasukisquare.cover.styles import ALL_COVER_STYLES, CoverStyle, get_style_weights_for_topic, select_cover_style
+from vasukisquare.cover.styles import ALL_COVER_STYLES, CoverStyle, get_style_weights_for_topic
 from vasukisquare.cover.validator import CoverValidator
 
 

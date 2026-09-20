@@ -1,7 +1,7 @@
 """Design token definitions, font fallbacks, and CSS generator parsed from DESIGN.md."""
 
 from enum import Enum
-from typing import Any, Dict, Optional, Set, Union
+from typing import Any, Dict, Optional, Set
 from pydantic import BaseModel, Field
 
 

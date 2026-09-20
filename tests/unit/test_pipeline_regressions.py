@@ -20,7 +20,7 @@ from vasukisquare.book.components import (
     TextBlock,
 )
 from vasukisquare.book.models import Page, PageContent
-from vasukisquare.agents.content_validator import validate_generated_section, validate_terminal_command, validate_code_block
+from vasukisquare.agents.content_validator import validate_generated_section, validate_terminal_command
 from vasukisquare.renderer.components import (
     ComponentRenderer,
     normalize_preformatted_text,

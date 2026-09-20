@@ -1,11 +1,8 @@
 """Unit tests for research sources, deduplication, near-duplicate detection, and ranking."""
 
-import pytest
 from vasukisquare.research.models import (
     SourceDocument,
     SourceType,
-    Citation,
-    Fact,
     ResearchQuery,
     ResearchPlan,
     normalize_url,
@@ -13,8 +10,6 @@ from vasukisquare.research.models import (
 from vasukisquare.research.deduplication import (
     DeduplicationService,
     is_near_duplicate,
-    jaccard_similarity,
-    tokenize_text,
 )
 from vasukisquare.research.ranking import SourceRanker
 

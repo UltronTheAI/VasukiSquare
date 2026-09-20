@@ -1,8 +1,7 @@
 """Typed state model for the end-to-end ebook generation pipeline."""
 
 from datetime import datetime, timezone
-from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional
 from pydantic import BaseModel, Field
 from vasukisquare.book.models import (
     Book,

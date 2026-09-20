@@ -1,7 +1,7 @@
 """Source ranking and reliability scoring engine."""
 
-from typing import Any, Dict, List, Optional, Union
-from vasukisquare.research.models import SourceDocument, SourceType
+from typing import Any, List, Optional
+from vasukisquare.research.models import IdeaScores, SourceDocument, SourceType
 
 
 # Base weight multipliers by source type
@@ -147,10 +147,8 @@ class IdeaRanker:
         summary: str = "",
         sources_count: int = 0,
         signals_count: int = 0,
-    ) -> "IdeaScores":
+    ) -> IdeaScores:
         """Compute consolidated scores ensuring page depth calibration and evidence backing."""
-        from vasukisquare.research.models import IdeaScores
-
         page_fit = self.evaluate_page_count_fit(pages, book_type, summary)
         adjusted_bookworthiness = min(max(round(bookworthiness * page_fit, 3), 0.1), 1.0)
 

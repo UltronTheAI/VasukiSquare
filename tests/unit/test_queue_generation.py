@@ -323,3 +323,41 @@ def test_queue_max_attempts_exceeded(mock_db, idea_repo):
 
     claimed = idea_repo.claim_next_ready_idea(stale_timeout_minutes=180, max_attempts=3)
     assert claimed is None
+
+
+def test_queue_failure_exhausts_attempts_transitions_rejected(mock_db, idea_repo):
+    """When an idea fails on its final attempt, it transitions to REJECTED."""
+    idea = BookIdea(
+        topic="Final Attempt Idea",
+        title="Final Attempt Idea",
+        prompt="Prompt",
+        pages=50,
+        status=IdeaStatus.PROCESSING,
+        attempt_count=3,
+        scores=IdeaScores(trend=0.9, uniqueness=0.9, bookworthiness=0.9, evergreen=0.9, confidence=0.9),
+    )
+    idea_repo.create(idea)
+
+    rejected = idea_repo.mark_failed(idea.id, error="Fatal network failure", max_attempts=3)
+    assert rejected is not None
+    assert rejected.status == IdeaStatus.REJECTED
+    assert "Max generation attempts" in rejected.rejection_reason
+
+
+def test_completed_idea_terminal_cannot_update(mock_db, idea_repo):
+    """Completed ideas are terminal and cannot have status updated via update_status."""
+    idea = BookIdea(
+        topic="Completed Idea",
+        title="Completed Idea",
+        prompt="Prompt",
+        pages=50,
+        status=IdeaStatus.READY,
+        scores=IdeaScores(trend=0.9, uniqueness=0.9, bookworthiness=0.9, evergreen=0.9, confidence=0.9),
+    )
+    idea_repo.create(idea)
+    idea_repo.mark_completed(idea.id, book_id="book_123")
+
+    updated = idea_repo.update_status(idea.id, IdeaStatus.READY)
+    assert updated is not None
+    assert updated.status == IdeaStatus.COMPLETED  # Stays COMPLETED
+

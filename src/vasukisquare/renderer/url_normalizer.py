@@ -2,8 +2,8 @@
 
 import re
 from typing import Optional
-from urllib.parse import parse_qs, unquote, unquote_plus, urlparse
-from pydantic import BaseModel, Field
+from urllib.parse import parse_qs, unquote_plus, urlparse
+from pydantic import BaseModel
 
 
 class NormalizedSource(BaseModel):

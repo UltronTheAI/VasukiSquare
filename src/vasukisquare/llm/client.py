@@ -7,7 +7,7 @@ from typing import Any, Dict, List, Optional, Type, TypeVar
 from pydantic import BaseModel, ValidationError
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from vasukisquare.config import Settings, get_settings, EnvironmentConfigurationError
+from vasukisquare.config import Settings, get_settings
 from vasukisquare.llm.metrics import BookGenerationMetrics
 from vasukisquare.llm.pool import (
     GroqKeyPool,

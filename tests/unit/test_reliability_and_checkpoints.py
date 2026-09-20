@@ -2,9 +2,6 @@
 token color normalization, multi-factor density validation, and pipeline checkpoint/resume.
 """
 
-import asyncio
-import json
-import time
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
@@ -13,20 +10,16 @@ from pydantic import BaseModel
 from vasukisquare.config import Settings
 from vasukisquare.design.tokens import ColorToken, normalize_design_color
 from vasukisquare.design.icons import LucideIcon, render_lucide_icon
-from vasukisquare.llm.client import LLMClient, LLMGenerationError
+from vasukisquare.llm.client import LLMClient
 from vasukisquare.llm.pool import (
     GroqModelPool,
     is_retryable_groq_error,
-    parse_retry_after,
 )
 from vasukisquare.book.models import (
     BookIntent,
     BookPlan,
-    CoverPlan,
-    Page,
     PageContent,
     PlannedPage,
-    generate_id,
 )
 from vasukisquare.book.components import (
     CalloutBlock,

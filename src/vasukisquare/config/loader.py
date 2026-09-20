@@ -2,9 +2,7 @@
 
 import json
 import logging
-import os
 import sys
-from functools import lru_cache
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 from pydantic import ValidationError
@@ -63,10 +61,10 @@ def format_validation_error(e: ValidationError, config_path: Path) -> str:
         "============================================================",
         " VasukiSquare Configuration Error",
         "============================================================",
-        f"File:",
+        "File:",
         f"    {config_path}",
         "",
-        f"Field:",
+        "Field:",
         f"    {loc or 'root'}",
         "",
     ]
@@ -145,9 +143,9 @@ def create_default_config_file(config_path: Path) -> AppConfig:
     content = json.dumps(DEFAULT_CONFIG_DICT, indent=2) + "\n"
     config_path.write_text(content, encoding="utf-8")
     
-    print(f"[Config] config.json not found")
+    print("[Config] config.json not found")
     print(f"[Config] Created default VasukiSquare configuration at {config_path}")
-    print(f"[Config] Loaded configuration successfully")
+    print("[Config] Loaded configuration successfully")
     return get_default_config()
 
 

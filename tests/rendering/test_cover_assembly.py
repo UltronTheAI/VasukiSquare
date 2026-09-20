@@ -4,14 +4,9 @@ import pytest
 from vasukisquare.config import Settings
 from vasukisquare.book.layout import LayoutType
 from vasukisquare.book.models import (
-    Book,
-    BookIntent,
-    BookPlan,
-    Cover,
     CoverPlan,
     Page,
     PageContent,
-    PlannedPage,
     generate_id,
 )
 from vasukisquare.design.theme import Theme

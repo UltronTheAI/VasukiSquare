@@ -21,7 +21,6 @@ from vasukisquare.book.components import (
     CodeBlock,
     ComparisonBlock,
     HeadingBlock,
-    ImageBlock,
     SourceBlock,
     StepBlock,
     StepItem,

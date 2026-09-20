@@ -8,13 +8,7 @@ from vasukisquare.book.models import Page
 from vasukisquare.book.layout import LayoutType
 from vasukisquare.design.themes import BookThemeMap, SectionTheme
 from vasukisquare.renderer.geometry import (
-    CONTENT_SAFE_HEIGHT_MM,
     AVAILABLE_CONTENT_HEIGHT_MM,
-    CONTENT_BOTTOM_MM,
-    CONTENT_TOP_MM,
-    FOOTER_SAFE_ZONE_MM,
-    HEADER_SAFE_ZONE_MM,
-    USABLE_PAGE_HEIGHT_MM,
     MIN_FOOTER_BREATHING_GAP_MM,
     SAFE_BOTTOM_EPSILON_MM,
 )

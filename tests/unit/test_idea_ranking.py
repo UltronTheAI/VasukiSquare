@@ -1,8 +1,7 @@
 """Unit tests for IdeaRanker, page fit evaluation, and minimum score threshold filtering."""
 
-import pytest
 from vasukisquare.research.ranking import IdeaRanker
-from vasukisquare.research.models import BookIdea, IdeaScores, IdeaStatus
+from vasukisquare.research.models import BookIdea, IdeaScores
 
 
 def test_idea_ranker_page_fit_evaluation():

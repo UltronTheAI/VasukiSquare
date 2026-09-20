@@ -1,6 +1,5 @@
 """Unit tests for IdeaDeduplicationService, title/topic normalization, and angle differentiation."""
 
-import pytest
 from vasukisquare.research.deduplication import (
     IdeaDeduplicationService,
     normalize_title,
@@ -113,4 +112,50 @@ def test_dedup_genuinely_different_angle_accepted():
     )
     assert match.is_duplicate is False
     assert match.distinct_angle_accepted is True
+
+
+def test_dedup_prompt_example_beginner_python_duplicate():
+    """Existing 'Python for Beginners' should reject candidate 'Beginner Python Programming'."""
+    service = IdeaDeduplicationService()
+    historical = [
+        {
+            "id": "book-py-1",
+            "title": "Python for Beginners",
+            "topic": "Python Programming",
+            "summary": "Introductory guide to Python programming basics, syntax, variables, and loops.",
+            "angle": "Beginner fundamentals, language syntax, basic data structures",
+        }
+    ]
+
+    match = service.check_duplicate(
+        candidate_title="Beginner Python Programming",
+        candidate_topic="Python Programming",
+        candidate_summary="Learn Python from scratch with basic variables, loops, functions, and syntax.",
+        candidate_angle="Beginner fundamentals and language basics",
+        historical_records=historical,
+    )
+    assert match.is_duplicate is True
+
+
+def test_dedup_prompt_example_async_python_distinct_allowed():
+    """Existing 'Python for Beginners' should allow candidate 'High-Performance Async Python Services'."""
+    service = IdeaDeduplicationService()
+    historical = [
+        {
+            "id": "book-py-1",
+            "title": "Python for Beginners",
+            "topic": "Python Programming",
+            "summary": "Introductory guide to Python programming basics, syntax, variables, and loops.",
+            "angle": "Beginner fundamentals, language syntax, basic data structures",
+        }
+    ]
+
+    match = service.check_duplicate(
+        candidate_title="High-Performance Async Python Services",
+        candidate_topic="Async Python Backend Services",
+        candidate_summary="Production async architecture with asyncio event loop, uvloop, FastAPI, multiprocessing workers, and connection pooling.",
+        candidate_angle="Advanced concurrency, uvloop internals, non-blocking I/O benchmarks, and distributed worker architectures",
+        historical_records=historical,
+    )
+    assert match.is_duplicate is False
 

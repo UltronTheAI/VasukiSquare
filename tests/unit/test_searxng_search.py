@@ -1,22 +1,17 @@
 """Comprehensive unit tests for SearXNG search provider, normalization, health checks, error handling, and provider resolution."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from vasukisquare.config import EnvironmentConfigurationError, Settings
+from vasukisquare.config import Settings
 from vasukisquare.research.models import SourceType
 from vasukisquare.tools.search import (
-    MockSearchProvider,
     SearchParams,
-    SearchResult,
     SearxngSearchProvider,
-    TavilySearchProvider,
     WebSearchTool,
     check_searxng_health,
     create_search_provider,
-    create_search_tool,
 )
 
 

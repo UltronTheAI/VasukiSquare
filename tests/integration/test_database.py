@@ -10,7 +10,6 @@ import pytest
 from pymongo import ASCENDING, DESCENDING
 from pymongo.errors import PyMongoError
 
-from vasukisquare.book.layout import LayoutType
 from vasukisquare.book.models import (
     CURRENT_RENDERER_VERSION,
     CURRENT_SCHEMA_VERSION,
@@ -18,16 +17,11 @@ from vasukisquare.book.models import (
     Book,
     ChapterMetadata,
     Cover,
-    DiscoveryInfo,
-    FeaturedInfo,
     Page,
     PageContent,
     PageStyle,
-    PublicationInfo,
     PublicationStatus,
     PublicationVisibility,
-    SeoInfo,
-    SourceCitation,
 )
 from vasukisquare.database.connection import DatabaseManager
 from vasukisquare.database.repository import (

@@ -1,12 +1,9 @@
 """Comprehensive regression and unit tests for cover text contrast and color selection."""
 
-import pytest
-from vasukisquare.book.models import BookIntent, CoverDesignPlan
+from vasukisquare.book.models import CoverDesignPlan
 from vasukisquare.cover.contrast import (
     calculate_contrast_ratio,
     get_contrasting_text_palette,
-    is_light_color,
-    relative_luminance,
     validate_cover_contrast,
     auto_correct_cover_html,
 )

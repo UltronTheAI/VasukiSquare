@@ -1,9 +1,8 @@
 """AI-directed Cover Planner Agent designing custom, diverse covers conforming to DESIGN.md."""
 
 import logging
-import random
 from typing import Optional, Union
-from typing import Any, Optional, Union
+from typing import Any
 from vasukisquare.config import Settings, get_settings
 from vasukisquare.book.models import CoverDesignPlan, CoverPlan
 from vasukisquare.design.tokens import ColorToken

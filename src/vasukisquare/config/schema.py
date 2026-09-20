@@ -2,7 +2,7 @@
 
 from typing import Optional
 from urllib.parse import urlparse
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class BrandingConfig(BaseModel):

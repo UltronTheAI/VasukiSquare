@@ -1,15 +1,13 @@
 """Integration tests for the end-to-end research subsystem and tool providers."""
 
 import asyncio
-import pytest
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock
 from vasukisquare.config import Settings
 from vasukisquare.research.models import SourceDocument, SourceType, ResearchCorpus
 from vasukisquare.research.service import ResearchService
-from vasukisquare.research.planner import ResearchPlanner
 from vasukisquare.tools.search import WebSearchTool, MockSearchProvider, SearchParams
-from vasukisquare.tools.wikipedia import WikipediaTool, WikipediaParams
-from vasukisquare.tools.fetcher import WebpageFetcherTool, clean_html_content
+from vasukisquare.tools.wikipedia import WikipediaTool
+from vasukisquare.tools.fetcher import clean_html_content
 
 
 def test_mock_search_provider_execution():

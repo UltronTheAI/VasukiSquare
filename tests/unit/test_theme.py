@@ -7,7 +7,6 @@ from vasukisquare.design.themes import (
     LIGHT_BACKGROUND_COLORS,
     DARK_ACCENT_COLORS,
     DARK_BACKGROUND_COLORS,
-    BookThemeMap,
     SectionTheme,
     generate_book_theme,
 )

@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -23,7 +23,6 @@ from vasukisquare.book.models import (
     PageStyle,
     PlannedPage,
     BookPlan,
-    PageCompletenessScore,
     SourceCitation,
     generate_id,
 )
@@ -41,7 +40,6 @@ from vasukisquare.book.components import (
     CommonMistakeBlock,
     ChecklistBlock,
     ComparisonBlock,
-    StatisticBlock,
     QuoteBlock,
     ExerciseBlock,
     TocBlock,
@@ -53,9 +51,6 @@ from vasukisquare.book.components import (
 )
 from vasukisquare.agents.content_validator import (
     validate_terminal_command,
-    validate_code_block,
-    validate_generated_section,
-    ValidationResult,
 )
 from vasukisquare.agents.code_validator import (
     normalize_code_language,
@@ -65,9 +60,8 @@ from vasukisquare.agents.code_validator import (
     repair_incomplete_terminal,
 )
 from vasukisquare.research.models import ResearchCorpus
-from vasukisquare.llm.client import LLMClient, GroqGenerationError
+from vasukisquare.llm.client import LLMClient
 from vasukisquare.llm.metrics import BookGenerationMetrics
-from vasukisquare.design.theme import Theme
 
 
 class LLMGeneratedPage(BaseModel):
@@ -158,7 +152,6 @@ def repair_underfilled_page(
 ) -> Any:
     """Multi-pass, genre-aware page density repair ensuring 90%-95% usable area utilization."""
     from vasukisquare.renderer.overflow import estimate_page_utilization
-    from vasukisquare.book.components import TimelineEvent
 
     is_page_obj = isinstance(page_content, Page)
     content_obj = page_content.content if is_page_obj else page_content
@@ -929,11 +922,11 @@ class PageWriterAgent:
         else:
             author_role = "expert editorial non-fiction author and subject specialist"
             guidelines = (
-                f"1. Ground all behavioral concepts, strategies, examples, and frameworks in the Research Dossier below.\n"
-                f"2. Write warm, practical, engaging, actionable advice. Never output code snippets or terminal commands.\n"
-                f"3. Provide rich substantive paragraphs (80-120 words for lead, 60-100 words for secondary).\n"
-                f"4. Include an actionable CalloutBox (tip, insight, or reflection exercise).\n"
-                f"5. Populate cited_source_urls with the URLs from the dossier actually used."
+                "1. Ground all behavioral concepts, strategies, examples, and frameworks in the Research Dossier below.\n"
+                "2. Write warm, practical, engaging, actionable advice. Never output code snippets or terminal commands.\n"
+                "3. Provide rich substantive paragraphs (80-120 words for lead, 60-100 words for secondary).\n"
+                "4. Include an actionable CalloutBox (tip, insight, or reflection exercise).\n"
+                "5. Populate cited_source_urls with the URLs from the dossier actually used."
             )
 
         system_prompt = (
@@ -2154,9 +2147,9 @@ class PageWriterAgent:
                     content="Processed stats: {'count': 3, 'total': 45}",
                 ),
                 TextBlock(
-                    text=f"### Code Walkthrough\n"
-                    f"This example processes a list of integers, filters the positive values using a list comprehension, "
-                    f"and returns aggregated statistics in a dictionary for structured retrieval."
+                    text="### Code Walkthrough\n"
+                    "This example processes a list of integers, filters the positive values using a list comprehension, "
+                    "and returns aggregated statistics in a dictionary for structured retrieval."
                 ),
                 CalloutBlock(
                     variant="tip",

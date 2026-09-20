@@ -2,7 +2,11 @@
 
 import logging
 from typing import Optional
+
+from vasukisquare.book.models import BookIntent
 from vasukisquare.config import Settings, get_settings
+from vasukisquare.llm.client import LLMClient
+from vasukisquare.llm.metrics import BookGenerationMetrics
 from vasukisquare.research.models import (
     ResearchPlan,
     ResearchQuery,
@@ -10,15 +14,6 @@ from vasukisquare.research.models import (
 )
 
 logger = logging.getLogger(__name__)
-
-
-from vasukisquare.llm.client import LLMClient, GroqGenerationError
-from vasukisquare.llm.metrics import BookGenerationMetrics
-
-logger = logging.getLogger(__name__)
-
-
-from vasukisquare.book.models import BookIntent
 
 
 class ResearchPlanner:

@@ -1,7 +1,6 @@
 """Unit tests for BookIdeaRepository using Mock DB."""
 
 import pytest
-from datetime import datetime, timezone
 
 from tests.integration.test_database import create_mock_db
 from vasukisquare.database.repository import BookIdeaRepository

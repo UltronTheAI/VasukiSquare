@@ -1,14 +1,13 @@
 """Unit tests for automatic Groq -> Ollama fallback, LLM provider selection,
 preflight checks, rate limit handling, and structured output parsing."""
 
-import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List
 
 from vasukisquare.config import Settings, EnvironmentConfigurationError
-from vasukisquare.llm.client import LLMClient, LLMGenerationError, GroqGenerationError
+from vasukisquare.llm.client import LLMClient, LLMGenerationError
 from vasukisquare.llm.metrics import BookGenerationMetrics
 
 

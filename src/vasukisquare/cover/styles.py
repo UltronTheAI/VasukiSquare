@@ -2,9 +2,8 @@
 
 import enum
 import random
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 from vasukisquare.book.models import BookIntent
-from vasukisquare.cover.contrast import get_contrasting_text_palette, CoverTextPalette
 
 
 class CoverStyle(str, enum.Enum):

@@ -1,7 +1,7 @@
 """Deduplication and near-duplicate detection for research documents."""
 
 import re
-from typing import Any, Dict, List, Optional, Set, Union
+from typing import Any, Dict, List, Optional, Set
 from vasukisquare.research.models import SourceDocument, normalize_url
 
 
@@ -106,8 +106,10 @@ class DeduplicationService:
 STOP_WORDS = {
     "a", "an", "the", "and", "or", "in", "of", "to", "for", "with", "on", "at", "by",
     "from", "into", "about", "guide", "handbook", "complete", "practical", "introduction",
-    "getting", "started", "mastering", "essential", "ultimate", "beginners", "noobs",
-    "zero", "hero", "learn", "building", "build", "modern", "deep", "dive",
+    "introductory", "getting", "started", "mastering", "essential", "essentials", "ultimate",
+    "beginner", "beginners", "noob", "noobs", "zero", "hero", "learn", "learning",
+    "building", "build", "modern", "deep", "dive", "basic", "basics", "fundamental",
+    "fundamentals", "programming", "manual", "overview",
 }
 
 
@@ -178,16 +180,24 @@ class IdeaDeduplicationService:
         historical_summary: str,
     ) -> bool:
         """Evaluate whether a candidate on a similar subject has a genuinely distinct angle/focus."""
-        if not candidate_angle or not (historical_angle or historical_summary):
+        cand_text = f"{candidate_angle} {candidate_summary}".strip()
+        hist_text = f"{historical_angle} {historical_summary}".strip()
+        if not cand_text or not hist_text:
             return False
 
-        # Compare angle tokens
-        cand_angle_tokens = tokenize_text(candidate_angle)
-        hist_angle_tokens = tokenize_text(historical_angle or historical_summary)
+        # Compare angle tokens (excluding common filler words)
+        cand_angle_tokens = {w for w in tokenize_text(candidate_angle or candidate_summary) if w not in STOP_WORDS}
+        hist_angle_tokens = {w for w in tokenize_text(historical_angle or historical_summary) if w not in STOP_WORDS}
 
-        angle_overlap = jaccard_similarity(cand_angle_tokens, hist_angle_tokens)
-        # Low overlap in angle description indicates a distinct angle
-        return angle_overlap < 0.40
+        if not cand_angle_tokens or not hist_angle_tokens:
+            return False
+
+        common_tokens = cand_angle_tokens.intersection(hist_angle_tokens)
+        cand_overlap_ratio = len(common_tokens) / len(cand_angle_tokens)
+        jaccard = jaccard_similarity(cand_angle_tokens, hist_angle_tokens)
+
+        # Genuinely distinct angles should share almost no angle-defining keywords (< 20% overlap and jaccard < 0.15)
+        return cand_overlap_ratio < 0.20 and jaccard < 0.15
 
     def check_duplicate(
         self,

@@ -1,5 +1,4 @@
-"""MongoDB repositories for Books, Pages, Covers, and Advertisements."""
-
+import logging
 import math
 import random
 import re
@@ -24,6 +23,8 @@ from vasukisquare.book.models import (
     slugify,
 )
 from vasukisquare.research.models import BookIdea, IdeaStatus
+
+logger = logging.getLogger(__name__)
 
 
 class BookRepository:
@@ -1020,6 +1021,7 @@ class BookIdeaRepository:
             query = {
                 "$or": [
                     {"status": IdeaStatus.READY.value},
+                    {"status": IdeaStatus.FAILED.value, "attempt_count": {"$lt": max_attempts}},
                     {
                         "status": IdeaStatus.PROCESSING.value,
                         "claimed_at": {"$lte": stale_threshold},
@@ -1072,16 +1074,34 @@ class BookIdeaRepository:
             return None
         return self.get_by_id(idea_id)
 
-    def mark_failed(self, idea_id: str, error: str) -> Optional[BookIdea]:
-        """Mark an idea as failed with diagnostic error details."""
+    def mark_failed(
+        self,
+        idea_id: str,
+        error: str,
+        max_attempts: int = 3,
+    ) -> Optional[BookIdea]:
+        """Mark an idea as failed (or rejected if retries are exhausted) with diagnostic error details."""
+        existing = self.get_by_id(idea_id)
+        current_attempts = existing.attempt_count if existing else 1
         now = datetime.now(timezone.utc)
-        update = {
-            "$set": {
-                "status": IdeaStatus.FAILED.value,
-                "updated_at": now,
-                "generation.error": error,
+
+        if current_attempts >= max_attempts:
+            update = {
+                "$set": {
+                    "status": IdeaStatus.REJECTED.value,
+                    "rejection_reason": f"Max generation attempts ({max_attempts}) exhausted. Last error: {error}",
+                    "updated_at": now,
+                    "generation.error": error,
+                }
             }
-        }
+        else:
+            update = {
+                "$set": {
+                    "status": IdeaStatus.FAILED.value,
+                    "updated_at": now,
+                    "generation.error": error,
+                }
+            }
         res = self.collection.update_one({"_id": idea_id}, update)
         if res.matched_count == 0:
             return None
@@ -1108,7 +1128,12 @@ class BookIdeaRepository:
         status: Union[IdeaStatus, str],
         rejection_reason: Optional[str] = None,
     ) -> Optional[BookIdea]:
-        """Update the status of an idea document."""
+        """Update the status of an idea document, preserving terminal COMPLETED state."""
+        existing = self.get_by_id(idea_id)
+        if existing and existing.status == IdeaStatus.COMPLETED:
+            logger.warning(f"Cannot update status of terminal COMPLETED idea '{idea_id}'.")
+            return existing
+
         status_val = status.value if isinstance(status, IdeaStatus) else str(status).lower()
         now = datetime.now(timezone.utc)
         update_fields: Dict[str, Any] = {

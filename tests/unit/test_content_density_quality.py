@@ -2,8 +2,6 @@
 
 import pytest
 from vasukisquare.book.layout import (
-    ContentDensity,
-    ContentBudget,
     PAGE_TYPE_SPECS,
     TechnicalPageType,
     LayoutType,
@@ -11,8 +9,6 @@ from vasukisquare.book.layout import (
 from vasukisquare.book.models import (
     Page,
     PageContent,
-    PagePurpose,
-    PageStyle,
     generate_id,
 )
 from vasukisquare.book.components import (
@@ -20,21 +16,15 @@ from vasukisquare.book.components import (
     CodeBlock,
     OutputBlock,
     CalloutBlock,
-    TableBlock,
-    TimelineBlock,
-    TimelineEvent,
-    CommonMistakeBlock,
 )
 from vasukisquare.renderer.overflow import (
     DensityEstimator,
     estimate_page_utilization,
-    PageUtilization,
 )
 from vasukisquare.renderer.preflight import (
     preflight_page,
     preflight_book,
 )
-from vasukisquare.renderer.validator import ContentValidator
 from vasukisquare.agents.writer import repair_underfilled_page
 
 

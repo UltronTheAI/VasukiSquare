@@ -1,16 +1,12 @@
 """Unit tests for Groq Model Group / Model Pool, failover logic, strategies,
 cooldown tracking, error classification, and provider fallback independence."""
 
-import asyncio
-import time
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
-from pydantic import BaseModel, Field
-from typing import List, Optional
+from pydantic import BaseModel
 
-from vasukisquare.config import Settings, get_groq_models
-from vasukisquare.llm.client import LLMClient, LLMGenerationError, GroqGenerationError
-from vasukisquare.llm.metrics import BookGenerationMetrics
+from vasukisquare.config import Settings
+from vasukisquare.llm.client import LLMClient, LLMGenerationError
 from vasukisquare.llm.pool import (
     GroqModelPool,
     parse_model_list,

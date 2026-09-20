@@ -1,7 +1,7 @@
 """Environment and infrastructure settings loaded from environment variables and .env files."""
 
 from functools import lru_cache
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 

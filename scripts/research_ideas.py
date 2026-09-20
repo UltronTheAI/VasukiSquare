@@ -4,8 +4,6 @@
 import argparse
 import logging
 import sys
-from pathlib import Path
-from typing import Optional
 
 # Ensure standard streams handle UTF-8 safely across Windows and legacy consoles
 if hasattr(sys.stdout, "reconfigure"):
@@ -121,7 +119,7 @@ def main(args=None):
 
         print(f"\n[RESEARCH COMPLETE] Successfully researched {len(ideas)} ready book idea(s):\n")
         for idx, idea in enumerate(ideas, 1):
-            print(f"--------------------------------------------------")
+            print("--------------------------------------------------")
             print(f" #{idx} | {idea.title} ({idea.pages} pages)")
             print(f" Topic: {idea.topic}")
             print(f" Category: {idea.category} | Audience: {idea.audience}")

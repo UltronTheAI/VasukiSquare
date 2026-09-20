@@ -2,8 +2,7 @@
 
 import asyncio
 from unittest.mock import MagicMock
-import pytest
-from vasukisquare.book.models import Book, Cover, CoverPlan
+from vasukisquare.book.models import Book, CoverPlan
 from vasukisquare.book.layout import LayoutType
 from vasukisquare.design.tokens import ColorToken
 from vasukisquare.database.repository import BookRepository, CoverRepository

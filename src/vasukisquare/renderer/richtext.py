@@ -2,11 +2,10 @@
 
 import html
 import re
-from typing import List, Literal, Optional
+from typing import List
 from urllib.parse import urlparse
-from pydantic import BaseModel, Field
 
-from vasukisquare.book.richtext import MarkType, RichSpan, RichParagraph
+from vasukisquare.book.richtext import RichSpan
 
 ALLOWED_URL_SCHEMES = {"http", "https", "mailto"}
 

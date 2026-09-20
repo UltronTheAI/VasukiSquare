@@ -8,7 +8,7 @@ from tests.integration.test_database import create_mock_db
 from vasukisquare.config import Settings
 from vasukisquare.database.repository import BookIdeaRepository
 from vasukisquare.research.idea_researcher import IdeaResearchService
-from vasukisquare.research.models import BookIdea, IdeaStatus
+from vasukisquare.research.models import IdeaStatus
 
 
 @pytest.fixture

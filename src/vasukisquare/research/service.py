@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import TYPE_CHECKING, Any, List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from vasukisquare.config import Settings, get_settings
 from vasukisquare.research.models import (
     ResearchCorpus,
@@ -16,6 +16,7 @@ from vasukisquare.research.deduplication import DeduplicationService
 from vasukisquare.research.ranking import SourceRanker
 from vasukisquare.llm.metrics import BookGenerationMetrics
 from vasukisquare.book.models import BookIntent
+from vasukisquare.tools.fetcher import FetchParams
 
 if TYPE_CHECKING:
     from vasukisquare.tools.search import WebSearchTool
@@ -97,9 +98,6 @@ class ResearchService:
 
     async def _fetch_and_enrich_pages(self, docs: List[SourceDocument]) -> List[SourceDocument]:
         """Fetch full HTML text for top non-Wikipedia web documents."""
-        from vasukisquare.tools.fetcher import FetchParams
-
-        enriched: List[SourceDocument] = []
         fetch_tasks = []
         doc_map = {}
 

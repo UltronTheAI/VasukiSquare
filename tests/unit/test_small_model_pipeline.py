@@ -3,20 +3,14 @@
 import pytest
 from unittest.mock import AsyncMock, MagicMock
 from vasukisquare.config import Settings
-from vasukisquare.book.layout import LayoutType, TechnicalPageType, TechnicalPageSpec, PAGE_TYPE_SPECS
-from vasukisquare.book.components import TerminalBlock, TerminalLine, CodeBlock, CalloutBlock, TextBlock, TableBlock
+from vasukisquare.book.layout import LayoutType, TechnicalPageType, PAGE_TYPE_SPECS
+from vasukisquare.book.components import TerminalBlock, TerminalLine, CalloutBlock, TextBlock
 from vasukisquare.book.models import BookPlan, BookIntent, PageContent, PlannedPage, PlannedChapter, CoverDesignPlan
 from vasukisquare.agents.content_validator import (
     validate_terminal_command,
     validate_code_block,
     detect_topic_drift,
     evaluate_technical_page,
-    validate_page_content,
-)
-from vasukisquare.agents.technical_content import (
-    TopicClassification,
-    classify_topic,
-    extract_chapter_research,
 )
 from vasukisquare.agents.writer import (
     PageWriterAgent,

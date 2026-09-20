@@ -6,15 +6,12 @@ from vasukisquare.book.components import (
     ChartBlock,
     CodeBlock,
     DiagramBlock,
-    HeadingBlock,
-    QuoteBlock,
     SourceBlock,
-    StatisticBlock,
     TableBlock,
     TerminalBlock,
     TextBlock,
 )
-from vasukisquare.book.models import Page, PageContent, PageStyle, SourceCitation
+from vasukisquare.book.models import Page, PageContent, SourceCitation
 from vasukisquare.design.theme import Theme
 
 

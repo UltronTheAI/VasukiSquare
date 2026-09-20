@@ -9,7 +9,6 @@ from vasukisquare.book.layout import (
     LayoutType,
     PAGE_TYPE_SPECS,
     TechnicalPageType,
-    ContentBudget,
     PublicationProfile,
 )
 from vasukisquare.book.models import (
@@ -531,8 +530,8 @@ class EditorialPlannerAgent:
                 raw_sections = gen_ch.key_sections if len(gen_ch.key_sections) >= 3 else [
                     f"Understanding {ch_title}",
                     f"Core Concepts and Framework of {ch_title}",
-                    f"Practical Workflows and Real-World Examples",
-                    f"Actionable Exercises and Summary",
+                    "Practical Workflows and Real-World Examples",
+                    "Actionable Exercises and Summary",
                 ]
 
                 for sec_idx, sec_title in enumerate(raw_sections):

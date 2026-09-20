@@ -1,8 +1,8 @@
 """Lucide icon handling and tokenized color resolution mapped from DESIGN.md."""
 
 import html
-from typing import Any, Optional, Union
-from vasukisquare.design.tokens import ColorToken, validate_color_token, normalize_design_color
+from typing import Optional, Union
+from vasukisquare.design.tokens import ColorToken, validate_color_token
 from vasukisquare.design.theme import Theme
 
 

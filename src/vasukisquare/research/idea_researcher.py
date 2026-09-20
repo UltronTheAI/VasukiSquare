@@ -6,7 +6,6 @@ import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
-from uuid import uuid4
 
 from vasukisquare.config import Settings, get_settings
 from vasukisquare.llm.client import LLMClient
@@ -15,12 +14,9 @@ from vasukisquare.llm.metrics import BookGenerationMetrics
 if TYPE_CHECKING:
     from vasukisquare.database.connection import DatabaseManager
     from vasukisquare.database.repository import BookIdeaRepository
-from vasukisquare.research.deduplication import IdeaDeduplicationService, normalize_title, normalize_topic
+from vasukisquare.research.deduplication import IdeaDeduplicationService
 from vasukisquare.research.models import (
     BookIdea,
-    DetailedIdeaPrompt,
-    IdeaGenerationInfo,
-    IdeaScores,
     IdeaSource,
     IdeaStatus,
     RawTrendDiscovery,

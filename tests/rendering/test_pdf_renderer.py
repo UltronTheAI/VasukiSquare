@@ -1,6 +1,5 @@
 """Regression and unit tests for PdfRenderer API contract, error handling, and page count budgeting."""
 
-import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest

@@ -1,14 +1,13 @@
 """Unit tests for Groq API Key Pool, multi-key parsing, rotation, and failover mechanics."""
 
-import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from pydantic import BaseModel
 
 from vasukisquare.config import Settings
-from vasukisquare.llm.client import LLMClient, LLMGenerationError
-from vasukisquare.llm.pool import GroqKeyPool, GroqKeyState, is_retryable_groq_error
+from vasukisquare.llm.client import LLMClient
+from vasukisquare.llm.pool import GroqKeyPool, GroqKeyState
 
 
 class SampleSchema(BaseModel):

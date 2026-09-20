@@ -1,8 +1,7 @@
 """Rendering contract and regression fixture verification tests specified in TESTS.md."""
 
-from pathlib import Path
 from vasukisquare.renderer.html import HtmlPageRenderer
-from vasukisquare.renderer.overflow import OverflowDetector, PageRepairEngine, MAX_PAGE_CHARACTERS
+from vasukisquare.renderer.overflow import OverflowDetector, PageRepairEngine
 from vasukisquare.book.models import Page, PageContent
 from vasukisquare.book.layout import LayoutType
 from vasukisquare.design.theme import Theme
@@ -430,7 +429,7 @@ def test_url_normalizer_cleans_search_query_artifacts():
 
 
 def test_normal_page_lucide_heading_and_callout_icons():
-    from vasukisquare.book.components import HeadingBlock, CalloutBlock, TextBlock
+    from vasukisquare.book.components import HeadingBlock, CalloutBlock
 
     page = Page(
         book_id="b-test",

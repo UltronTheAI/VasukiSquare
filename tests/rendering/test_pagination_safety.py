@@ -1,6 +1,5 @@
 """Comprehensive pagination and safe-area layout regression tests covering pathological stress cases A through O."""
 
-import pytest
 from vasukisquare.book.components import (
     CalloutBlock,
     ChecklistBlock,
@@ -9,8 +8,6 @@ from vasukisquare.book.components import (
     ComparisonBlock,
     HeadingBlock,
     ImageBlock,
-    StepBlock,
-    StepItem,
     TableBlock,
     TerminalBlock,
     TerminalLine,
@@ -22,29 +19,18 @@ from vasukisquare.book.layout import LayoutType
 from vasukisquare.book.models import (
     Page,
     PageContent,
-    PageStyle,
 )
 from vasukisquare.design.theme import Theme
 from vasukisquare.renderer.geometry import (
-    PAGE_HEIGHT_MM,
-    PAGE_WIDTH_MM,
-    CONTENT_BOTTOM_MM,
-    CONTENT_TOP_MM,
     AVAILABLE_CONTENT_HEIGHT_MM,
-    BOTTOM_SAFETY_GAP_MM,
     SAFE_BOTTOM_EPSILON_MM,
 )
 from vasukisquare.renderer.overflow import (
     DensityEstimator,
     DynamicPaginator,
-    OverflowDetector,
-    PagePaginator,
-    PageRepairEngine,
     estimate_page_utilization,
-    find_safe_page_split,
 )
 from vasukisquare.renderer.preflight import preflight_book, preflight_page
-from vasukisquare.renderer.html import HtmlPageRenderer
 
 
 def _create_base_page(page_num: int = 4, chapter_num: int = 1, theme: Theme = Theme.LIGHT, blocks=None, headline="Test Section") -> Page:
@@ -457,7 +443,7 @@ def test_case_o_40_page_synthetic_document_rounding_drift():
                 CalloutBlock(
                     variant="tip" if p % 2 == 0 else "important",
                     title=f"Practical Scenario {ch}.{p}",
-                    content=f"Always verify disk sync barriers and monitor p99 tail latency under saturated queue conditions.",
+                    content="Always verify disk sync barriers and monitor p99 tail latency under saturated queue conditions.",
                 ),
             ]
             if p % 2 == 0:

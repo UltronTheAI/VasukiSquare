@@ -1,14 +1,13 @@
 """Cover preflight and contrast validator for VasukiSquare covers."""
 
 import re
-from typing import Dict, List, Optional
+from typing import List, Optional
 from pydantic import BaseModel, Field
 from vasukisquare.book.models import CoverDesignPlan
 from vasukisquare.cover.styles import ALL_COVER_STYLES
 from vasukisquare.cover.contrast import (
     CoverContrastReport,
     calculate_contrast_ratio,
-    get_contrasting_text_palette,
     validate_cover_contrast,
 )
 

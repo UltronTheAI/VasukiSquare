@@ -23,7 +23,6 @@ import html
 from typing import Any, Dict, List, Optional
 from vasukisquare.design.icons import render_lucide_icon, IconColorResolver
 from vasukisquare.design.theme import Theme
-from vasukisquare.design.tokens import ColorToken
 from vasukisquare.renderer.richtext import RichTextRenderer
 
 

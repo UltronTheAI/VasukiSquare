@@ -6,7 +6,6 @@ import asyncio
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 # Ensure standard streams handle UTF-8 safely across Windows and legacy consoles
 if hasattr(sys.stdout, "reconfigure"):
@@ -265,8 +264,8 @@ async def main_async(args=None):
 
     except Exception as e:
         if is_queue_mode and idea_repo and idea:
-            idea_repo.mark_failed(idea.id, error=str(e))
-            logger.error(f"Idea {idea.id} marked FAILED: {e}")
+            idea_repo.mark_failed(idea.id, error=str(e), max_attempts=settings.idea_max_attempts)
+            logger.error(f"Idea {idea.id} marked FAILED (or REJECTED): {e}")
         raise
 
     print("\n==========================================")

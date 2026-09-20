@@ -1,6 +1,5 @@
 """End-to-end integration tests for the full VasukiSquare ebook generation pipeline."""
 
-import asyncio
 import json
 import pytest
 from pathlib import Path
@@ -8,7 +7,6 @@ from unittest.mock import MagicMock
 
 from vasukisquare.config import Settings
 from vasukisquare.pipeline.orchestrator import EbookGenerationPipeline
-from vasukisquare.pipeline.state import GenerationState
 from vasukisquare.design.theme import Theme
 from vasukisquare.book.layout import LayoutType
 from vasukisquare.book.components import CodeBlock

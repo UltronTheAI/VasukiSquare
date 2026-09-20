@@ -1,19 +1,14 @@
 import re
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Dict, List, Optional, Union, Generic, TypeVar, Literal
+from typing import Any, Dict, List, Optional, Generic, TypeVar
 from uuid import uuid4
 from pydantic import BaseModel, Field, model_validator, field_validator
 from vasukisquare.book.layout import (
     LayoutType,
     VisualAnchorType,
-    TechnicalPageType,
-    TechnicalPageSpec,
-    PAGE_TYPE_SPECS,
     ContentBudget,
-    ContentDensity,
     PublicationProfile,
-    ContentCapacity,
 )
 from vasukisquare.design.theme import Theme, get_chapter_theme
 from vasukisquare.design.tokens import ColorToken, validate_color_token
@@ -436,18 +431,7 @@ class BookPlan(BaseModel):
 
 
 from vasukisquare.book.components import (
-    CalloutBlock,
-    ChartBlock,
-    CodeBlock,
     ContentBlock,
-    DiagramBlock,
-    HeadingBlock,
-    QuoteBlock,
-    SourceBlock,
-    StatisticBlock,
-    TableBlock,
-    TerminalBlock,
-    TextBlock,
 )
 
 

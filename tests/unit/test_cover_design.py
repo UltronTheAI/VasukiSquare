@@ -2,7 +2,7 @@
 
 import asyncio
 import pytest
-from vasukisquare.book.models import CoverDesignPlan, CoverPlan
+from vasukisquare.book.models import CoverDesignPlan
 from vasukisquare.config import Settings
 from vasukisquare.design.cover_patterns import CoverPatternGenerator
 from vasukisquare.design.tokens import ColorToken

@@ -2,7 +2,7 @@
 
 import html
 import logging
-from typing import Any, Dict, List, Optional, Union
+from typing import Optional, Union
 from pygments import highlight
 from pygments.lexers import get_lexer_by_name, TextLexer
 from pygments.formatters import HtmlFormatter
@@ -34,7 +34,6 @@ from vasukisquare.book.components import (
     TextBlock,
     TimelineBlock,
     TocBlock,
-    TocEntry,
 )
 from vasukisquare.design.icons import render_lucide_icon, IconColorResolver
 from vasukisquare.design.theme import Theme

@@ -1,15 +1,12 @@
 """Unit tests for the Editorial Planning Agent, BookIntent, and BookPlan models."""
 
 import asyncio
-import pytest
 from vasukisquare.config import Settings
 from vasukisquare.agents.editorial import EditorialPlannerAgent
 from vasukisquare.book.layout import LayoutType
 from vasukisquare.book.models import (
     BookIntent,
     BookPlan,
-    PlannedChapter,
-    PlannedPage,
     VisualAnchorType,
 )
 from vasukisquare.design.theme import Theme

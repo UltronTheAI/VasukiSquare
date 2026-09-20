@@ -5,13 +5,9 @@ from pydantic import ValidationError
 
 from vasukisquare.research.models import (
     BookIdea,
-    IdeaGenerationInfo,
     IdeaScores,
-    IdeaSource,
     IdeaStatus,
     RawTrendDiscovery,
-    TrendDiscoveryList,
-    TrendSignal,
 )
 
 

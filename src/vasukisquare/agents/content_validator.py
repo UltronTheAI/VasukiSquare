@@ -6,8 +6,7 @@ from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
 from vasukisquare.book.models import PageContent
-from vasukisquare.book.components import ContentBlock
-from vasukisquare.book.layout import TechnicalPageSpec, TechnicalPageType, PAGE_TYPE_SPECS
+from vasukisquare.book.layout import TechnicalPageSpec
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +95,6 @@ GENERIC_BOILERPLATE_PATTERNS = [
 ]
 
 
-import ast
 
 MEDIAWIKI_ARTIFACT_PATTERNS = [
     r"\{\{cite\b",

@@ -4,7 +4,7 @@ import re
 import logging
 from typing import Optional
 import httpx
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
 from vasukisquare.research.models import SourceDocument, SourceType
 from vasukisquare.tools.base import BaseTool

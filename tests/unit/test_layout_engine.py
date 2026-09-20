@@ -1,10 +1,9 @@
 """Unit tests for layout vocabulary, anti-repetition constraints, and icon color resolution."""
 
-import pytest
 from vasukisquare.book.layout import LayoutType
 from vasukisquare.book.models import VisualAnchorType
 from vasukisquare.design.layout_engine import LayoutConstraintEngine
-from vasukisquare.design.icons import IconColorResolver, LucideIcon, render_lucide_icon
+from vasukisquare.design.icons import IconColorResolver
 from vasukisquare.design.tokens import ColorToken
 from vasukisquare.design.theme import Theme
 

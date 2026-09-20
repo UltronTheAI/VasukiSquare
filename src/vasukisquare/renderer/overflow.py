@@ -1,4 +1,3 @@
-import html
 import logging
 import math
 import re
@@ -17,52 +16,27 @@ from vasukisquare.book.components import (
     CalloutBlock,
     ChartBlock,
     ChecklistBlock,
-    ChecklistItem,
     CodeBlock,
-    CommonMistakeBlock,
     ComparisonBlock,
     ContentBlock,
-    DefinitionBlock,
     DiagramBlock,
-    ExerciseBlock,
     HeadingBlock,
-    IconTextBlock,
-    ImageBlock,
-    OutputBlock,
     QuoteBlock,
     SourceBlock,
     StatisticBlock,
     StepBlock,
-    StepItem,
     TableBlock,
     TerminalBlock,
-    TerminalLine,
     TextBlock,
-    TimelineBlock,
     TocBlock,
-    TocEntry,
 )
 from vasukisquare.renderer.geometry import (
-    PAGE_HEIGHT_MM,
-    PAGE_WIDTH_MM,
-    MARGIN_TOP_MM,
-    MARGIN_BOTTOM_MM,
-    MARGIN_LEFT_MM,
-    MARGIN_RIGHT_MM,
-    HEADER_RESERVED_HEIGHT_MM,
-    FOOTER_RESERVED_HEIGHT_MM,
-    BOTTOM_SAFETY_GAP_MM,
     SAFE_BOTTOM_EPSILON_MM,
     CONTENT_TOP_MM,
     CONTENT_BOTTOM_MM,
     AVAILABLE_CONTENT_HEIGHT_MM,
-    CONTENT_SAFE_HEIGHT_MM,
-    USABLE_PAGE_HEIGHT_MM as GEOMETRY_USABLE_PAGE_HEIGHT_MM,
-    USABLE_PAGE_WIDTH_MM,
     BLOCK_GAP_MM,
     PageGeometrySpec,
-    mm_to_px,
-    px_to_mm,
 )
 
 logger = logging.getLogger(__name__)

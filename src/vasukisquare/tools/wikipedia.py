@@ -1,7 +1,7 @@
 """Wikipedia orientation and background information retrieval tool."""
 
 import logging
-from typing import List, Optional
+from typing import List
 import httpx
 from pydantic import BaseModel, Field
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
