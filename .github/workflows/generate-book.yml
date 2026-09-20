@@ -78,7 +78,7 @@ jobs:
 
       - name: Validate rendering engine dependencies
         run: |
-          python -c "import vasukisquare; print(f'VasukiSquare v{vasukisquare.__version__} loaded successfully')"
+          python -c "import vasukisquare; from vasukisquare import cli; from vasukisquare.pipeline.orchestrator import EbookGenerationPipeline; from vasukisquare.renderer.html import HtmlPageRenderer; from vasukisquare.renderer.components import ComponentRenderer; print(f'VasukiSquare v{vasukisquare.__version__} full pipeline & renderers loaded successfully')"
           python -c "from playwright.sync_api import sync_playwright; p = sync_playwright().start(); b = p.chromium.launch(headless=True); b.close(); p.stop(); print('Playwright Chromium rendering engine validated successfully')"
 
       - name: Execute queue-driven book generation
