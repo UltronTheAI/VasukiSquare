@@ -49,9 +49,12 @@ flowchart TD
 | **Research Ideas** | Sunday | `0 2 * * 0` | 02:00 UTC | 07:30 AM Sun | 09:00 PM Sat | 06:00 PM Sat |
 | **Book Generation #1** | Tuesday | `0 4 * * 2,5` | 04:00 UTC | 09:30 AM Tue | 11:00 PM Mon | 08:00 PM Mon |
 | **Book Generation #2** | Friday | `0 4 * * 2,5` | 04:00 UTC | 09:30 AM Fri | 11:00 PM Thu | 08:00 PM Thu |
+| **Daily Promotion** | Daily | `37 4 * * *` | 04:37 UTC | 10:07 AM Daily | 11:37 PM Prev | 08:37 PM Prev |
 
 > [!NOTE]
-> Research runs early Sunday morning to replenish the idea pool with at least 5 vetted ideas, ensuring the queue has a healthy buffer for the upcoming Tuesday and Friday generation cycles.
+> - Research runs early Sunday morning to replenish the idea pool with at least 5 vetted ideas.
+> - Book Generation runs Tuesdays and Fridays to produce complete A4 ebooks from the queue.
+> - Daily Promotion runs every day at a non-round minute (`04:37 UTC` / `10:07 IST`) to fairly select and publish up to 3 technical articles to DEV Community.
 
 ---
 
@@ -81,6 +84,17 @@ flowchart TD
   - `no_pdf`: Skip PDF compilation (HTML and JSON manifest only).
 - **Artifacts**: Uploads generated PDF, HTML, manifest, and metrics from `./output/` (retention: 14 days).
 
+### C. Daily Promotion Workflow (`.github/workflows/promote.yml`)
+- **Purpose**: Selects 3 eligible published ebooks from MongoDB using a fair weighted algorithm, generates high-value technical articles with canonical backlinks via Groq LLMs, and publishes to DEV Community (`dev.to`).
+- **Concurrency Group**: `vasuki-daily-promotion` (`cancel-in-progress: false`).
+- **Timeout**: 30 minutes.
+- **Workflow Dispatch Inputs**:
+  - `dry_run`: Generate campaign and persist to MongoDB without calling external DEV API (default: `true` for safe manual execution).
+  - `count`: Number of ebooks to select and promote (default: `3`).
+  - `book`: Optional specific book ID or slug to target.
+  - `verbose`: Enable verbose debug logging (default: `false`).
+- **Artifacts**: Uploads `artifacts/promotion_summary.json` and automatically renders detailed status in `$GITHUB_STEP_SUMMARY`.
+
 ---
 
 ## 4. Required Secrets & Configuration
@@ -91,7 +105,9 @@ Configure these secrets in your GitHub repository settings under **Settings > Se
 |---|---|---|---|
 | `MONGODB_URI` | Secret | **Yes** | MongoDB Atlas or remote instance connection URI (e.g., `mongodb+srv://user:pass@cluster.mongodb.net`). |
 | `GROQ_API_KEY` | Secret | **Yes** | Groq API Key (or comma-separated keys for automatic rotation). |
+| `DEVTO_API_KEY` | Secret | **Yes** | DEV Community API key (from https://dev.to/settings/account) for daily automated publishing. |
 | `MONGODB_DATABASE` | Secret / Var | Optional | MongoDB database name (default: `vasukisquare`). |
+| `PUBLICATION_BASE_URL` | Variable | Optional | Public reader base URL (default: `https://vasukisquare.cc`). |
 | `TAVILY_API_KEY` | Secret | Optional | Tavily AI search key for augmented research. |
 | `SERPER_API_KEY` | Secret | Optional | Serper Google Search API key. |
 | `BRAVE_SEARCH_API_KEY` | Secret | Optional | Brave Search API key. |

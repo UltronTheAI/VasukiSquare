@@ -56,11 +56,19 @@ class DatabaseManager:
         ad_repo = AdRepository(self.db)
         idea_repo = BookIdeaRepository(self.db, collection_name=self.settings.idea_collection)
 
+        from vasukisquare.promotion.repository import PromotionRepository
+        promo_repo = PromotionRepository(
+            self.db,
+            stats_collection_name=self.settings.promotion_stats_collection,
+            posts_collection_name=self.settings.promotion_post_collection,
+        )
+
         book_repo.create_indexes()
         page_repo.create_indexes()
         cover_repo.create_indexes()
         ad_repo.create_indexes()
         idea_repo.create_indexes()
+        promo_repo.create_indexes()
 
     def close(self) -> None:
         """Close the MongoDB connection."""

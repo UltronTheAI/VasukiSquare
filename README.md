@@ -252,6 +252,38 @@ vasukisquare \
 
 ---
 
+## Automated Ebook Promotion Subsystem
+
+VasukiSquare features an automated, unattended promotion engine that periodically selects published ebooks from MongoDB, writes comprehensive, high-signal technical articles using Groq LLMs, and publishes them to developer platforms (starting with **DEV Community / dev.to**).
+
+```
+Published Books (MongoDB) ──► Fair Weighted Selector ──► Groq AI Writer ──► MongoDB Audit ──► DEV.to API
+```
+
+### Key Capabilities:
+- **Fair Weighted Selection**: Prioritizes ebooks with fewer historical promotions ($weight = \frac{1}{1 + \text{promotion\_count}}$) and strictly enforces configurable cooldown periods (`PROMOTION_BOOK_COOLDOWN_HOURS=72`).
+- **High-Signal Technical Writing**: Generates educational tutorials teaching core book concepts, avoiding clickbait and spammy marketing while seamlessly linking back to the canonical web reader route (`https://vasukisquare.cc/book/{slug}`).
+- **Two-Phase Idempotency**: Generated posts are persisted in MongoDB (`promotion_posts`) *before* attempting publication, preventing duplicate posts upon GitHub Action retries.
+- **Dry-Run Simulation**: Test selection, prompt formatting, and LLM output without sending live requests to external publisher APIs.
+
+### Promotion CLI Usage:
+
+```bash
+# Run standard campaign (promotes configured count, default 3 books to DEV)
+python scripts/promotion.py
+
+# Simulate promotion (generates and stores posts in MongoDB, skips DEV publication)
+python scripts/promotion.py --dry-run
+
+# Promote custom number of books
+python scripts/promotion.py --count 5
+
+# Target a specific book by ID or slug
+python scripts/promotion.py --book "modern-database-internals" --dry-run
+```
+
+---
+
 ## Configuration
 
 VasukiSquare separates infrastructure secrets from publisher branding:
@@ -274,6 +306,8 @@ VasukiSquare separates infrastructure secrets from publisher branding:
 | `TAVILY_API_KEY` | Optional | `None` | Tavily search API key | `TAVILY_API_KEY=tvly-...` |
 | `PDF_OUTPUT_DIR` | Optional | `./output` | Default output folder | `PDF_OUTPUT_DIR=./output` |
 | `MONGODB_URI` | Optional | `mongodb://localhost:27017` | Optional MongoDB connection URI | `MONGODB_URI=mongodb://localhost:27017` |
+| `DEVTO_API_KEY` | Optional | `None` | DEV Community API key for automated ebook promotion | `DEVTO_API_KEY=...` |
+| `PUBLICATION_BASE_URL` | Optional | `https://vasukisquare.cc` | Canonical public reader base URL | `PUBLICATION_BASE_URL=https://vasukisquare.cc` |
 
 For the complete variable catalog, see [Configuration Guide](docs/configuration.md).
 

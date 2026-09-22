@@ -483,9 +483,63 @@ Represents automated, trending book ideas throughout their lifecycle:
 
 ---
 
+### 3.5 `promotion_stats` Collection
+
+Tracks per-book promotion frequencies, success/failure counts, and cooldown timestamps for fair campaign selection.
+
+#### Document Schema Example
+```json
+{
+  "_id": "stats-book-100-devto",
+  "book_id": "book-100",
+  "book_slug": "modern-database-internals",
+  "platform": "devto",
+  "promotion_count": 2,
+  "successful_posts": 2,
+  "failed_posts": 0,
+  "last_promoted_at": "2026-09-22T12:00:00Z",
+  "next_eligible_at": "2026-09-25T12:00:00Z",
+  "created_at": "2026-09-20T12:00:00Z",
+  "updated_at": "2026-09-22T12:00:00Z"
+}
+```
+
+---
+
+### 3.6 `promotion_posts` Collection
+
+Stores generated technical articles and external publication outcomes for auditability and idempotency.
+
+#### Document Schema Example
+```json
+{
+  "_id": "post-789a-4bc1",
+  "campaign_run_id": "camp_20260922_143914_6a03bf",
+  "book_id": "book-100",
+  "book_slug": "modern-database-internals",
+  "platform": "devto",
+  "title": "Designing High-Throughput Write-Ahead Logs in PostgreSQL",
+  "body_markdown": "# Write-Ahead Logging\n\nIn modern database engines...",
+  "tags": ["postgresql", "database", "backend", "systemdesign"],
+  "canonical_url": "https://vasukisquare.cc/book/modern-database-internals",
+  "status": "published",
+  "generation_model": "openai/gpt-oss-120b",
+  "generated_at": "2026-09-22T14:39:15Z",
+  "publish_attempts": 1,
+  "published_at": "2026-09-22T14:39:22Z",
+  "external_post_id": "1234567",
+  "external_url": "https://dev.to/vasukisquare/designing-high-throughput-wal-1234567",
+  "last_error": null,
+  "created_at": "2026-09-22T14:39:15Z",
+  "updated_at": "2026-09-22T14:39:22Z"
+}
+```
+
+---
+
 ## 10. Verification & Test Suite
 
-The database persistence layer is verified through automated test suites covering all production scenarios in `tests/integration/test_database.py` and `tests/unit/test_idea_repository.py`:
+The database persistence layer is verified through automated test suites covering all production scenarios in `tests/integration/test_database.py`, `tests/unit/test_idea_repository.py`, and `tests/unit/test_promotion_repository.py`:
 - Schema versioning and renderer tags
 - Deterministic slug collision resolution
 - Pinned book bounds (1..5) and conflict reassignment
@@ -496,3 +550,4 @@ The database persistence layer is verified through automated test suites coverin
 - Atomic counter increments
 - Book idea lifecycle transitions and atomic job claiming (`claim_next_ready_idea`)
 - Historical catalog retrieval for multi-level idea deduplication
+- Promotion stats tracking, cooldown enforcement, and post idempotency

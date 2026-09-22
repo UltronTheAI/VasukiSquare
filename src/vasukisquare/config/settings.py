@@ -100,6 +100,19 @@ class Settings(BaseSettings):
     cover_variation_enabled: bool = Field(default=True, alias="COVER_VARIATION_ENABLED")
     cover_max_retries: int = Field(default=1, alias="COVER_MAX_RETRIES")
 
+    # Automated Ebook Promotion Subsystem
+    publication_base_url: str = Field(default="https://vasukisquare.cc", alias="PUBLICATION_BASE_URL")
+    promotion_enabled: bool = Field(default=True, alias="PROMOTION_ENABLED")
+    promotion_posts_per_run: int = Field(default=3, alias="PROMOTION_POSTS_PER_RUN")
+    promotion_book_cooldown_hours: int = Field(default=72, alias="PROMOTION_BOOK_COOLDOWN_HOURS")
+    promotion_platform: str = Field(default="devto", alias="PROMOTION_PLATFORM")
+    promotion_dry_run: bool = Field(default=False, alias="PROMOTION_DRY_RUN")
+    promotion_stats_collection: str = Field(default="promotion_stats", alias="PROMOTION_STATS_COLLECTION")
+    promotion_post_collection: str = Field(default="promotion_posts", alias="PROMOTION_POST_COLLECTION")
+    devto_api_key: Optional[str] = Field(default=None, alias="DEVTO_API_KEY")
+    devto_publish: bool = Field(default=True, alias="DEVTO_PUBLISH")
+    devto_api_base_url: str = Field(default="https://dev.to/api", alias="DEVTO_API_BASE_URL")
+
     def model_post_init(self, __context: Any) -> None:
         if self.app_env == "test":
             self.vasukisquare_mock_mode = True
