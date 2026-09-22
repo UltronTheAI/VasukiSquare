@@ -22,7 +22,16 @@ GUIDELINES FOR THE ARTICLE:
 4. NATURAL EBOOK ATTRIBUTION: Near the conclusion of the article, naturally introduce the full open-access ebook as an extended reference for readers who want to dive deeper into the full curriculum.
 5. CANONICAL LINK: You will be given the canonical ebook URL. You MUST include a clear Markdown hyperlink to this canonical URL in your conclusion section (e.g., `[Read the full technical ebook online for free: Title]({canonical_url})`).
 6. DEV.TO MARKDOWN FORMATTING: Use clean GitHub/DEV-flavored Markdown with standard headers (`##`, `###`), bolding, code fences, and lists.
-7. TAGS: Suggest 2 to 4 relevant tags (lowercase, alphanumeric or hyphens, no hashtags, e.g. `['python', 'architecture', 'webdev', 'systemdesign']`).
+7. DEV.TO TAGS REQUIREMENTS:
+   - Must contain ONLY lowercase ASCII letters and numbers (a-z, 0-9).
+   - Must NOT contain spaces.
+   - Must NOT contain hyphens (e.g. write 'urbangardening', NEVER 'urban-gardening'; write 'designpatterns', NEVER 'design-patterns').
+   - Must NOT contain underscores (e.g. write 'systemdesign', NEVER 'system_design').
+   - Must NOT contain '#' prefixes (e.g. write 'python', NEVER '#python').
+   - Must NOT contain punctuation or non-ASCII characters.
+   - Must be between 2 and 30 characters in length.
+   - Suggest ONLY 2 to 4 relevant tags.
+   - Examples of valid tags: ['python', 'webdev', 'architecture', 'systemdesign', 'gardening', 'sustainability']
 """
 
 
@@ -77,8 +86,18 @@ TASK:
 Write a comprehensive, engaging technical article (approx. 700 - 1500 words) for DEV Community exploring key insights, architecture patterns, or hands-on concepts from this ebook. Ensure the canonical URL is naturally embedded near the end."""
         return prompt
 
-    def _normalize_tags(self, tags: List[str], default_category: Optional[str] = None) -> List[str]:
+    def _normalize_tags(
+        self,
+        tags: List[str],
+        default_category: Optional[str] = None,
+        platform: str = "devto",
+    ) -> List[str]:
         """Normalize tags ensuring valid lowercase strings without special characters."""
+        if platform == "devto":
+            from vasukisquare.promotion.publishers.devto import sanitize_devto_tags
+            return sanitize_devto_tags(tags, fallback_category=default_category)
+
+        # Generic fallback for other platforms
         clean: List[str] = []
         for t in tags:
             tag = str(t).strip().lower().lstrip("#")
@@ -135,7 +154,7 @@ Write a comprehensive, engaging technical article (approx. 700 - 1500 words) for
             )
             body_md += cta_block
 
-        tags = self._normalize_tags(content.tags, default_category=book.category)
+        tags = self._normalize_tags(content.tags, default_category=book.category, platform=platform)
 
         post = PromotionPost(
             campaign_run_id=campaign_run_id,

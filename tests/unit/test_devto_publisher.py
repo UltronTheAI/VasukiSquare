@@ -1,12 +1,15 @@
-"""Unit tests for DevToPublisher external API communication."""
+"""Unit tests for DevToPublisher external API communication and tag sanitization."""
 
-import json
 from unittest.mock import AsyncMock, patch, MagicMock
 import httpx
 import pytest
 
 from vasukisquare.promotion.models import PromotionPost
-from vasukisquare.promotion.publishers.devto import DevToPublisher
+from vasukisquare.promotion.publishers.devto import (
+    DevToPublisher,
+    sanitize_devto_tag,
+    sanitize_devto_tags,
+)
 
 
 @pytest.fixture
@@ -23,6 +26,95 @@ def sample_post():
     )
 
 
+# ==============================================================================
+# Tag Sanitization Unit Tests
+# ==============================================================================
+
+def test_sanitize_devto_tag_valid_unchanged():
+    assert sanitize_devto_tag("python") == "python"
+    assert sanitize_devto_tag("webdev") == "webdev"
+    assert sanitize_devto_tag("vue3") == "vue3"
+
+
+def test_sanitize_devto_tag_hyphenated():
+    assert sanitize_devto_tag("urban-gardening") == "urbangardening"
+    assert sanitize_devto_tag("design-patterns") == "designpatterns"
+    assert sanitize_devto_tag("no-code-tools") == "nocodetools"
+
+
+def test_sanitize_devto_tag_spaces():
+    assert sanitize_devto_tag("Web Development") == "webdevelopment"
+    assert sanitize_devto_tag(" machine learning ") == "machinelearning"
+
+
+def test_sanitize_devto_tag_hashtags_and_underscores():
+    assert sanitize_devto_tag("#Python") == "python"
+    assert sanitize_devto_tag("###Rust") == "rust"
+    assert sanitize_devto_tag("system_design") == "systemdesign"
+    assert sanitize_devto_tag("_private_api_") == "privateapi"
+
+
+def test_sanitize_devto_tag_uppercase_and_punctuation():
+    assert sanitize_devto_tag("TypeScript") == "typescript"
+    assert sanitize_devto_tag("node.js") == "nodejs"
+    assert sanitize_devto_tag("c++") == "c"
+    assert sanitize_devto_tag("a.b!c?d*") == "abcd"
+
+
+def test_sanitize_devto_tag_unicode():
+    assert sanitize_devto_tag("gärten") == "grten"
+    assert sanitize_devto_tag("café") == "caf"
+    assert sanitize_devto_tag("🦀rust") == "rust"
+
+
+def test_sanitize_devto_tag_empty_or_all_symbols():
+    assert sanitize_devto_tag("") is None
+    assert sanitize_devto_tag("   ") is None
+    assert sanitize_devto_tag("###---___!!!") is None
+    assert sanitize_devto_tag(None) is None
+
+
+def test_sanitize_devto_tag_max_length():
+    long_tag = "a" * 50
+    sanitized = sanitize_devto_tag(long_tag, max_length=30)
+    assert len(sanitized) == 30
+    assert sanitized == "a" * 30
+
+
+def test_sanitize_devto_tags_list():
+    raw_tags = [
+        "urban-gardening",
+        "#Python",
+        "design-patterns",
+        "web_dev",
+        "Extra-Fifth-Tag",
+    ]
+    clean = sanitize_devto_tags(raw_tags)
+    assert clean == ["urbangardening", "python", "designpatterns", "webdev"]
+    assert len(clean) == 4
+
+
+def test_sanitize_devto_tags_deduplication():
+    raw_tags = ["Python", "#python", "python", "PYTHON", "rust"]
+    clean = sanitize_devto_tags(raw_tags)
+    assert clean == ["python", "rust"]
+
+
+def test_sanitize_devto_tags_fallback_when_empty():
+    clean = sanitize_devto_tags([], fallback_category="distributed-systems")
+    assert clean == ["distributedsystems"]
+
+    clean_all_invalid = sanitize_devto_tags(["---", "###"], fallback_category="Database-Internals")
+    assert clean_all_invalid == ["databaseinternals"]
+
+    clean_no_category = sanitize_devto_tags(["---", "###"], fallback_category=None)
+    assert clean_no_category == ["programming", "tech"]
+
+
+# ==============================================================================
+# DEV.to Publisher API & Payload Tests
+# ==============================================================================
+
 @pytest.mark.asyncio
 async def test_devto_missing_api_key(sample_post):
     publisher = DevToPublisher(api_key="")
@@ -31,15 +123,60 @@ async def test_devto_missing_api_key(sample_post):
     assert "DEVTO_API_KEY is missing" in result.error_message
 
 
-def test_tag_sanitization():
-    publisher = DevToPublisher(api_key="test_key")
-    dirty_tags = ["#RustLang", "System-Design", "C++ & Memory", "cloud_native", "extra_5th"]
-    clean = publisher._sanitize_tags(dirty_tags)
-    assert len(clean) == 4
-    assert clean[0] == "rustlang"
-    assert clean[1] == "system-design"
-    assert clean[2] == "cmemory"
-    assert clean[3] == "cloud_native"
+@pytest.mark.asyncio
+async def test_devto_publish_payload_strictly_sanitizes_tags():
+    """Verify that invalid tags (hyphens, spaces, hashtags) NEVER reach DEV API request."""
+    publisher = DevToPublisher(api_key="test_devto_key", max_retries=1)
+
+    post_with_bad_tags = PromotionPost(
+        campaign_run_id="camp_test_bad_tags",
+        book_id="book-999",
+        book_slug="urban-farming-guide",
+        platform="devto",
+        title="Sustainable Urban Farming Patterns",
+        body_markdown="# Urban Farming\n\nContent...",
+        tags=[
+            "urban-gardening",
+            "design-patterns",
+            "#Sustainable Living",
+            "system_design_101",
+            "overflow_5th_tag",
+        ],
+        canonical_url="https://vasukisquare.cc/book/urban-farming-guide",
+    )
+
+    mock_response = MagicMock(spec=httpx.Response)
+    mock_response.status_code = 201
+    mock_response.json.return_value = {
+        "id": 123456,
+        "url": "https://dev.to/vasukisquare/sustainable-urban-farming-patterns-123456",
+        "path": "/vasukisquare/sustainable-urban-farming-patterns-123456",
+    }
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_response
+        result = await publisher.publish(post_with_bad_tags)
+
+        assert result.success is True
+        mock_post.assert_called_once()
+        called_kwargs = mock_post.call_args[1]
+        submitted_tags = called_kwargs["json"]["article"]["tags"]
+
+        # Verification: all submitted tags must be strictly [a-z0-9] and max 4
+        assert len(submitted_tags) == 4
+        assert submitted_tags == [
+            "urbangardening",
+            "designpatterns",
+            "sustainableliving",
+            "systemdesign101",
+        ]
+        for tag in submitted_tags:
+            assert tag.isalnum()
+            assert tag.islower()
+            assert "-" not in tag
+            assert "_" not in tag
+            assert " " not in tag
+            assert "#" not in tag
 
 
 @pytest.mark.asyncio
@@ -71,7 +208,7 @@ async def test_devto_publish_success(sample_post):
         assert payload["title"] == sample_post.title
         assert payload["canonical_url"] == sample_post.canonical_url
         assert payload["published"] is True
-        assert len(payload["tags"]) <= 4
+        assert payload["tags"] == ["rust", "webassembly", "programming101", "systemsengineering"]
 
 
 @pytest.mark.asyncio
@@ -89,7 +226,6 @@ async def test_devto_publish_401_unauthorized(sample_post):
 
         assert result.success is False
         assert "401 Unauthorized" in result.error_message
-        # Should not waste retries on 401
         assert mock_post.call_count == 1
 
 
@@ -109,4 +245,3 @@ async def test_devto_publish_422_validation_error(sample_post):
         assert result.success is False
         assert "422 Unprocessable Entity" in result.error_message
         assert mock_post.call_count == 1
-

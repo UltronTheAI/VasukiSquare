@@ -201,6 +201,10 @@ async def test_partial_failure_tolerance(test_setup):
         )
     mock_pub.publish = AsyncMock(side_effect=flawed_publish)
 
+    service.selector.select_books = MagicMock(
+        return_value=[test_setup["books"][0], test_setup["books"][1], test_setup["books"][2]]
+    )
+
     summary = await service.run_campaign(count=3, dry_run=False, campaign_run_id="camp_partial_fail")
 
     assert summary.selected_count == 3
