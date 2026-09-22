@@ -14,6 +14,7 @@ from vasukisquare.agents.content_validator import (
 )
 from vasukisquare.agents.writer import (
     PageWriterAgent,
+    LLMGeneratedPage,
     SmallModelHeadlineLead,
     SmallModelTroubleshooting,
 )
@@ -230,3 +231,57 @@ async def test_small_model_decomposed_writer():
     # Verify no ZK cryptography drift
     full_text = " ".join([b.text for b in page.content.blocks if hasattr(b, "text")])
     assert "zero-knowledge proof" not in full_text.lower()
+
+
+@pytest.mark.asyncio
+async def test_llm_write_page_spec_resolution_and_generation():
+    """Verify _llm_write_page properly defines and uses spec when terminal repair is triggered."""
+    settings = Settings(
+        GROQ_API_KEY="test_key",
+        LLM_PROVIDER="groq",
+        GROQ_MODEL="llama-3.3-70b-versatile",
+        SMALL_MODEL_MODE="false",
+        VASUKISQUARE_MOCK_MODE=False,
+    )
+    mock_llm = MagicMock()
+
+    # Mock response with terminal_title and empty command to exercise terminal-repair condition
+    async def mock_invoke_structured(schema, **kwargs):
+        if schema == LLMGeneratedPage:
+            return LLMGeneratedPage(
+                headline="Quick Installation Guide",
+                lead_paragraph="To get started with our framework, install the core packages and configure your local workspace.",
+                terminal_title="Installation Terminal",
+                terminal_command=None,
+            )
+        return None
+
+    mock_llm.invoke_structured = AsyncMock(side_effect=mock_invoke_structured)
+
+    agent = PageWriterAgent(settings=settings, llm_client=mock_llm)
+    planned_page = PlannedPage(
+        page_number=2,
+        page_type=TechnicalPageType.INSTALLATION.value,
+        layout=LayoutType.EDITORIAL.value,
+        chapter_number=1,
+        chapter_title="Getting Started",
+        brief="Installation Guide",
+    )
+    plan = BookPlan(
+        title="Python Deep Dive",
+        subtitle="Practical Guide",
+        description="Learn Python",
+        intent=BookIntent(
+            primary_programming_language="python",
+            domain_topic="Python",
+            technical_depth="intermediate",
+            is_technical=True,
+        ),
+        chapters=[PlannedChapter(chapter_number=1, title="Getting Started", summary="Intro", page_budget=6)],
+    )
+
+    content = await agent._llm_write_page(planned_page, plan, corpus=None)
+    assert content is not None
+    assert content.headline == "Quick Installation Guide"
+    assert any(isinstance(b, TextBlock) for b in content.blocks)
+

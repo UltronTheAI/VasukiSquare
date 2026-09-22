@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+import random
 from typing import Any, List, Optional
 from pydantic import BaseModel, Field
 
@@ -77,7 +78,6 @@ class LLMGeneratedPage(BaseModel):
     expected_output: Optional[str] = Field(default=None, description="Expected console output produced when executing the code example")
     why_it_matters: Optional[str] = Field(default=None, description="Why this pattern is useful or common beginner mistake to avoid")
     terminal_title: Optional[str] = Field(default=None, description="Terminal window title")
-    terminal_command: Optional[str] = Field(default=None, description="Terminal shell command")
     terminal_command: Optional[str] = Field(
         default=None,
         description="Terminal shell command. Never create a terminal component without at least one executable command. If no meaningful command is appropriate, do not create a terminal component.",
@@ -103,8 +103,10 @@ class LLMGeneratedPage(BaseModel):
 class SmallModelHeadlineLead(BaseModel):
     """Decomposed small model output schema for headline and lead explanation."""
     headline: str = Field(default="", description="Page headline or section title")
-    explanation: str = Field(default="", description="Substantive 80-120 word technical explanation")
-    explanation: str = Field(default="", description="Substantive 80-120 word explanation")
+    explanation: str = Field(
+        default="",
+        description="Substantive 80-120 word technical explanation",
+    )
 
 
 class SmallModelSecondaryExplanation(BaseModel):
@@ -113,21 +115,39 @@ class SmallModelSecondaryExplanation(BaseModel):
 
 
 class SmallModelTroubleshooting(BaseModel):
-    """Decomposed small model output schema for common mistake and troubleshooting tip."""
-    mistake_title: str = Field(default="Common Pitfall", description="Title of common mistake or pitfall")
-    wrong_code: str = Field(default="", description="Incorrect code example or anti-pattern")
-    correct_code: str = Field(default="", description="Corrected executable code example")
-    explanation: str = Field(default="", description="Explanation of why mistake happens and how to fix it")
-    tip: str = Field(default="", description="Actionable takeaway or tip")
     """Decomposed small model output schema for common mistake or callout tip."""
-    callout_title: str = Field(default="Key Practical Takeaway", description="Title for the callout card")
-    callout_text: str = Field(default="", description="1-2 sentences of actionable advice or common pitfall")
-    callout_variant: str = Field(default="tip", description="Callout variant: tip, note, important, warning, insight")
-    mistake_title: Optional[str] = Field(default="Common Pitfall", description="Title of common mistake")
-    wrong_code: Optional[str] = Field(default=None, description="Incorrect code example or anti-pattern")
-    correct_code: Optional[str] = Field(default=None, description="Corrected executable code example")
-    explanation: Optional[str] = Field(default=None, description="Explanation of why mistake happens")
-    tip: Optional[str] = Field(default=None, description="Actionable takeaway")
+    callout_title: str = Field(
+        default="Key Practical Takeaway",
+        description="Title for the callout card",
+    )
+    callout_text: str = Field(
+        default="",
+        description="1-2 sentences of actionable advice or common pitfall",
+    )
+    callout_variant: str = Field(
+        default="tip",
+        description="tip, note, important, warning, insight",
+    )
+    mistake_title: Optional[str] = Field(
+        default="Common Pitfall",
+        description="Title of common mistake",
+    )
+    wrong_code: Optional[str] = Field(
+        default=None,
+        description="Incorrect code example or anti-pattern",
+    )
+    correct_code: Optional[str] = Field(
+        default=None,
+        description="Corrected executable code example",
+    )
+    explanation: Optional[str] = Field(
+        default=None,
+        description="Explanation of why mistake happens",
+    )
+    tip: Optional[str] = Field(
+        default=None,
+        description="Actionable takeaway",
+    )
 
 
 class SmallModelExercise(BaseModel):
@@ -613,10 +633,16 @@ class PageWriterAgent:
                         break
                 except Exception as e:
                     logger.warning(
-                        f"Small model decomposed write attempt {attempt + 1}/{max_page_retries} failed for Page {p.page_number}: {e}"
+                        "Small model decomposed write attempt %s/%s failed for Page %s (%s): %s",
+                        attempt + 1,
+                        max_page_retries,
+                        p.page_number,
+                        p.brief,
+                        e,
                     )
                     if attempt < max_page_retries - 1:
-                        await asyncio.sleep(1.5 * (attempt + 1))
+                        delay = min(60.0, 5.0 * (2 ** attempt)) + random.uniform(0, 2)
+                        await asyncio.sleep(delay)
             if small_content:
                 self.metrics.record_page_generated_by_llm()
                 raw_content = small_content
@@ -636,10 +662,16 @@ class PageWriterAgent:
                         break
                 except Exception as e:
                     logger.warning(
-                        f"LLM page generation attempt {attempt + 1}/{max_page_retries} failed for Page {p.page_number} ({p.brief}): {e}"
+                        "LLM page generation attempt %s/%s failed for Page %s (%s): %s",
+                        attempt + 1,
+                        max_page_retries,
+                        p.page_number,
+                        p.brief,
+                        e,
                     )
                     if attempt < max_page_retries - 1:
-                        await asyncio.sleep(2.0 * (attempt + 1))
+                        delay = min(60.0, 5.0 * (2 ** attempt)) + random.uniform(0, 2)
+                        await asyncio.sleep(delay)
             if llm_content:
                 self.metrics.record_page_generated_by_llm()
                 raw_content = llm_content
@@ -907,6 +939,12 @@ class PageWriterAgent:
             page_type_enum = TechnicalPageType(p.page_type)
         except (ValueError, TypeError):
             pass
+
+        spec = PAGE_TYPE_SPECS.get(
+            page_type_enum,
+            PAGE_TYPE_SPECS[TechnicalPageType.CONCEPT],
+        )
+
         is_code_required = bool(
             plan.intent.code_requirements
             and (
