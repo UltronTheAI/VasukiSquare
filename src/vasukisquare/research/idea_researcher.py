@@ -31,40 +31,49 @@ logger = logging.getLogger("vasukisquare.research.ideas")
 # High-quality fallback trend corpus used in mock mode or when network retrieval is disabled
 CURATED_TREND_CORPUS = [
     {
-        "topic": "High-Throughput Vector Databases and ANN Indexing",
+        "topic": "How to Write Better AI Prompts",
         "category": "Technology",
-        "title": "Vector Databases in Production",
-        "why_now": "Rapid expansion of semantic search and enterprise retrieval augmented generation systems.",
-        "target_audience": "Senior Backend Engineers and ML Infrastructure Architects",
-        "estimated_depth": "broad",
-        "suggested_pages": 75,
-        "angle": "Practical internals of HNSW, IVF-PQ, quantization benchmarks, and distributed vector storage.",
-        "keywords": ["vector database", "HNSW", "ANN search", "embeddings", "RAG", "quantization"],
-        "trend_signals": ["Hacker News AI infrastructure discussions", "GitHub trending vector projects"],
+        "title": "The Art of Effective AI Prompting",
+        "why_now": "Generative AI is ubiquitous, but most people struggle to get precise, high-value outputs without frustration.",
+        "target_audience": "Knowledge Workers, Creators, and Students",
+        "intended_reader": "Professionals and learners using AI tools daily for writing, research, and ideation",
+        "problem_solved": "Vague, repetitive, or inaccurate responses from AI models due to poor framing and context",
+        "practical_outcome": "Structured prompting frameworks, persona-constraint setups, and iterative refinement techniques",
+        "estimated_depth": "narrow",
+        "suggested_pages": 46,
+        "angle": "Pragmatic mental models for clear context, constraints, few-shot examples, and systematic prompt refinement.",
+        "keywords": ["ai prompting", "prompt engineering", "generative ai", "productivity", "workflows"],
+        "trend_signals": ["Workplace AI adoption surveys", "Knowledge worker productivity discussions"],
     },
     {
-        "topic": "Event-Driven Microservices with Kafka and Debezium",
+        "topic": "A Practical Guide to Digital Privacy",
         "category": "Technology",
-        "title": "Event-Driven Architecture with Kafka",
-        "why_now": "Companies migrating from monolithic DB polling to resilient CDC event streams.",
-        "target_audience": "Cloud Architects and Distributed Systems Engineers",
-        "estimated_depth": "comprehensive",
-        "suggested_pages": 85,
-        "angle": "Transactional outbox pattern, exactly-once delivery, schema registries, and multi-region failover.",
-        "keywords": ["Kafka", "Debezium", "CDC", "event-driven", "microservices", "outbox pattern"],
-        "trend_signals": ["Enterprise cloud conference keynotes", "StackOverflow trend metrics"],
-    },
-    {
-        "topic": "Zero-Trust Cloud Security and Identity Architecture",
-        "category": "Technology",
-        "title": "Zero-Trust Cloud Security Handbook",
-        "why_now": "Perimeter-based network security is obsolete in hybrid and multi-cloud environments.",
-        "target_audience": "Security Engineers and DevOps Practitioners",
+        "title": "Practical Digital Privacy Handbook",
+        "why_now": "Data harvesting, targeted tracking, and frequent data leaks affect everyday digital life.",
+        "target_audience": "Everyday Internet Users and Remote Professionals",
+        "intended_reader": "Individuals seeking to protect personal data without extreme paranoia or technical complexity",
+        "problem_solved": "Unchecked tracking, identity theft risks, and intrusive data broker profiling",
+        "practical_outcome": "Actionable security hygiene: password management, 2FA, data broker removal, and browser hardening",
         "estimated_depth": "moderate",
-        "suggested_pages": 65,
-        "angle": "Hands-on implementation of SPIFFE/SPIRE, micro-segmentation, and ephemeral credential rotation.",
-        "keywords": ["zero-trust", "SPIFFE", "mTLS", "cloud security", "IAM", "least privilege"],
-        "trend_signals": ["NIST security standards updates", "Cloud security survey reports"],
+        "suggested_pages": 52,
+        "angle": "A sensible, layered approach to securing personal data, accounts, and communications without disrupting daily habits.",
+        "keywords": ["digital privacy", "online security", "data protection", "identity theft", "passwords"],
+        "trend_signals": ["Consumer privacy regulation updates", "Digital rights reports"],
+    },
+    {
+        "topic": "Understanding Cloud Computing Without the Jargon",
+        "category": "Technology",
+        "title": "Cloud Computing Demystified",
+        "why_now": "Modern businesses operate on cloud infrastructure, yet non-technical leaders and professionals struggle with basic concepts.",
+        "target_audience": "Non-Technical Managers, Entrepreneurs, and Tech Enthusiasts",
+        "intended_reader": "Business operators and curious thinkers collaborating with technical teams",
+        "problem_solved": "Confusion over cloud architecture, buzzwords, pricing models, and trade-offs",
+        "practical_outcome": "Intuitive mental models for compute, storage, serverless, and cost management",
+        "estimated_depth": "moderate",
+        "suggested_pages": 55,
+        "angle": "Analogy-driven breakdowns of cloud infrastructure, elasticity, storage tiers, and architectural tradeoffs.",
+        "keywords": ["cloud computing", "infrastructure", "mental models", "tech for beginners", "business tech"],
+        "trend_signals": ["Business tech literacy studies", "Digital transformation leadership surveys"],
     },
     {
         "topic": "Deep Work and Attention Management in Remote Teams",
@@ -72,6 +81,9 @@ CURATED_TREND_CORPUS = [
         "title": "Deep Work for Distributed Teams",
         "why_now": "Asynchronous workplaces suffer from continuous communication fragmentation and notification overload.",
         "target_audience": "Remote Knowledge Workers and Team Leads",
+        "intended_reader": "Remote and hybrid professionals struggling with fractured focus and alert fatigue",
+        "problem_solved": "Constant interruptions, shallow reactive work, and meeting fatigue in distributed environments",
+        "practical_outcome": "Concrete frameworks for batching communications, async handoffs, and focus sprint scheduling",
         "estimated_depth": "narrow",
         "suggested_pages": 48,
         "angle": "Concrete frameworks for batching communications, async handoffs, and focus sprint scheduling.",
@@ -79,52 +91,64 @@ CURATED_TREND_CORPUS = [
         "trend_signals": ["Remote work productivity studies", "Substack management essays"],
     },
     {
-        "topic": "Rust Systems Programming for Python Engineers",
-        "category": "Technology",
-        "title": "Rust for Python Engineers",
-        "why_now": "PyO3 and Rust extensions are becoming standard for accelerating Python ML and backend pipelines.",
-        "target_audience": "Intermediate to Advanced Python Developers",
-        "estimated_depth": "moderate",
-        "suggested_pages": 68,
-        "angle": "Bridging Python idioms to Rust ownership, PyO3 bindings, and memory-safe native extensions.",
-        "keywords": ["Rust", "Python", "PyO3", "systems programming", "concurrency", "performance"],
-        "trend_signals": ["Python package ecosystem migration to Rust", "PyPI performance benchmarks"],
-    },
-    {
-        "topic": "eBPF Observability and Linux Kernel Tracing",
-        "category": "Technology",
-        "title": "eBPF Observability and Performance",
-        "why_now": "eBPF has revolutionized cloud-native networking, security profiling, and zero-overhead observability.",
-        "target_audience": "Site Reliability Engineers and Linux Systems Engineers",
-        "estimated_depth": "comprehensive",
-        "suggested_pages": 90,
-        "angle": "Writing custom kprobes, tracepoints, Cilium integration, and production performance profiling.",
-        "keywords": ["eBPF", "Linux kernel", "observability", "Cilium", "kprobes", "BCC"],
-        "trend_signals": ["Linux Foundation eBPF summit", "Cloud Native Computing Foundation roadmaps"],
-    },
-    {
-        "topic": "Clean Architecture and Domain-Driven Design in Go",
-        "category": "Technology",
-        "title": "Clean Architecture in Go",
-        "why_now": "Go microservices frequently suffer from flat package spaghetti as codebases scale.",
-        "target_audience": "Go Developers and Tech Leads",
-        "estimated_depth": "moderate",
-        "suggested_pages": 60,
-        "angle": "Practical onion architecture, explicit dependency injection, domain entities, and mockable interfaces.",
-        "keywords": ["Go", "clean architecture", "DDD", "microservices", "interfaces", "dependency injection"],
-        "trend_signals": ["Go Developer Survey insights", "Enterprise Go architecture patterns"],
-    },
-    {
-        "topic": "Applied Mental Models for Engineering Decisions",
-        "category": "Leadership",
-        "title": "Mental Models for Engineers",
-        "why_now": "Senior engineers must navigate complex architectural trade-offs without dogma.",
-        "target_audience": "Staff Engineers, Architects, and Tech Leads",
+        "topic": "Building Better Daily Habits",
+        "category": "Personal Growth",
+        "title": "The Architecture of Daily Habits",
+        "why_now": "High-stress environments lead people to rely on willpower instead of sustainable environmental design.",
+        "target_audience": "Students, Professionals, and Lifelong Learners",
+        "intended_reader": "Individuals wanting to make lasting behavioral changes without burnout",
+        "problem_solved": "Habit decay, lack of consistency, and reliance on fleeting motivation",
+        "practical_outcome": "Friction reduction, habit stacking, identity-based reinforcement, and recovery systems",
         "estimated_depth": "narrow",
-        "suggested_pages": 50,
-        "angle": "First-principles thinking, inversion, second-order effects, and reversible decision frameworks in software.",
-        "keywords": ["mental models", "decision making", "first principles", "systems thinking", "tech leadership"],
-        "trend_signals": ["Engineering leadership podcasts", "Tech management literature"],
+        "suggested_pages": 45,
+        "angle": "Designing behavioral environments, micro-habits, cue-routine loops, and friction manipulation.",
+        "keywords": ["habits", "behavioral design", "personal growth", "routines", "discipline"],
+        "trend_signals": ["Behavioral psychology research", "Self-improvement reading trends"],
+    },
+    {
+        "topic": "How AI Agents Actually Work",
+        "category": "Technology",
+        "title": "Demystifying AI Agents",
+        "why_now": "Autonomous AI agents are emerging everywhere, yet few understand how planning, tools, and memory connect.",
+        "target_audience": "Curious Professionals, Product Managers, and Tech Enthusiasts",
+        "intended_reader": "Anyone wanting to understand autonomous agent architecture without wading through code repositories",
+        "problem_solved": "Hype, mystery, and confusion surrounding what autonomous AI systems can and cannot do",
+        "practical_outcome": "Clear mental models of agent loops, tool use, reasoning frameworks, and real-world limitations",
+        "estimated_depth": "moderate",
+        "suggested_pages": 54,
+        "angle": "Conceptual breakdowns of reasoning loops, memory systems, tool execution, and human-in-the-loop oversight.",
+        "keywords": ["ai agents", "autonomous systems", "artificial intelligence", "tech mental models"],
+        "trend_signals": ["Autonomous AI agent breakthroughs", "Tech industry strategy publications"],
+    },
+    {
+        "topic": "Protecting Yourself From Online Scams and Social Engineering",
+        "category": "Technology",
+        "title": "The Everyday Anti-Scam Playbook",
+        "why_now": "AI-generated phishing, deepfakes, and sophisticated financial scams are growing exponentially.",
+        "target_audience": "Everyday Consumers and Small Business Owners",
+        "intended_reader": "Non-technical individuals and families navigating increasingly sophisticated scams",
+        "problem_solved": "Vulnerability to urgent manipulative messaging, deceptive links, and social engineering",
+        "practical_outcome": "Verification checklists, red-flag recognition, payment safety rules, and breach recovery protocols",
+        "estimated_depth": "narrow",
+        "suggested_pages": 44,
+        "angle": "Psychological deception tactics explained simply with rapid verification rules and emergency recovery steps.",
+        "keywords": ["cybersecurity", "scam prevention", "social engineering", "consumer protection", "fraud"],
+        "trend_signals": ["Consumer protection bureau warnings", "Global scam trend reports"],
+    },
+    {
+        "topic": "Practical Personal Knowledge Management",
+        "category": "Productivity",
+        "title": "Organizing Your Digital Mind",
+        "why_now": "Information overload creates digital clutter and note-taking systems that get abandoned within weeks.",
+        "target_audience": "Researchers, Writers, Students, and Knowledge Workers",
+        "intended_reader": "Anyone who collects articles, books, and ideas but struggles to retrieve or apply them",
+        "problem_solved": "Information hoarding without synthesis, fragmented notes, and forgotten insights",
+        "practical_outcome": "A lightweight capture-curate-connect workflow that survives long-term use",
+        "estimated_depth": "narrow",
+        "suggested_pages": 48,
+        "angle": "A minimalist, sustainable approach to capturing, organizing, and synthesizing information for creative output.",
+        "keywords": ["pkm", "knowledge management", "second brain", "productivity", "note taking"],
+        "trend_signals": ["Personal knowledge management community insights", "Academic workflow research"],
     },
 ]
 
@@ -137,35 +161,34 @@ def generate_production_prompt(
     angle: str,
     why_now: str,
     category: str,
+    intended_reader: Optional[str] = None,
+    problem_solved: Optional[str] = None,
+    practical_outcome: Optional[str] = None,
 ) -> str:
-    """Construct an exhaustive, production-grade VasukiSquare prompt."""
-    is_tech = category.lower() in ("technology", "engineering", "programming", "devops")
-    tech_guidelines = (
-        "- Include syntax-checked, runnable code snippets illustrating core patterns.\n"
-        "- Explain architectural tradeoffs, failure modes, and production gotchas.\n"
-        "- Avoid pseudo-code; provide realistic, industry-standard implementations.\n"
-    ) if is_tech else (
-        "- Provide concrete practical frameworks, step-by-step diagnostic checklists, and real-world case studies.\n"
-        "- Ground concepts in empirical evidence, behavioral science, or operational practice.\n"
-        "- Avoid vague motivational fluff; focus on actionable execution protocols.\n"
-    )
+    """Construct an exhaustive, production-grade VasukiSquare prompt enforcing practical, human-first guides."""
+    reader = intended_reader or target_audience
+    problem = problem_solved or f"Challenges and inefficiencies related to {topic}"
+    outcome = practical_outcome or f"Clear understanding, actionable mental models, and practical frameworks for {topic}"
 
     return (
-        f"Create an authoritative, beautifully structured {pages}-page {category.lower()} book titled '{title}'.\n\n"
+        f"Create an authoritative, beautifully structured {pages}-page {category.lower()} guide titled '{title}'.\n\n"
         f"CORE TOPIC & ANGLE:\n"
         f"Subject: {topic}\n"
         f"Editorial Angle: {angle}\n"
         f"Why Now / Timeliness: {why_now}\n\n"
-        f"AUDIENCE & TONE:\n"
+        f"AUDIENCE & PURPOSE:\n"
         f"Target Audience: {target_audience}\n"
-        f"Tone: Authoritative, pragmatic, highly engaging, and intellectually rigorous.\n\n"
-        f"CONTENT & PEDAGOGICAL REQUIREMENTS:\n"
-        f"{tech_guidelines}"
-        f"- Target Page Count: {pages} pages (evenly balanced across chapters and technical deep-dives).\n"
-        f"- Structural Variety: Integrate clear headings, key takeaway callouts, diagrams/tables where appropriate, and structured visual anchors.\n"
-        f"- Repetition Avoidance: Every page must introduce distinct, incremental concepts without re-hashing earlier definitions.\n"
-        f"- Strict Exclusions: Avoid generic high-level summaries, filler introductions, and redundant recaps.\n"
-        f"- Research & Accuracy: Factually accurate claims adhering to authoritative industry documentation and primary sources."
+        f"Intended Reader: {reader}\n"
+        f"Core Problem Solved: {problem}\n"
+        f"Practical Outcome: {outcome}\n"
+        f"Tone: Clear, approachable, highly engaging, empathetic, and intellectually rigorous.\n\n"
+        f"EDITORIAL & PEDAGOGICAL MANDATE (STRICT NON-TUTORIAL GUIDELINES):\n"
+        f"- Target Page Count: {pages} pages (balanced evenly across logical conceptual progression).\n"
+        f"- VasukiSquare Publishing Identity: Publish short, practical, approachable guides that help ordinary people understand something, improve something, or accomplish something.\n"
+        f"- NO CODING TUTORIALS: Do NOT generate code blocks, terminal commands, framework installation steps, or API reference manuals. Explain technical concepts through mental models, analogies, workflows, trade-offs, and practical implications.\n"
+        f"- ACTIONABLE STRUCTURE: Integrate diagnostic checklists, comparison tables, step-by-step frameworks, before-and-after scenarios, common misconceptions, and practical self-reflection exercises.\n"
+        f"- ZERO AI CLICHES: Strictly avoid tropes like 'In today's fast-paced world', 'In the digital age', 'Unlock the power of', 'Game-changing', 'Let's dive in', and redundant summary paragraphs.\n"
+        f"- INCREMENTAL VALUE: Every page must introduce fresh, meaningful insights with strong visual hierarchy and distinct visual anchors."
     )
 
 
@@ -232,17 +255,20 @@ class IdeaResearchService:
 
         # In production LLM mode, prompt LLM for trend discovery
         system_prompt = (
-            "You are the Chief Editorial Strategist for VasukiSquare, an elite AI ebook publishing engine.\n"
-            "Identify current, high-demand, evergreen book topics with genuine reader value.\n"
-            "REQUIREMENTS:\n"
-            "1. Each topic must have sufficient depth and practical substance to sustain a 40 to 100 page book.\n"
-            "2. Intentionally determine page count:\n"
-            "   - 40-50 pages: focused beginner guides, compact how-to, narrow subjects\n"
-            "   - 50-70 pages: standard practical guides\n"
-            "   - 70-85 pages: broader technical or educational deep-dives\n"
-            "   - 85-100 pages: comprehensive subjects requiring substantial depth\n"
-            "3. Reject ephemeral social media fads or shallow listicles.\n"
-            "4. Provide a distinct angle and clear reader target."
+            "You are the Chief Editorial Strategist for VasukiSquare, an elite publishing engine for high-impact books.\n"
+            "VasukiSquare publishes short, practical, approachable guides that help ordinary people understand something, "
+            "improve something, or accomplish something.\n\n"
+            "EDITORIAL MANDATE & IDENTITY:\n"
+            "1. Focus on practical guides, mental models, workflows, decisions, frameworks, and real-world clarity.\n"
+            "2. Technology, AI, cybersecurity, productivity, career, and business topics are welcome, but NEVER as coding tutorials, "
+            "programming manuals, API reference docs, syntax walk-throughs, or CLI installation guides.\n"
+            "3. Each topic must have sufficient depth and practical substance to sustain a 40 to 100 page book.\n"
+            "4. Target page counts intentionally:\n"
+            "   - 40-50 pages: focused practical how-to, beginner guides, single-skill mastery\n"
+            "   - 50-70 pages: standard comprehensive practical guides\n"
+            "   - 70-85 pages: broader conceptual or systemic deep-dives\n"
+            "   - 85-100 pages: multi-dimensional subjects requiring substantial exploration\n"
+            "5. Explicitly identify the intended reader, the core problem solved, and the practical outcome."
         )
 
         category_prompt = f" Focusing primarily on category: '{category}'." if category else ""
@@ -309,6 +335,11 @@ class IdeaResearchService:
             )
         ]
 
+        intended_reader = trend.intended_reader or trend.target_audience
+        problem_solved = trend.problem_solved or f"Challenges and inefficiencies related to {trend.topic}"
+        practical_outcome = trend.practical_outcome or f"Actionable understanding and workflows for {trend.topic}"
+        content_category = trend.content_category or trend.category
+
         if dedup_match.is_duplicate:
             # Create a rejected idea record explaining the duplication
             scores = self.ranker.score_idea(
@@ -327,6 +358,10 @@ class IdeaResearchService:
                 prompt=f"Rejected duplicate: {dedup_match.reason}",
                 category=trend.category,
                 audience=trend.target_audience,
+                intended_reader=intended_reader,
+                problem_solved=problem_solved,
+                practical_outcome=practical_outcome,
+                content_category=content_category,
                 book_type="practical_guide",
                 summary=trend.why_now,
                 angle=trend.angle,
@@ -348,6 +383,9 @@ class IdeaResearchService:
             angle=trend.angle,
             why_now=trend.why_now,
             category=trend.category,
+            intended_reader=intended_reader,
+            problem_solved=problem_solved,
+            practical_outcome=practical_outcome,
         )
 
         uniqueness_val = 0.90 if not dedup_match.distinct_angle_accepted else 0.75
@@ -373,6 +411,10 @@ class IdeaResearchService:
             prompt=full_prompt,
             category=trend.category,
             audience=trend.target_audience,
+            intended_reader=intended_reader,
+            problem_solved=problem_solved,
+            practical_outcome=practical_outcome,
+            content_category=content_category,
             book_type="practical_guide",
             summary=f"A comprehensive {pages}-page guide covering {trend.topic}.",
             angle=trend.angle,

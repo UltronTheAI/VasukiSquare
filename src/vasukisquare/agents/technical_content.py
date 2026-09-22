@@ -65,14 +65,18 @@ def classify_topic(topic: str, description: Optional[str] = None) -> TopicClassi
     """Analyze topic and description to determine technical pedagogy requirements."""
     combined = f"{topic} {description or ''}".lower()
 
-    # Check for technical keywords
+    # Check for programming language or explicit coding tutorial keywords
+    coding_keywords = ["python", "javascript", "typescript", "rust", "golang", "go", "java", "c++", "c#", "ruby", "php", "swift", "kotlin", "sql query", "react code"]
+    is_coding_tutorial = any(re.search(r'\b' + re.escape(kw) + r'\b', combined) for kw in coding_keywords) and any(w in combined for w in ["code", "programming", "script", "syntax", "from scratch", "beginner guide to coding"])
+
+    # Check for general technical keywords
     matched_tech = []
     for kw in TECHNICAL_KEYWORDS:
         if re.search(r'\b' + re.escape(kw) + r'\b', combined):
             matched_tech.append(kw)
 
     is_tech = len(matched_tech) > 0 or any(w in combined for w in [
-        "code", "program", "build", "guide", "tutorial", "architecture", "setup", "install", "api", "database", "query", "syntax"
+        "technology", "guide", "architecture", "database", "ai", "security", "cloud", "privacy"
     ])
 
     primary_tech = matched_tech[0].capitalize() if matched_tech else None
@@ -95,11 +99,11 @@ def classify_topic(topic: str, description: Optional[str] = None) -> TopicClassi
         is_technical=is_tech,
         primary_category=category,
         primary_technology=primary_tech,
-        require_cli_commands=is_tech,
-        require_code_examples=is_tech,
+        require_cli_commands=is_coding_tutorial,
+        require_code_examples=is_coding_tutorial,
         require_architecture_diagrams=is_tech,
-        require_practical_exercises=is_tech,
-        require_troubleshooting=is_tech,
+        require_practical_exercises=True,
+        require_troubleshooting=True,
     )
 
 

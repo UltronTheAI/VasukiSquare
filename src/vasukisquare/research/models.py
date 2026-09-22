@@ -247,6 +247,10 @@ class BookIdea(BaseModel):
     pages: int = Field(default=60, ge=40, le=100, description="Target page count strictly between 40 and 100")
     prompt: str = Field(description="Production-quality editorial brief prompt for VasukiSquare")
     category: str = "Technology"
+    content_category: str = "Practical Guide"
+    intended_reader: str = "General Practitioners and Professionals"
+    problem_solved: str = ""
+    practical_outcome: str = ""
     audience: str = "General Practitioners and Professionals"
     book_type: str = "practical_guide"
     summary: str = ""
@@ -292,6 +296,12 @@ class BookIdea(BaseModel):
                 title = data.get("title") or data.get("topic") or "idea"
                 slug_base = re.sub(r"[^\w\s-]", "", str(title)).strip().lower()
                 data["slug"] = re.sub(r"[-\s]+", "-", slug_base)
+            if not data.get("intended_reader") and data.get("audience"):
+                data["intended_reader"] = data["audience"]
+            if not data.get("audience") and data.get("intended_reader"):
+                data["audience"] = data["intended_reader"]
+            if not data.get("content_category") and data.get("category"):
+                data["content_category"] = data["category"]
             if "status" in data and isinstance(data["status"], str):
                 try:
                     data["status"] = IdeaStatus(data["status"].lower())
@@ -306,12 +316,28 @@ class RawTrendDiscovery(BaseModel):
 
     topic: str
     category: str = "Technology"
+    content_category: str = "Practical Guide"
+    intended_reader: str = "Practitioners and Everyday Learners"
+    problem_solved: str = "Understanding complex tools or concepts to make better practical decisions"
+    practical_outcome: str = "Clear actionable mental model and framework applied in real life"
     why_now: str = ""
     target_audience: str = "Practitioners and Enthusiasts"
     estimated_depth: str = Field(default="moderate", description="narrow, moderate, broad, comprehensive")
     suggested_pages: int = Field(default=60, ge=40, le=100)
     angle: str = ""
     trend_signals: List[str] = Field(default_factory=list)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _sync_audience_and_category(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if not data.get("intended_reader") and data.get("target_audience"):
+                data["intended_reader"] = data["target_audience"]
+            if not data.get("target_audience") and data.get("intended_reader"):
+                data["target_audience"] = data["intended_reader"]
+            if not data.get("content_category") and data.get("category"):
+                data["content_category"] = data["category"]
+        return data
 
 
 class TrendDiscoveryList(BaseModel):
@@ -325,6 +351,10 @@ class DetailedIdeaPrompt(BaseModel):
 
     title: str = Field(description="Crisp public title <= 50 chars")
     summary: str = Field(description="Executive summary of the book")
+    intended_reader: str = "General Practitioners and Professionals"
+    problem_solved: str = ""
+    practical_outcome: str = ""
+    content_category: str = "Practical Guide"
     audience: str = "General Practitioners and Professionals"
     book_type: str = "practical_guide"
     angle: str = ""
@@ -338,3 +368,15 @@ class DetailedIdeaPrompt(BaseModel):
     bookworthiness_score: float = Field(default=0.8, ge=0.0, le=1.0)
     evergreen_score: float = Field(default=0.8, ge=0.0, le=1.0)
     confidence_score: float = Field(default=0.8, ge=0.0, le=1.0)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _sync_fields(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            if not data.get("intended_reader") and data.get("audience"):
+                data["intended_reader"] = data["audience"]
+            if not data.get("audience") and data.get("intended_reader"):
+                data["audience"] = data["intended_reader"]
+            if not data.get("content_category") and data.get("category"):
+                data["content_category"] = data["category"]
+        return data

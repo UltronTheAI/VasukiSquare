@@ -907,30 +907,29 @@ class PageWriterAgent:
             page_type_enum = TechnicalPageType(p.page_type)
         except (ValueError, TypeError):
             pass
-        spec = PAGE_TYPE_SPECS.get(page_type_enum, PAGE_TYPE_SPECS[TechnicalPageType.CONCEPT])
+        is_code_required = bool(
+            plan.intent.code_requirements
+            and (
+                p.visual_anchor == VisualAnchorType.CODE
+                or p.layout == LayoutType.CODE_FOCUS.value
+                or (p.page_purpose and p.page_purpose.is_hands_on)
+            )
+        )
 
-        if is_tech:
-            author_role = "principal technical author and software architect"
-            guidelines = (
-                f"1. Ground all technical details, APIs, code samples, commands, and concepts directly in the Research Dossier below.\n"
-                f"2. Never use generic placeholder sentences. Every sentence must teach concrete details about {plan.title}.\n"
-                f"3. If generating code, provide clean, concise, syntactically complete {primary_lang} code (10-20 lines max). Every code snippet must be 100% complete with all delimiters closed, all statements finished, and no mid-line cutoff.\n"
-                f"4. Never create a terminal component without at least one executable command. If no meaningful command is appropriate, do not create a terminal component.\n"
-                f"5. Include an actionable CalloutBox (tip, best practice, or common pitfall).\n"
-                f"6. Populate cited_source_urls with the URLs from the dossier actually used."
-            )
-        else:
-            author_role = "expert editorial non-fiction author and subject specialist"
-            guidelines = (
-                "1. Ground all behavioral concepts, strategies, examples, and frameworks in the Research Dossier below.\n"
-                "2. Write warm, practical, engaging, actionable advice. Never output code snippets or terminal commands.\n"
-                "3. Provide rich substantive paragraphs (80-120 words for lead, 60-100 words for secondary).\n"
-                "4. Include an actionable CalloutBox (tip, insight, or reflection exercise).\n"
-                "5. Populate cited_source_urls with the URLs from the dossier actually used."
-            )
+        guidelines = (
+            "1. VasukiSquare Identity: Publish short, practical, approachable guides that help ordinary people understand something, "
+            "improve something, or accomplish something.\n"
+            "2. ANTI-CLICHE DIRECTIVE: Strictly avoid generic AI filler, including 'In today's fast-paced world', 'In the digital age', "
+            "'Unlock the power of', 'Game-changing', 'Let's dive in', or empty introductory fluff. Jump straight into clear, substantive explanations.\n"
+            "3. Ground all concepts, frameworks, and practical insights directly in the Research Dossier below.\n"
+            f"4. {'Provide clean, concise, syntactically complete code (10-20 lines max).' if is_code_required else 'DO NOT output source code snippets or terminal commands. Focus on mental models, practical frameworks, tradeoffs, and actionable workflows.'}\n"
+            "5. Structure: Provide rich, substantive paragraphs (80-120 words for lead paragraph).\n"
+            "6. Actionable Elements: Include a relevant checklist, comparison table, diagram, or practical callout box (tip, key takeaway, or pitfall).\n"
+            "7. Populate cited_source_urls with the URLs from the dossier actually used."
+        )
 
         system_prompt = (
-            f"You are an {author_role} writing an authoritative educational ebook.\n"
+            f"You are a master educational author and subject specialist writing for VasukiSquare.\n"
             f"Book Title: '{plan.title}'\n"
             f"Target Audience: {plan.intent.target_audience} (Depth: {plan.intent.technical_depth})\n"
             f"Tone: {plan.intent.tone}\n\n"

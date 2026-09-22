@@ -142,13 +142,6 @@ def build_requirement_coverage_matrix(
 
     # 1. Check required topics
     req_topics = list(intent.required_topics or [])
-    if intent.is_technical:
-        if not any("syntax" in t.lower() or "variable" in t.lower() for t in req_topics):
-            req_topics.append("Core Syntax & Variables")
-        if not any("loop" in t.lower() or "control" in t.lower() for t in req_topics):
-            req_topics.append("Control Flow & Loops")
-        if not any("function" in t.lower() for t in req_topics):
-            req_topics.append("Functions & Reusability")
 
     for req in req_topics:
         req_norm = req.lower()
@@ -478,22 +471,27 @@ class EditorialPlannerAgent:
 
         if intent.is_technical:
             system_prompt = (
-                f"You are a master technical author and curriculum architect. "
+                f"You are a master educational author and curriculum architect. "
                 f"Create a logically structured, progressive Table of Contents for an ebook titled: '{title}'.\n"
                 f"Target Audience: {intent.target_audience} (Depth: {intent.technical_depth}).\n"
-                f"Primary Language / Ecosystem: {intent.primary_programming_language or 'Domain Standard'}.\n\n"
+                f"VasukiSquare Identity: Publish short, practical, approachable guides that help ordinary people understand something, "
+                f"improve something, or accomplish something.\n\n"
                 f"CRITICAL INSTRUCTIONS:\n"
-                f"1. Generate EXACTLY {chapter_count} sequential chapters taking the reader progressively from basics to building real applications.\n"
-                f"2. DERIVE the outline strictly from the core pedagogical curriculum and required topics. "
+                f"1. Generate EXACTLY {chapter_count} sequential chapters taking the reader progressively from core mental models to practical real-world mastery.\n"
+                f"2. DO NOT format as a coding tutorial, CLI syntax manual, or API reference unless explicitly requested. "
+                f"Focus on conceptual clarity, workflows, architecture, decision frameworks, and actionable insights.\n"
+                f"3. DERIVE the outline strictly from the core pedagogical curriculum and required topics. "
                 f"DO NOT copy web search snippet titles, Wikipedia headings, or SEO strings into chapter titles.\n"
-                f"3. For EACH chapter, specify 3 to 4 distinct key_sections covering concrete subtopics.\n"
-                f"4. Assign a relevant Lucide icon (e.g. terminal, code, database, layers, cpu, shield-check, zap, compass) to each chapter."
+                f"4. For EACH chapter, specify 3 to 4 distinct key_sections covering concrete subtopics.\n"
+                f"5. Assign a relevant Lucide icon (e.g. compass, shield-check, sparkles, layers, zap, cpu, database) to each chapter."
             )
         else:
             system_prompt = (
                 f"You are a master author and educational book architect. "
                 f"Create a logically structured, progressive Table of Contents for a practical guide titled: '{title}'.\n"
                 f"Target Audience: {intent.target_audience} (Tone: {intent.tone}).\n"
+                f"VasukiSquare Identity: Publish short, practical, approachable guides that help ordinary people understand something, "
+                f"improve something, or accomplish something.\n"
                 f"Desired Elements: {', '.join(intent.desired_elements) if intent.desired_elements else 'exercises, checklists, action plans'}.\n\n"
                 f"CRITICAL INSTRUCTIONS:\n"
                 f"1. Generate EXACTLY {chapter_count} sequential chapters that take the reader from foundational concepts to lasting practical mastery.\n"

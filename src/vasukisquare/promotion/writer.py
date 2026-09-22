@@ -11,27 +11,23 @@ from vasukisquare.promotion.models import GeneratedArticleContent, PromotionPost
 
 logger = logging.getLogger("vasukisquare.promotion.writer")
 
-PROMOTION_SYSTEM_PROMPT = """You are a senior software engineer and technical educator writing a high-signal, in-depth technical article for DEV Community (dev.to).
+PROMOTION_SYSTEM_PROMPT = """You are a senior technical writer and educational essayist writing a high-signal article for DEV Community (dev.to) and developer platforms.
 
-Your goal is to write a standalone, genuinely valuable educational article exploring the core technical architectural principles, design patterns, or engineering methodologies discussed in a published technical ebook.
+Your goal is to write a standalone, genuinely valuable, human-readable educational article exploring core principles, practical workflows, mental models, or actionable insights from a published guide.
 
-GUIDELINES FOR THE ARTICLE:
-1. VALUE FIRST: The article MUST stand on its own as a great technical tutorial or architecture breakdown. Teach actionable concepts, provide clear mental models, and use clean code snippets, ASCII diagrams, or comparison tables where appropriate.
-2. NO SPAMMY MARKETING: Never write generic sales pitches, hollow buzzwords, or "Buy this book now!" spam. Write with an authoritative, practitioner-focused voice.
-3. NO FAKE ANECDOTES: Do not claim personal experiences you did not have (e.g. "When I was at company X"). Focus purely on technical merit and engineering analysis.
-4. NATURAL EBOOK ATTRIBUTION: Near the conclusion of the article, naturally introduce the full open-access ebook as an extended reference for readers who want to dive deeper into the full curriculum.
-5. CANONICAL LINK: You will be given the canonical ebook URL. You MUST include a clear Markdown hyperlink to this canonical URL in your conclusion section (e.g., `[Read the full technical ebook online for free: Title]({canonical_url})`).
-6. DEV.TO MARKDOWN FORMATTING: Use clean GitHub/DEV-flavored Markdown with standard headers (`##`, `###`), bolding, code fences, and lists.
-7. DEV.TO TAGS REQUIREMENTS:
+EDITORIAL GUIDELINES FOR THE ARTICLE:
+1. VALUE FIRST: The article MUST stand on its own as a valuable read. Deliver immediate insight, practical workflows, and clear mental models even if the reader never clicks any external link.
+2. NO SPAMMY MARKETING: Never write sales pitches, generic hype, hollow buzzwords, or "Read my new book!" spam. Write with an authoritative, practitioner-focused voice.
+3. ADAPTIVE CONTENT: If the guide is about programming, use clean code examples. If the guide is about AI prompting, digital privacy, cloud concepts, habits, or productivity, explain concepts using mental models, structured checklists, decision tables, and practical scenarios without forcing arbitrary code snippets.
+4. NO FAKE ANECDOTES: Do not invent fake corporate stories ("When I worked at BigTech Corp"). Focus on real principles, methodologies, and clear analysis.
+5. CLEAN ATTRIBUTION: Near the conclusion of the article, naturally introduce the full open-access guide as a free, comprehensive reference for readers who want to explore further.
+6. CANONICAL LINK: You will be given the canonical guide URL. Include a clean Markdown hyperlink to this canonical URL in your conclusion section (e.g., `[Read the full guide online for free: Title]({canonical_url})`).
+7. DEV.TO MARKDOWN FORMATTING: Use clean GitHub/DEV-flavored Markdown with standard headers (`##`, `###`), bolding, tables, and lists.
+8. DEV.TO TAGS REQUIREMENTS:
    - Must contain ONLY lowercase ASCII letters and numbers (a-z, 0-9).
-   - Must NOT contain spaces.
-   - Must NOT contain hyphens (e.g. write 'urbangardening', NEVER 'urban-gardening'; write 'designpatterns', NEVER 'design-patterns').
-   - Must NOT contain underscores (e.g. write 'systemdesign', NEVER 'system_design').
-   - Must NOT contain '#' prefixes (e.g. write 'python', NEVER '#python').
-   - Must NOT contain punctuation or non-ASCII characters.
+   - Must NOT contain spaces, hyphens, underscores, or '#' prefixes.
    - Must be between 2 and 30 characters in length.
-   - Suggest ONLY 2 to 4 relevant tags.
-   - Examples of valid tags: ['python', 'webdev', 'architecture', 'systemdesign', 'gardening', 'sustainability']
+   - Suggest ONLY 2 to 4 relevant tags (e.g. ['productivity', 'ai', 'cloud', 'security', 'webdev']).
 """
 
 
@@ -52,7 +48,12 @@ class PromotionWriter:
         clean_slug = (slug or "").strip().lstrip("/")
         return f"{base}/book/{clean_slug}"
 
-    def _format_book_context(self, book: Book, canonical_url: str) -> str:
+    def _format_book_context(
+        self,
+        book: Book,
+        canonical_url: str,
+        angle_type: Optional[str] = None,
+    ) -> str:
         """Construct rich contextual prompt detailing the book's contents and editorial structure."""
         chapters_text = ""
         if book.chapters:
@@ -64,26 +65,37 @@ class PromotionWriter:
         else:
             chapters_text = "Standard comprehensive curriculum."
 
-        keywords_str = ", ".join(book.discovery.keywords) if book.discovery.keywords else book.category or "Software Engineering"
+        keywords_str = ", ".join(book.discovery.keywords) if book.discovery.keywords else book.category or "Technology"
+
+        angle_instruction = ""
+        if angle_type == "mistakes_breakdown":
+            angle_instruction = "\nEDITORIAL ANGLE: Focus on the top misconceptions, anti-patterns, and common mistakes people make, and how to fix them."
+        elif angle_type == "actionable_checklist":
+            angle_instruction = "\nEDITORIAL ANGLE: Structure the article as a practical, step-by-step checklist / implementation playbook."
+        elif angle_type == "mental_model":
+            angle_instruction = "\nEDITORIAL ANGLE: Break down the core mental models and foundational concepts with clear analogies and decision frameworks."
+        elif angle_type == "deep_dive":
+            angle_instruction = "\nEDITORIAL ANGLE: Provide a deep-dive exploration of a key subtopic or architectural principle from the guide."
 
         prompt = f"""EBOOK CONTEXT:
 - Title: {book.title}
 - Subtitle: {book.subtitle or 'A Comprehensive Practical Guide'}
 - Domain / Category: {book.category or 'Technology & Computing'}
-- Target Audience: {book.target_audience or 'Software Developers, Architects, and Tech Enthusiasts'}
-- Technical Depth: {book.technical_depth or 'Intermediate to Advanced'}
+- Target Audience: {book.target_audience or 'Professionals, Learners, and Curious Thinkers'}
+- Technical Depth: {book.technical_depth or 'Practical & Approachable'}
 - Tone: {book.tone or 'Authoritative and Pragmatic'}
 - Core Topics & Keywords: {keywords_str}
 - Synopsis: {book.description or book.prompt}
 
 CHAPTER STRUCTURE:
 {chapters_text}
+{angle_instruction}
 
 CANONICAL EBOOK URL:
 {canonical_url}
 
 TASK:
-Write a comprehensive, engaging technical article (approx. 700 - 1500 words) for DEV Community exploring key insights, architecture patterns, or hands-on concepts from this ebook. Ensure the canonical URL is naturally embedded near the end."""
+Write a comprehensive, engaging educational article (approx. 700 - 1500 words) for DEV Community exploring key insights, mental models, or hands-on practices from this guide. Ensure the canonical URL is naturally embedded near the end."""
         return prompt
 
     def _normalize_tags(
@@ -116,10 +128,11 @@ Write a comprehensive, engaging technical article (approx. 700 - 1500 words) for
         book: Book,
         campaign_run_id: str,
         platform: str = "devto",
+        angle_type: Optional[str] = None,
     ) -> PromotionPost:
         """Generate a validated PromotionPost for the given book and campaign."""
         canonical_url = self.build_canonical_url(book.slug)
-        user_prompt = self._format_book_context(book, canonical_url)
+        user_prompt = self._format_book_context(book, canonical_url, angle_type=angle_type)
 
         logger.info(
             f"[PromotionWriter:START] Generating article for book='{book.title}' (slug={book.slug}) "
