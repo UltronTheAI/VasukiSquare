@@ -49,7 +49,7 @@ jobs:
       MONGODB_URI: ${{ secrets.MONGODB_URI }}
       MONGODB_DATABASE: ${{ secrets.MONGODB_DATABASE || vars.MONGODB_DATABASE || 'vasukisquare' }}
       DEVTO_API_KEY: ${{ secrets.DEVTO_API_KEY }}
-      PUBLICATION_BASE_URL: ${{ vars.PUBLICATION_BASE_URL || 'https://vasukisquare.cc' }}
+      PUBLICATION_BASE_URL: ${{ vars.PUBLICATION_BASE_URL || 'https://www.vasukisquare.cc' }}
       PROMOTION_PLATFORM: devto
       PROMOTION_BOOK_COOLDOWN_HOURS: '72'
       PROMOTION_POSTS_PER_RUN: ${{ inputs.count || '3' }}
